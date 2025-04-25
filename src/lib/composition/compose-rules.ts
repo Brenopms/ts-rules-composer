@@ -1,4 +1,3 @@
-import { fail } from "../helpers/fail";
 import { pass } from "../helpers/pass";
 import { CompositionOptions } from "../types/composition-options";
 import { Rule } from "../types/rule";
