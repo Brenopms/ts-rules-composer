@@ -1,10 +1,7 @@
 import { composeRules } from "./compose-rules";
-
-import { fail } from "../helpers/result/fail";
-
+import { fail, pass } from "../helpers";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { Rule } from "../types/rule";
-import { pass } from '../helpers/result/pass';
+import { Rule } from "../types";
 
 describe("composeRules", () => {
   // Mock rules
@@ -73,14 +70,11 @@ it("should preserve custom error types", async () => {
   expect(result).toEqual(fail({ code: 400, message: "Bad" }));
 });
 
-
 it("should handle 1000+ rules without stack overflow", async () => {
   const manyRules = Array(1000).fill(() => pass());
   const validator = composeRules(manyRules);
   await expect(validator({})).resolves.toEqual(pass());
 });
-
-
 
 describe("Context behavior tests", () => {
   const countingRule = vi.fn((_: unknown, ctx: any) => {
@@ -114,10 +108,9 @@ describe("Context behavior tests", () => {
 
   it("should prevent context mutations when cloneContext=true", async () => {
     const context = { count: 0 };
-    const validator = composeRules(
-      [countingRule, expectCountRule(1)],
-      { cloneContext: true },
-    );
+    const validator = composeRules([countingRule, expectCountRule(1)], {
+      cloneContext: true,
+    });
 
     const result = await validator({}, context);
 
@@ -125,7 +118,6 @@ describe("Context behavior tests", () => {
     expect(context.count).toBe(0); // Original context untouched
     expect(countingRule.mock.calls[0][1].count).toBe(1); // First clone
   });
-
 
   it("should deep clone complex context objects", async () => {
     const context = { nested: { value: 0 } };

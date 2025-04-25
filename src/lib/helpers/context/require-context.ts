@@ -1,6 +1,5 @@
-import { Rule } from "../../types/rule";
-import { RuleResult } from "../../types/rule-result";
-import { fail } from "../result/fail";
+import { Rule, RuleResult } from "../../types";
+import { fail } from "../result";
 
 export const requireContextRule = <
   TInput,

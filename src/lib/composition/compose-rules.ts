@@ -1,6 +1,5 @@
-import { pass } from '../helpers/result/pass';
-import { CompositionOptions } from "../types/composition-options";
-import { Rule } from "../types/rule";
+import { pass } from '../helpers';
+import { CompositionOptions, Rule } from "../types";
 
 /**
  * Composes rules sequentially (fail-fast)

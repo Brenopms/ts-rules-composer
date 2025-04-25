@@ -1,8 +1,7 @@
 import { describe, vi, beforeEach, it, expect } from "vitest";
-import { Rule } from "../../types/rule";
-import { fail } from "../result/fail";
+import { Rule } from "../../types";
+import { fail, pass } from "../result";
 import { withLazyContext } from "./with-lazy-context";
-import { pass } from "../result/pass";
 
 describe("withLazyContext", () => {
   const mockLoader = vi.fn();

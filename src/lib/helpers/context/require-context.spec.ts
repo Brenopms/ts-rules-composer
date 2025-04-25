@@ -1,7 +1,6 @@
 import { describe, vi, beforeEach, it, expect } from "vitest";
-import { fail } from "../result/fail";
+import { fail, pass } from "../result";
 import { requireContextRule } from "./require-context";
-import { pass } from "../result/pass";
 
 describe("requireContextRule", () => {
   type UserContext = { userId: string };

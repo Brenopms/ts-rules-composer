@@ -1,7 +1,6 @@
 import { describe, beforeEach, it, expect, vi } from "vitest";
-import { fail } from "../../helpers/result/fail";
+import { fail, pass } from "../../helpers";
 import { mapError } from "./map-error";
-import { pass } from '../../helpers/result/pass';
 
 describe("mapError combinator", () => {
   const mockTransform = vi.fn((err: string) => `Mapped: ${err}`);
@@ -61,5 +60,4 @@ describe("mapError combinator", () => {
     const mappedRule = mapError(errorRule, mockTransform);
     await expect(mappedRule({})).rejects.toThrow("Boom!");
   });
-
 });

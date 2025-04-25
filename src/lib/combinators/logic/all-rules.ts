@@ -1,7 +1,5 @@
-import { fail } from "../../helpers/result/fail";
-import { pass } from "../../helpers/result/pass";
-import { CompositionOptions } from "../../types/composition-options";
-import { Rule } from "../../types/rule";
+import { fail, pass } from "../../helpers";
+import { CompositionOptions, Rule } from "../../types";
 
 
 export const allRules = <TInput, TError = string, TContext = unknown>(

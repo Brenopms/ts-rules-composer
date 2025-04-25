@@ -1,8 +1,7 @@
 import { describe, vi, beforeEach, it, expect } from "vitest";
 import { composeRules } from "../../composition/compose-rules";
-import { fail } from "../../helpers/result/fail";
-import { pass } from "../../helpers/result/pass";
-import { Rule } from "../../types/rule";
+import { fail, pass } from "../../helpers";
+import { Rule } from "../../types";
 import { tap } from "./tap";
 
 describe("tap (standalone)", () => {

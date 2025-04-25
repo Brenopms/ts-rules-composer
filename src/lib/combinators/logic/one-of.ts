@@ -1,6 +1,5 @@
-import { fail } from "../../helpers/result/fail";
-import { pass } from "../../helpers/result/pass";
-import { Rule } from "../../types/rule";
+import { fail, pass } from "../../helpers";
+import { Rule } from "../../types";
 
 /**
  * Succeeds if any of the provided rules pass (OR logic)

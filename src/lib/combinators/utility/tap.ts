@@ -1,5 +1,4 @@
-import { Rule } from "../../types/rule";
-import { RuleResult } from "../../types/rule-result";
+import { Rule, RuleResult } from "../../types";
 
 export const tap = <TInput, TError = string, TContext = unknown>(
   effect: (

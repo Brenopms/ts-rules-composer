@@ -1,6 +1,5 @@
-import { fail } from "../../helpers/result/fail";
-import { pass } from '../../helpers/result/pass';
-import { Rule } from "../../types/rule";
+import { fail, pass } from "../../helpers";
+import { Rule } from "../../types";
 
 export const mapError = <TInput, TError, TNewError>(
   rule: Rule<TInput, TError>,
