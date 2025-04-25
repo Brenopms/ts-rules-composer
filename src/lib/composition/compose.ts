@@ -11,7 +11,7 @@ export const composeRules = <TInput, TError = string>(
   options: CompositionOptions = {},
 ): Rule<TInput, TError> => {
   return async (input: TInput, context?: unknown) => {
-    let currentContext = options?.cloneContext
+    const currentContext = options?.cloneContext
       ? structuredClone(context)
       : context;
 
@@ -33,9 +33,9 @@ export const allRules = <TInput, TError = string>(
   options: CompositionOptions = {},
 ): Rule<TInput, TError[]> => {
   return async (input: TInput, context?: unknown) => {
-    let currentContext = options?.cloneContext
-    ? structuredClone(context)
-    : context;
+    const currentContext = options?.cloneContext
+      ? structuredClone(context)
+      : context;
 
     const results = await Promise.all(
       rules.map((rule) => rule(input, currentContext)),

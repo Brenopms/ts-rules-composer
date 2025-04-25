@@ -220,6 +220,20 @@ describe("Context behavior tests", () => {
     expect(countingRule.mock.calls[0][1].count).toBe(1); // First clone
   });
 
+  it("should prevent context mutations when cloneContext=true for allRules", async () => {
+    const context = { count: 0 };
+    const validator = allRules(
+      [countingRule, expectCountRule(1)],
+      { cloneContext: true },
+    );
+
+    const result = await validator({}, context);
+
+    expect(result).toEqual(pass());
+    expect(context.count).toBe(0); // Original context untouched
+    expect(countingRule.mock.calls[0][1].count).toBe(1); // First clone
+  });
+
   it("should deep clone complex context objects", async () => {
     const context = { nested: { value: 0 } };
     const mutateNested = vi.fn((_, ctx) => {
