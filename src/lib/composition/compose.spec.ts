@@ -1,10 +1,10 @@
 import { composeRules } from "./compose-rules";
 
-import { fail } from "../helpers/fail";
-import { pass } from "../helpers/pass";
+import { fail } from "../helpers/result/fail";
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Rule } from "../types/rule";
+import { pass } from '../helpers/result/pass';
 
 describe("composeRules", () => {
   // Mock rules

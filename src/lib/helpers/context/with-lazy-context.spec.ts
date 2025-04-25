@@ -1,8 +1,8 @@
 import { describe, vi, beforeEach, it, expect } from "vitest";
-import { Rule } from "../types/rule";
-import { fail } from "./fail";
-import { pass } from "./pass";
+import { Rule } from "../../types/rule";
+import { fail } from "../result/fail";
 import { withLazyContext } from "./with-lazy-context";
+import { pass } from "../result/pass";
 
 describe("withLazyContext", () => {
   const mockLoader = vi.fn();
@@ -59,16 +59,16 @@ describe("withLazyContext", () => {
   it("should preserve input types", async () => {
     type StrictInput = { id: string };
     type LooseInput = { other: number };
-    
+
     const typedRule: Rule<StrictInput, string, { db: any }> = () => pass();
-    
+
     // Valid usage - should pass
     const validLoader = (input: StrictInput) => ({ db: input.id });
     withLazyContext(validLoader, typedRule);
-    
+
     // Invalid usage - should fail type check
     const invalidLoader = (input: LooseInput) => ({ db: input.other });
-    
+
     // @ts-expect-error - This should now properly fail
     withLazyContext(invalidLoader, typedRule);
   });

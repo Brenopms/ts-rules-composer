@@ -1,5 +1,5 @@
-import { Rule } from "../types/rule";
-import { fail } from "./fail";
+import { Rule } from "../../types/rule";
+import { fail } from "../result/fail";
 
 export const withLazyContext = <TInput, TError, TContext>(
   loader: (input: TInput) => Promise<TContext> | TContext,

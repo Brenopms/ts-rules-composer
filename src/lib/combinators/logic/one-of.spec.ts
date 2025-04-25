@@ -1,7 +1,7 @@
 import { describe, beforeEach, it, expect, vi } from 'vitest';
-import { fail } from '../helpers/fail';
-import { pass } from '../helpers/pass';
-import { Rule } from '../types/rule';
+import { fail } from '../../helpers/result/fail';
+import { pass } from '../../helpers/result/pass';
+import { Rule } from '../../types/rule';
 import { oneOf } from './one-of';
 
 describe('oneOf combinator', () => {

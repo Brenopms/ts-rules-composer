@@ -1,4 +1,4 @@
-import { pass } from "../helpers/pass";
+import { pass } from '../helpers/result/pass';
 import { CompositionOptions } from "../types/composition-options";
 import { Rule } from "../types/rule";
 

@@ -1,6 +1,6 @@
-import { fail } from "../helpers/fail";
-import { pass } from "../helpers/pass";
-import { Rule } from "../types/rule";
+import { fail } from "../../helpers/result/fail";
+import { pass } from "../../helpers/result/pass";
+import { Rule } from "../../types/rule";
 
 export const not = <TInput, TError = string>(
   rule: Rule<TInput, TError>,

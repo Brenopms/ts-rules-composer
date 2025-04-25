@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { pass } from "../helpers/pass";
+import { pass } from "../../helpers/result/pass";
 import { not } from "./not";
-import { fail } from "../helpers/fail";
+import { fail } from "../../helpers/result/fail";
 
 describe("not combinator", () => {
   const mockRule = vi.fn(() => pass());

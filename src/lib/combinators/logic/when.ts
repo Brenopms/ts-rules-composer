@@ -1,5 +1,5 @@
-import { pass } from "../helpers/pass";
-import { Rule } from "../types/rule";
+import { pass } from "../../helpers/result/pass";
+import { Rule } from "../../types/rule";
 
 export const when = <TInput, TError = string>(
   predicate: (input: TInput) => boolean | Promise<boolean>,

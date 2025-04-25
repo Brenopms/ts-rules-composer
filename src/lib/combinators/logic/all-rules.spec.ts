@@ -1,8 +1,8 @@
-import { fail } from "../helpers/fail";
-import { pass } from "../helpers/pass";
+import { fail } from "../../helpers/result/fail";
+import { pass } from "../../helpers/result/pass";
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { Rule } from "../types/rule";
+import { Rule } from "../../types/rule";
 import { allRules } from "./all-rules";
 
 describe("allRules", () => {

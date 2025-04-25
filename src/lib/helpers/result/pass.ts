@@ -1,4 +1,4 @@
-import { RuleResult } from '../types/rule-result';
+import { RuleResult } from '../../types/rule-result';
 
 /**
  * Helper to create success results
