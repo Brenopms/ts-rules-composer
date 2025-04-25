@@ -1,10 +1,9 @@
-import { allRules, composeRules } from "./compose-rules";
-
 import { fail } from "../helpers/fail";
 import { pass } from "../helpers/pass";
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Rule } from "../types/rule";
+import { allRules } from "./all-rules";
 
 describe("allRules", () => {
   const delay = (ms: number) =>
@@ -102,12 +101,6 @@ describe("Niche errors", () => {
     expect(result).toEqual(fail(["Sync error", "Async error"]));
   });
 
-  it("should handle 1000+ rules without stack overflow", async () => {
-    const manyRules = Array(1000).fill(() => pass());
-    const validator = composeRules(manyRules);
-    await expect(validator({})).resolves.toEqual(pass());
-  });
-
   it("should handle 1000+ parallel rules", async () => {
     const manyRules = Array(1000).fill(() => pass());
     const validator = allRules(manyRules);
@@ -185,7 +178,7 @@ describe("Context behavior tests", () => {
   });
 
   it("should handle null/undefined context", async () => {
-    const nullValidator = composeRules([], { cloneContext: true });
+    const nullValidator = allRules([], { cloneContext: true });
     await expect(nullValidator({}, null)).resolves.not.toThrow();
     await expect(nullValidator({}, undefined)).resolves.not.toThrow();
   });
@@ -250,7 +243,7 @@ it("should not retain rule references after execution", async () => {
     return pass();
   };
 
-  const validator = composeRules([rule]);
+  const validator = allRules([rule]);
   await validator({});
 
   // This would fail if composition held references
@@ -260,8 +253,13 @@ it("should not retain rule references after execution", async () => {
 it("should handle circular reference errors", async () => {
   const obj: any = { self: null };
   obj.self = obj;
-  const validator = composeRules([() => fail(obj)]);
+
+  const validator = allRules([() => fail(obj), () => pass()]);
   const result = await validator({});
+
   expect(result.status).toBe("failed");
-  expect((result as any).error.self).toBe((result as any).error);
+  // Check circular reference is preserved
+  const errors = (result as any).error;
+  expect(errors[0].self).toBe(errors[0]); // Verify circularity
+  expect(errors).toEqual([obj]); // Verify error content
 });
