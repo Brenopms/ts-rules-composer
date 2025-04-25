@@ -25,3 +25,18 @@ export const requireContextRule = <
     return check(context) ? rule(input, context) : fail(error);
   };
 };
+
+/**
+ * const userRule = requireContextRule(
+  "User context required",
+  (input: string, ctx: { userId: string }) => {
+    return ctx.userId === "admin" 
+      ? pass() 
+      : fail("Unauthorized");
+  }
+);
+
+await userRule("action"); // fails with "User context required"
+await userRule("action", { userId: "user" }); // fails with "Unauthorized"
+await userRule("action", { userId: "admin" }); // passes
+ */
