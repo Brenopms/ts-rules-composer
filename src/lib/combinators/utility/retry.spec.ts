@@ -15,7 +15,7 @@ describe("retry combinator", () => {
   });
 
   it("should succeed if rule eventually passes", async () => {
-    const rule = retry(successOnThirdTry, { attempts: 3 });
+    const rule = retry(successOnThirdTry, { attempts: 3, delayMs: 10 });
     const result = await rule({});
 
     expect(result).toEqual(pass());
@@ -24,7 +24,7 @@ describe("retry combinator", () => {
 
   it("should fail after max attempts", async () => {
     const alwaysFails = vi.fn(() => fail("Persistent error"));
-    const rule = retry(alwaysFails, { attempts: 2 });
+    const rule = retry(alwaysFails, { attempts: 2, delayMs: 10 });
     const result = await rule({});
 
     expect(result).toEqual(fail("MAX_RETRIES_EXCEEDED"));
@@ -48,7 +48,7 @@ describe("retry combinator", () => {
       .mockReturnValueOnce(true) // Retry first error
       .mockReturnValue(false); // Don't retry second
 
-    const rule = retry(mockRule, { attempts: 3, shouldRetry });
+    const rule = retry(mockRule, { attempts: 3, shouldRetry, delayMs: 10 });
     const result = await rule({});
 
     expect(result).toEqual({ status: "failed", error: "Second error" });
@@ -57,7 +57,7 @@ describe("retry combinator", () => {
   });
   it("should pass context to each attempt", async () => {
     const context = { userId: 123 };
-    const rule = retry(successOnThirdTry, { attempts: 2 });
+    const rule = retry(successOnThirdTry, { attempts: 2, delayMs: 10 });
     await rule({}, context);
 
     expect(successOnThirdTry).toHaveBeenCalledWith({}, context);
@@ -72,7 +72,7 @@ describe("retry combinator", () => {
     retry(typedRule, { attempts: 2 });
 
     // @ts-expect-error - Should fail if input types mismatch
-    retry((input: { other: number }) => pass(), { attempts: 2 })({ id: "123" });
+    retry((input: { other: number }) => pass(), { attempts: 2, delayMs: 10 })({ id: "123" });
   });
 
   it('should handle thrown errors', async () => {
