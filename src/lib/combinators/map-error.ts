@@ -8,8 +8,6 @@ export const mapError = <TInput, TError, TNewError>(
 ): Rule<TInput, TNewError> => {
   return async (input: TInput, context?: unknown) => {
     const result = await rule(input, context);
-    return result.status === "failed"
-      ? fail(transform(result.error))
-      : pass();
+    return result.status === "failed" ? fail(transform(result.error)) : pass();
   };
 };
