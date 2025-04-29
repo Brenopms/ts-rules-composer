@@ -1,9 +1,9 @@
 import { describe, vi, beforeEach, it, expect } from "vitest";
 import { fail, pass } from "../../helpers";
 import { Rule } from "../../types";
-import { retry } from "./retry";
+import { withRetry } from "./with-retry";
 
-describe("retry combinator", () => {
+describe("withRetry combinator", () => {
   const successOnThirdTry = vi
     .fn()
     .mockImplementationOnce(() => fail("First error"))
@@ -15,7 +15,7 @@ describe("retry combinator", () => {
   });
 
   it("should succeed if rule eventually passes", async () => {
-    const rule = retry(successOnThirdTry, { attempts: 3, delayMs: 10 });
+    const rule = withRetry(successOnThirdTry, { attempts: 3, delayMs: 10 });
     const result = await rule({});
 
     expect(result).toEqual(pass());
@@ -24,7 +24,7 @@ describe("retry combinator", () => {
 
   it("should fail after max attempts", async () => {
     const alwaysFails = vi.fn(() => fail("Persistent error"));
-    const rule = retry(alwaysFails, { attempts: 2, delayMs: 10 });
+    const rule = withRetry(alwaysFails, { attempts: 2, delayMs: 10 });
     const result = await rule({});
 
     expect(result).toEqual(fail("MAX_RETRIES_EXCEEDED"));
@@ -48,7 +48,7 @@ describe("retry combinator", () => {
       .mockReturnValueOnce(true) // Retry first error
       .mockReturnValue(false); // Don't retry second
 
-    const rule = retry(mockRule, { attempts: 3, shouldRetry, delayMs: 10 });
+    const rule = withRetry(mockRule, { attempts: 3, shouldRetry, delayMs: 10 });
     const result = await rule({});
 
     expect(result).toEqual({ status: "failed", error: "Second error" });
@@ -57,7 +57,7 @@ describe("retry combinator", () => {
   });
   it("should pass context to each attempt", async () => {
     const context = { userId: 123 };
-    const rule = retry(successOnThirdTry, { attempts: 2, delayMs: 10 });
+    const rule = withRetry(successOnThirdTry, { attempts: 2, delayMs: 10 });
     await rule({}, context);
 
     expect(successOnThirdTry).toHaveBeenCalledWith({}, context);
@@ -69,10 +69,10 @@ describe("retry combinator", () => {
     const typedRule: Rule<StrictInput, string> = () => pass();
 
     // Valid usage
-    retry(typedRule, { attempts: 2 });
+    withRetry(typedRule, { attempts: 2 });
 
     // @ts-expect-error - Should fail if input types mismatch
-    retry((input: { other: number }) => pass(), { attempts: 2, delayMs: 10 })({ id: "123" });
+    withRetry((input: { other: number }) => pass(), { attempts: 2, delayMs: 10 })({ id: "123" });
   });
 
   it('should handle thrown errors', async () => {
@@ -80,7 +80,7 @@ describe("retry combinator", () => {
       .mockRejectedValueOnce(new Error('Network error'))
       .mockResolvedValueOnce({ status: 'passed' }); // Second attempt succeeds
   
-    const rule = retry(errorRule, { 
+    const rule = withRetry(errorRule, { 
       attempts: 2,
       shouldRetry: (e) => (e as Error).message === 'Network error'
     });
@@ -94,7 +94,7 @@ describe("retry combinator", () => {
     const errorRule = vi.fn()
       .mockRejectedValue(new Error('Fatal'));
   
-    const rule = retry(errorRule, { 
+    const rule = withRetry(errorRule, { 
       shouldRetry: (e) => (e as Error).message !== 'Fatal'
     });
     

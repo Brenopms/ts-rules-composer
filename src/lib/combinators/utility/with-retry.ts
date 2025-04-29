@@ -1,7 +1,7 @@
 import type { Rule } from "../../types";
-import { pass, fail } from "../../helpers";
+import { fail } from "../../helpers";
 
-export const retry = <TInput, TError = string, TContext = unknown>(
+export const withRetry = <TInput, TError = string, TContext = unknown>(
   rule: Rule<TInput, TError, TContext>,
   options: {
     attempts?: number;
