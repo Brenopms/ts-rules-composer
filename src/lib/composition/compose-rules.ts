@@ -1,8 +1,26 @@
-import { pass } from '../helpers';
+import { pass } from "../helpers";
 import { CompositionOptions, Rule } from "../types";
 
 /**
- * Composes rules sequentially (fail-fast)
+ * Composes multiple rules into a single rule that runs them sequentially (fail-fast).
+ * Stops at the first failure and returns the error.
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error (defaults to string)
+ * @template TContext - The type of the context object (optional)
+ * @param rules - Array of rules to compose
+ * @param options - Configuration options
+ * @param options.cloneContext - Whether to clone the context for each rule (default: false)
+ * @returns A new rule that composes all input rules
+ * @example
+ * const rule = composeRules([
+ *   validateString,
+ *   validateLength,
+ *   validateFormat
+ * ]);
+ *
+ * const result = await rule("test@example.com");
+ * @caveats
+ * - Rules are executed in sequence, not in parallel
  */
 export const composeRules = <TInput, TError = string, TContext = unknown>(
   rules: Rule<TInput, TError, TContext>[],

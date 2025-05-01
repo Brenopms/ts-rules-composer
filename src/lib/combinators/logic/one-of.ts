@@ -2,9 +2,21 @@ import { fail, pass } from "../../helpers";
 import { Rule } from "../../types";
 
 /**
- * Succeeds if any of the provided rules pass (OR logic)
- * @param rules Array of rules to try
- * @returns Rule that passes if any rule passes, or collects all errors
+ * Creates a rule that passes if any of the provided rules pass (short-circuiting).
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error (defaults to string)
+ * @template TContext - The type of the context object (optional)
+ * @param rules - Rules to try (in order)
+ * @returns A rule that passes if any rule passes, or fails with all errors
+ * @example
+ * const rule = oneOf(
+ *   validateEmail,
+ *   validatePhone,
+ *   validateUsername
+ * );
+ * @caveats
+ * - Rules are executed in sequence until one passes
+ * - Returns all errors if all rules fail
  */
 export const oneOf = <TInput, TError = string, TContext = unknown>(
   ...rules: Rule<TInput, TError, TContext>[]

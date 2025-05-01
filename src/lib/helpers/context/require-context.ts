@@ -1,6 +1,26 @@
 import { Rule, RuleResult } from "../../types";
 import { fail } from "../result";
 
+/**
+ * Creates a rule that requires specific context to be present.
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error
+ * @template TContext - The base context type
+ * @template TRequiredContext - The required context type
+ * @param error - Error to return if context is invalid
+ * @param rule - Rule that requires the specific context
+ * @param contextCheck - Optional type guard for context validation
+ * @returns A rule that validates context before execution
+ * @example
+ * const adminRule = requireContextRule(
+ *   "Admin context required",
+ *   (input, context: AdminContext) => { ... },
+ *   (ctx): ctx is AdminContext => ctx?.role === "admin"
+ * );
+ * @caveats
+ * - Fails immediately if context check fails
+ * - Provides type safety for context requirements
+ */
 export const requireContextRule = <
   TInput,
   TError,

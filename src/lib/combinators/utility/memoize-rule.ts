@@ -1,7 +1,27 @@
 import { Rule, RuleResult } from "../../types";
 
-
-// Context changes don't invalidate cache by default
+/**
+ * Creates a memoized version of a rule that caches results based on input keys.
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error (defaults to string)
+ * @template TContext - The type of the context object (optional)
+ * @param rule - The rule to memoize
+ * @param keyFn - Function that generates a cache key from the input
+ * @param options - Memoization options
+ * @param options.ttl - Time-to-live for cache entries in milliseconds
+ * @param options.maxSize - Maximum number of entries to keep in cache
+ * @returns A memoized version of the rule
+ * @example
+ * const memoizedRule = memoizeRule(
+ *   expensiveValidationRule,
+ *   (input) => input.id,
+ *   { ttl: 60000, maxSize: 100 }
+ * );
+ * @caveats
+ * - Context changes don't invalidate cache by default
+ * - Cache cleanup happens during rule execution
+ * - Rejected promises are automatically evicted from cache
+ */
 export const memoizeRule = <TInput, TError = string, TContext = unknown>(
   rule: Rule<TInput, TError, TContext>,
   keyFn: (input: TInput) => string,

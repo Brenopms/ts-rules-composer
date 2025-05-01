@@ -1,5 +1,5 @@
 {
-  "name": "ts-rules-engine",
+  "name": "ts-rules-composer",
   "version": "0.0.1",
   "description": "Typescript rules engine by composition",
   "main": "./dist/cjs/index.js",

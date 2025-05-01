@@ -1,6 +1,27 @@
 import type { Rule } from "../../types";
 import { fail } from "../../helpers";
 
+/**
+ * Wraps a rule with retry logic for handling transient failures.
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error (defaults to string)
+ * @template TContext - The type of the context object (optional)
+ * @param rule - The rule to wrap with retry logic
+ * @param options - Retry configuration
+ * @param options.attempts - Maximum number of attempts (default: 3)
+ * @param options.delayMs - Delay between attempts in milliseconds (default: 100)
+ * @param options.shouldRetry - Function to determine if a failure should be retried
+ * @returns A new rule with retry capability
+ * @example
+ * const rule = withRetry(apiCheckRule, {
+ *   attempts: 5,
+ *   delayMs: 500,
+ *   shouldRetry: (error) => error.statusCode === 503
+ * });
+ * @caveats
+ * - Only retries on failed RuleResults, not on thrown exceptions
+ * - The final error will be "MAX_RETRIES_EXCEEDED" if all attempts fail
+ */
 export const withRetry = <TInput, TError = string, TContext = unknown>(
   rule: Rule<TInput, TError, TContext>,
   options: {

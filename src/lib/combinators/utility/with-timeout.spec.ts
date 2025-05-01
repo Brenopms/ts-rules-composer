@@ -8,9 +8,9 @@ import {
   expect,
 } from "vitest";
 import { pass, fail } from "../../helpers";
-import { Rule, RuleResult } from "../../types";
+import { Rule } from "../../types";
 import { withTimeout } from "./with-timeout";
-import { getError } from "../../../test/helpers/get-rule-error";
+import { getRuleError } from "../../../test/helpers/get-rule-error";
 
 describe("withTimeout", () => {
   beforeAll(() => {
@@ -58,7 +58,7 @@ describe("withTimeout", () => {
 
     const result = await resultPromise;
     expect(result.status).toBe("failed");
-    expect(getError(result)).toBe("Expected error");
+    expect(getRuleError(result)).toBe("Expected error");
   });
 
   it("should timeout when rule exceeds limit", async () => {
@@ -71,7 +71,7 @@ describe("withTimeout", () => {
     const result = await resultPromise;
     expect(result.status).toBe("failed");
 
-    expect(getError(result)).toBe("Timeout exceeded");
+    expect(getRuleError(result)).toBe("Timeout exceeded");
   });
 
   it("should complete successfully if finished before timeout", async () => {
@@ -110,6 +110,6 @@ describe("withTimeout", () => {
 
     const result = await resultPromise;
     expect(result.status).toBe("failed");
-    expect(getError(result)).toBe("Instant error");
+    expect(getRuleError(result)).toBe("Instant error");
   });
 });

@@ -1,5 +1,23 @@
 type AnyFunction = (...args: any[]) => any;
 
+/**
+ * Pipes a value through a series of functions (left-to-right composition).
+ * @template A - The input type
+ * @template B - The output type after first function
+ * @param value - The initial value
+ * @param fns - Functions to apply sequentially
+ * @returns The result of applying all functions to the initial value
+ * @example
+ * const result = pipe(
+ *   5,
+ *   (x) => x * 2,
+ *   (x) => x + 3,
+ *   (x) => `Result: ${x}`
+ * ); // "Result: 13"
+ * @caveats
+ * - Currently supports up to 10 functions with proper type inference
+ * - For more functions, type information will be lost
+ */
 export function pipe<A>(value: A): A;
 export function pipe<A, B>(value: A, fn1: (arg: A) => B): B;
 export function pipe<A, B, C>(
