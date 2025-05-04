@@ -96,7 +96,7 @@ const checkFraudRisk = memoizeRule(
 );
 
 // 3. Payment method handling
-const validatePaymentMethod = branch(
+const validatePaymentMethod = match(
   tx => tx.paymentType,
   {
     "credit_card": composeRules([
@@ -123,7 +123,7 @@ const validateTransaction = composeRules([
   validatePaymentMethod,
   
   // Compliance check (different for business/personal)
-  branch(
+  match(
     tx => tx.accountType,
     {
       "business": validateBusinessTransfer,
@@ -141,7 +141,7 @@ const result = await validateTransaction(paymentRequest, {
 ### Example 2: User Registration
 
 ```typescript
-import { composeRules, allRules, branch, withMetrics } from 'ts-rules-composer';
+import { composeRules, allRules, match, withMetrics } from 'ts-rules-composer';
 
 const validateUser = composeRules([
   // Sequential validation
@@ -155,8 +155,8 @@ const validateUser = composeRules([
     checkEmailUnique
   ]),
   
-  // Conditional branching
-  branch(
+  // Conditional matching
+  match(
     user => user.role,
     {
       'admin': validateAdminPrivileges,
@@ -232,12 +232,12 @@ const validateProfile = allRules([
 
 ### Control Flow
 
-#### `branch(predicate, branches, default?)`  
+#### `match(predicate, branches, default?)`  
 
 Conditional rule routing  
 
 ```typescript
-const validatePayment = branch(
+const validatePayment = match(
   order => order.payment.type,
   {
     credit: validateCreditCard,
@@ -414,7 +414,8 @@ if (result.status === "failed") {
 |----------|-------------|---------|
 | `composeRules` | Sequential validation (fail-fast) | `composeRules([checkA, checkB])` |
 | `allRules` | Parallel validation (collect all errors) | `allRules([checkX, checkY])` |
-| `branch` | Conditional routing | `branch(getUserType, { admin: ruleA, user: ruleB })` |
+| `match` | Pattern matching routing | `branch(getUserType, { admin: ruleA, user: ruleB })` |
+| `branch` | Conditional routing | `(isUnderAge,validateMinorAccount, validateAdultAccount) |
 
 ### Combinators
 
@@ -469,4 +470,4 @@ graph TD
 ## License
 
 MIT © Breno Magalhães  
-**Like this project?** ⭐️ [Star it on GitHub](https://github.com/your/repo)
+**Like this project?** ⭐️ [Star it on GitHub](https://github.com/Brenopms/ts-rules-composer)
