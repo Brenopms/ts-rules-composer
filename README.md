@@ -414,8 +414,8 @@ if (result.status === "failed") {
 |----------|-------------|---------|
 | `composeRules` | Sequential validation (fail-fast) | `composeRules([checkA, checkB])` |
 | `allRules` | Parallel validation (collect all errors) | `allRules([checkX, checkY])` |
-| `match` | Pattern matching routing | `branch(getUserType, { admin: ruleA, user: ruleB })` |
-| `branch` | Conditional routing | `(isUnderAge,validateMinorAccount, validateAdultAccount)` |
+| `match` | Pattern matching routing | `match(getUserType, { admin: ruleA, user: ruleB })` |
+| `branch` | Conditional routing | `branch(isUnderAge,validateMinorAccount, validateAdultAccount)` |
 
 ### Combinators
 
