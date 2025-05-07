@@ -24,9 +24,10 @@ const result = await validateCheckout(order);
 
 - 🧩 **Composable** - Build pipelines with 25+ combinators (`when`, `unless`, `mapError`, etc.)
 - 🚀 **Zero Dependencies** - Lightweight (under 5KB gzipped)
-- 🔌 **TypeScript First** - Full inference for inputs, contexts, and errors
+- 🦾 **TypeScript First** - Full inference for inputs, contexts, and errors
 - ⏱ **Async Ready** - Mix sync/async rules seamlessly
 - 🛡 **Context-Aware** - Shared validation state
+- 🔌 **Extensible** - Easily create custom combinators that integrate seamlessly
 - 📊 **Instrumentation** - Debugging & metrics out-of-the-box
 
 ## Installation
@@ -155,7 +156,7 @@ const validateUser = composeRules([
     checkEmailUnique
   ]),
   
-  // Conditional matching
+  // pattern matching routing
   match(
     user => user.role,
     {
@@ -200,8 +201,6 @@ const bookAppointment = composeRules([
 const result = await bookAppointment(newAppointment, clinicSchedule);
 ```
 
-### Example 4: User Registration
-
 ## API Reference
 
 ### Core Functions
@@ -234,7 +233,7 @@ const validateProfile = allRules([
 
 #### `match(predicate, branches, default?)`  
 
-Conditional rule routing  
+Pattern matching routing
 
 ```typescript
 const validatePayment = match(
@@ -398,13 +397,13 @@ Creates failure result
 const failure = fail("Invalid input")
 ```
 
-#### `getError(result)`  
+#### `getRuleError(result)`  
 
 Extracts error from failed result  
 
 ```typescript
 if (result.status === "failed") {
-  const error = getError(result)
+  const error = getRuleError(result)
 }
 ```
 
@@ -444,7 +443,7 @@ if (result.status === "failed") {
 
 ## Best Practices
 
-1. **Small Rules** - Keep each rule focused (<20 lines)
+1. **Small Rules** - Keep each rule focused
 2. **Pure Functions** - Avoid side effects in rules
 3. **Memoize** - Cache expensive validations
 4. **Type Narrowing** - Use `requireContextRule` for safety
