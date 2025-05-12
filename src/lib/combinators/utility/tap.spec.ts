@@ -1,5 +1,5 @@
 import { describe, vi, beforeEach, it, expect } from "vitest";
-import { composeRules } from "../../composition/compose-rules";
+import { pipeRules } from "../../composition/pipe-rules";
 import { fail, pass } from "../../helpers";
 import { Rule } from "../../types";
 import { tap } from "./tap";
@@ -62,7 +62,7 @@ describe("tap (standalone)", () => {
     const effect1 = vi.fn();
     const effect2 = vi.fn();
 
-    const pipeline = tap(effect2)(composeRules([tap(effect1)(rule1), rule2]));
+    const pipeline = tap(effect2)(pipeRules([tap(effect1)(rule1), rule2]));
 
     await pipeline({});
     expect(effect1).toHaveBeenCalledWith({}, pass(), undefined);
