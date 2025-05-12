@@ -23,7 +23,7 @@ import { Rule } from "../../types";
  *   validateAdultAccount
  * );
  */
-export const branch = <TInput, TError = string, TContext = unknown>(
+export const ifElse = <TInput, TError = string, TContext = unknown>(
   predicate: (input: TInput, context?: TContext) => boolean | Promise<boolean>,
   ifRule: Rule<TInput, TError, TContext>,
   elseRule?: Rule<TInput, TError, TContext>,

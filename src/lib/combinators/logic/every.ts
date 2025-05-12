@@ -11,7 +11,7 @@ import { CompositionOptions, Rule } from "../../types";
  * @param options.cloneContext - Whether to clone the context for each rule (default: false)
  * @returns A new rule that returns all errors from all failing rules
  * @example
- * const rule = allRules([
+ * const rule = every([
  *   validatePresence,
  *   validateEmail,
  *   validateUnique
@@ -25,7 +25,7 @@ import { CompositionOptions, Rule } from "../../types";
  * - Rules are executed in parallel (using Promise.all)
  * - All rules are executed even if some fail
  */
-export const allRules = <TInput, TError = string, TContext = unknown>(
+export const every = <TInput, TError = string, TContext = unknown>(
   rules: Rule<TInput, TError, TContext>[],
   options: CompositionOptions = {},
 ): Rule<TInput, TError[], TContext> => {

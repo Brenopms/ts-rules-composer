@@ -3,7 +3,7 @@ import {
   withFallback,
   withRetry,
   withTimeout,
-  allRules,
+  every,
   unless,
   memoizeRule,
   mapError,
@@ -108,7 +108,7 @@ describe("Full Integration Test", () => {
 
   // 3. Profile validation (parallel)
   const validateProfile = mapError(
-    allRules([
+    every([
       (profile: User["profile"]) =>
         !profile?.bio || profile.bio.length <= 500
           ? pass()
