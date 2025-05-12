@@ -2,18 +2,26 @@
   "name": "ts-rules-composer",
   "version": "0.0.1",
   "description": "Typescript rules engine by composition",
-  "main": "./dist/cjs/index.js",
-  "module": "./dist/esm/index.js",
-  "typings": "./dist/esm/index.d.ts",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "author": "Breno Magalhaes",
   "license": "MIT",
   "sideEffects": false,
   "type": "module",
+  "exports": {
+    "import": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "require": {
+      "types": "./dist/index.d.cts",
+      "require": "./dist/index.cjs"
+    }
+  },
   "scripts": {
     "prepublish": "npm run build",
-    "build": "run-p build:*",
-    "build:cjs": "tsc -p tsconfig.cjs.json",
-    "build:esm": "tsc -p tsconfig.json",
+    "build": "tsup",
     "format": "prettier \"src/**/*.ts\" --check",
     "format:fix": "prettier \"src/**/*.ts\" --write",
     "lint": "eslint ./src/",
@@ -48,6 +56,7 @@
     "semantic-release": "^24.2.3",
     "standard-version": "^9.5.0",
     "ts-node": "^10.9.2",
+    "tsup": "^8.4.0",
     "typedoc": "^0.28.3",
     "typescript": "^5.8.3",
     "vitest": "^3.1.2"

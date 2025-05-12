@@ -1,12 +1,12 @@
 {
   "compilerOptions": {
-    "incremental": true,
-    "target": "ES2022",
-    "outDir": "dist/esm",
+    "incremental": false,
+    "target": "ES2018",
+    "outDir": "dist",
     "rootDir": "src",
     "sourceRoot": "src",
     "moduleResolution": "node",
-    "module": "ES2020",
+    "module": "ES6",
     "declaration": true,
     "sourceMap": true,
     "mapRoot": "./",
