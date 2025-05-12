@@ -1,5 +1,11 @@
 import type { Rule } from "../../types";
-import { fail } from "../../helpers";
+import { calculateDelay, fail } from "../../helpers";
+
+export type RetryStrategy =
+  | "fixed"
+  | "linear"
+  | "exponential"
+  | ((attempt: number) => number);
 
 /**
  * Wraps a rule with retry logic for handling transient failures.
@@ -27,6 +33,7 @@ export const withRetry = <TInput, TError = string, TContext = unknown>(
   options: {
     attempts?: number;
     delayMs?: number;
+    retryStrategy?: RetryStrategy;
     shouldRetry?: (error: TError | unknown, attempt: number) => boolean;
   } = {},
 ): Rule<TInput, TError | "MAX_RETRIES_EXCEEDED", TContext> => {
@@ -51,7 +58,8 @@ export const withRetry = <TInput, TError = string, TContext = unknown>(
 
       // Delay if not the last attempt
       if (attempt < attempts && delayMs > 0) {
-        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        const delay = calculateDelay(options?.retryStrategy, attempt, delayMs);
+        await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
 
