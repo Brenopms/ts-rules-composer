@@ -1,9 +1,9 @@
-import { composeRules } from "./compose-rules";
+import { pipeRules } from "./pipe-rules";
 import { fail, pass } from "../helpers";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Rule } from "../types";
 
-describe("composeRules", () => {
+describe("pipeRules", () => {
   // Mock rules
   const alwaysPass = vi.fn(() => pass());
   const failWithMsg = (msg: string) => vi.fn(() => fail(msg));
@@ -13,14 +13,14 @@ describe("composeRules", () => {
   });
 
   it("should return pass if no rules are provided", async () => {
-    const result = await composeRules([])({});
+    const result = await pipeRules([])({});
     expect(result).toEqual(pass());
   });
 
   it("should return pass if all rules pass", async () => {
     const rule1 = alwaysPass;
     const rule2 = alwaysPass;
-    const validator = composeRules([rule1, rule2]);
+    const validator = pipeRules([rule1, rule2]);
     const input = { foo: "bar" };
 
     const result = await validator(input);
@@ -34,7 +34,7 @@ describe("composeRules", () => {
     const errorMsg = "First error";
     const rule1 = failWithMsg(errorMsg);
     const rule2 = alwaysPass; // Should never be called
-    const validator = composeRules([rule1, rule2]);
+    const validator = pipeRules([rule1, rule2]);
     const input = { foo: "bar" };
 
     const result = await validator(input);
@@ -47,7 +47,7 @@ describe("composeRules", () => {
   it("should pass context to all rules", async () => {
     const rule1 = vi.fn(() => pass());
     const rule2 = vi.fn(() => pass());
-    const validator = composeRules([rule1, rule2]);
+    const validator = pipeRules([rule1, rule2]);
     const input = { foo: "bar" };
     const context = { userId: 123 };
 
@@ -64,7 +64,7 @@ it("should preserve custom error types", async () => {
   const rule: Rule<unknown, CustomError> = () =>
     fail({ code: 400, message: "Bad" });
 
-  const validator = composeRules([rule]);
+  const validator = pipeRules([rule]);
   const result = await validator({});
 
   expect(result).toEqual(fail({ code: 400, message: "Bad" }));
@@ -72,7 +72,7 @@ it("should preserve custom error types", async () => {
 
 it("should handle 1000+ rules without stack overflow", async () => {
   const manyRules = Array(1000).fill(() => pass());
-  const validator = composeRules(manyRules);
+  const validator = pipeRules(manyRules);
   await expect(validator({})).resolves.toEqual(pass());
 });
 
@@ -96,7 +96,7 @@ describe("Context behavior tests", () => {
 
   it("should allow context mutation by default (shared reference)", async () => {
     const context = { count: 0 };
-    const validator = composeRules(
+    const validator = pipeRules(
       [countingRule, countingRule, expectCountRule(2)], // Expect both mutations to apply
     );
 
@@ -108,7 +108,7 @@ describe("Context behavior tests", () => {
 
   it("should prevent context mutations when cloneContext=true", async () => {
     const context = { count: 0 };
-    const validator = composeRules([countingRule, expectCountRule(1)], {
+    const validator = pipeRules([countingRule, expectCountRule(1)], {
       cloneContext: true,
     });
 
@@ -126,7 +126,7 @@ describe("Context behavior tests", () => {
       return pass();
     });
 
-    const validator = composeRules([mutateNested, mutateNested], {
+    const validator = pipeRules([mutateNested, mutateNested], {
       cloneContext: true,
     });
 
@@ -138,14 +138,14 @@ describe("Context behavior tests", () => {
   });
 
   it("should handle null/undefined context", async () => {
-    const nullValidator = composeRules([], { cloneContext: true });
+    const nullValidator = pipeRules([], { cloneContext: true });
     await expect(nullValidator({}, null)).resolves.not.toThrow();
     await expect(nullValidator({}, undefined)).resolves.not.toThrow();
   });
 
   it("should shallow clone when possible for performance", async () => {
     const context = { simple: "value" };
-    const validator = composeRules(
+    const validator = pipeRules(
       [
         (_, ctx) => {
           (ctx as any).simple = "changed";
@@ -175,7 +175,7 @@ it("should prevent accidental context mutation", async () => {
     return pass();
   };
 
-  const validator = composeRules([rule1, rule2]);
+  const validator = pipeRules([rule1, rule2]);
   await expect(validator({}, context)).resolves.toEqual(
     fail("Context mutated"),
   );
@@ -188,7 +188,7 @@ it("should preserve custom generic types through composition", async () => {
   const rule: Rule<CustomInput, CustomError> = (input) =>
     input.id ? pass() : fail({ severity: 5 });
 
-  const validator = composeRules([rule]);
+  const validator = pipeRules([rule]);
   const result1 = await validator({ id: "test" });
   const result2 = await validator({} as CustomInput);
 
@@ -203,7 +203,7 @@ it("should not retain rule references after execution", async () => {
     return pass();
   };
 
-  const validator = composeRules([rule]);
+  const validator = pipeRules([rule]);
   await validator({});
 
   // This would fail if composition held references
@@ -213,7 +213,7 @@ it("should not retain rule references after execution", async () => {
 it("should handle circular reference errors", async () => {
   const obj: any = { self: null };
   obj.self = obj;
-  const validator = composeRules([() => fail(obj)]);
+  const validator = pipeRules([() => fail(obj)]);
   const result = await validator({});
   expect(result.status).toBe("failed");
   expect((result as any).error.self).toBe((result as any).error);
