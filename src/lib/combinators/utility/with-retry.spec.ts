@@ -212,8 +212,8 @@ describe("withRetry combinator", () => {
     // Valid usage
     withRetry(typedRule, { attempts: 2 });
 
-    // @ts-expect-error - Should fail if input types mismatch
-    withRetry((input: { other: number }) => pass(), { attempts: 2 })({
+    withRetry((_: { other: number }) => pass(), { attempts: 2 })({
+      // @ts-expect-error - Should fail if input types mismatch
       id: "123",
     });
   });
