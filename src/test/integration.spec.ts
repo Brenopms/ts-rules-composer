@@ -13,7 +13,7 @@ import {
   withDebug,
   match,
 } from "../lib/combinators";
-import { composeRules } from "../lib/composition";
+import { pipeRules } from "../lib/composition";
 import { pass, fail } from "../lib/helpers";
 import { getRuleError } from "./helpers/get-rule-error";
 import { validateField } from "../lib/combinators/utility/validate-field";
@@ -66,10 +66,10 @@ describe("Full Integration Test", () => {
 
   const validateUserEmail = validateField<User, string>(
     (user) => user.email,
-    composeRules([validateEmailFormat, checkEmailUnique]),
+    pipeRules([validateEmailFormat, checkEmailUnique]),
   );
 
-  const validateUsername = composeRules([
+  const validateUsername = pipeRules([
     (username: string) => (username.length >= 3 ? pass() : fail("Too short")),
     async (username: string) =>
       (await mockDb.checkUsername(username)) ? pass() : fail("Username taken"),
@@ -126,7 +126,7 @@ describe("Full Integration Test", () => {
     validateProfile,
   );
 
-  composeRules<User>([
+  pipeRules<User>([
     withMemoize(
       validateField((user) => user.email, validateEmailFormat),
       (user) => user.id,
@@ -140,7 +140,7 @@ describe("Full Integration Test", () => {
   ]);
 
   // 4. Main pipeline
-  const validateUserRegistration = composeRules<User>([
+  const validateUserRegistration = pipeRules<User>([
     // Account basics
     withMemoize(validateUserEmail, (user) => user.id + user.email),
     validateUserUsername,
