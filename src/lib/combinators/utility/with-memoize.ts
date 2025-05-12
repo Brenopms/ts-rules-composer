@@ -12,7 +12,7 @@ import { Rule, RuleResult } from "../../types";
  * @param options.maxSize - Maximum number of entries to keep in cache
  * @returns A memoized version of the rule
  * @example
- * const memoizedRule = memoizeRule(
+ * const memoizedRule = withMemoize(
  *   expensiveValidationRule,
  *   (input) => input.id,
  *   { ttl: 60000, maxSize: 100 }
@@ -22,7 +22,7 @@ import { Rule, RuleResult } from "../../types";
  * - Cache cleanup happens during rule execution
  * - Rejected promises are automatically evicted from cache
  */
-export const memoizeRule = <TInput, TError = string, TContext = unknown>(
+export const withMemoize = <TInput, TError = string, TContext = unknown>(
   rule: Rule<TInput, TError, TContext>,
   keyFn: (input: TInput) => string,
   options: {

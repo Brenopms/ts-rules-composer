@@ -1,9 +1,9 @@
 import { describe, vi, beforeEach, it, expect } from "vitest";
 import { Rule } from "../../types";
-import { memoizeRule } from "./memoize-rule";
+import { withMemoize } from "./with-memoize";
 import { pass } from "../../helpers";
 
-describe("memoizeRule", () => {
+describe("withMemoize", () => {
   const mockRule = vi.fn(() => pass());
   const keyFn = (input: { id: string }) => input.id;
 
@@ -13,7 +13,7 @@ describe("memoizeRule", () => {
   });
 
   it("should cache results", async () => {
-    const memoized = memoizeRule(mockRule, keyFn);
+    const memoized = withMemoize(mockRule, keyFn);
     const input = { id: "123" };
 
     await memoized(input);
@@ -23,7 +23,7 @@ describe("memoizeRule", () => {
   });
 
   it("should distinguish different inputs", async () => {
-    const memoized = memoizeRule(mockRule, keyFn);
+    const memoized = withMemoize(mockRule, keyFn);
 
     await memoized({ id: "123" });
     await memoized({ id: "456" });
@@ -36,7 +36,7 @@ describe("memoizeRule", () => {
       await Promise.resolve();
       return pass();
     });
-    const memoized = memoizeRule(asyncRule, keyFn);
+    const memoized = withMemoize(asyncRule, keyFn);
 
     await memoized({ id: "123" });
     await memoized({ id: "123" });
@@ -46,7 +46,7 @@ describe("memoizeRule", () => {
 
   it("should respect TTL", async () => {
     vi.useFakeTimers();
-    const memoized = memoizeRule(mockRule, keyFn, { ttl: 1000 });
+    const memoized = withMemoize(mockRule, keyFn, { ttl: 1000 });
 
     await memoized({ id: "123" });
     vi.advanceTimersByTime(1500);
@@ -57,7 +57,7 @@ describe("memoizeRule", () => {
   });
 
   it("should enforce max size", async () => {
-    const memoized = memoizeRule(mockRule, keyFn, { maxSize: 2 });
+    const memoized = withMemoize(mockRule, keyFn, { maxSize: 2 });
 
     await memoized({ id: "1" });
     await memoized({ id: "2" });
@@ -72,10 +72,10 @@ describe("memoizeRule", () => {
     const typedRule: Rule<StrictInput, string> = () => pass();
 
     // Valid usage
-    memoizeRule(typedRule, (input) => input.id);
+    withMemoize(typedRule, (input) => input.id);
 
     // @ts-expect-error - Should fail if keyFn doesn't match input type
-    memoizeRule(typedRule, (input: { other: number }) =>
+    withMemoize(typedRule, (input: { other: number }) =>
       input.other.toString(),
     );
   });

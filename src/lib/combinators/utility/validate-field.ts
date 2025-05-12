@@ -12,12 +12,12 @@ import { Rule } from "../../types";
  * @param defaultValue - Optional default value if getter returns undefined
  * @returns A new rule that validates the extracted value
  * @example
- * const validateName = pick(
+ * const validateName = validateField(
  *   (user: User) => user.profile.name,
  *   (name) => name.length > 3 ? pass() : fail('Name too short')
  * );
  *
- * const validateAge = pick(
+ * const validateAge = validateField(
  *   (user: User) => user.age,
  *   (age) => age >= 18 ? pass() : fail('Must be adult'),
  *   18 // default value
@@ -36,7 +36,7 @@ import { Rule } from "../../types";
  *    - Defaults are applied before rule execution (the rule sees the default value)
  *    - Default values aren't type-checked against potentially undefined returns
  */
-export function pick<TInput, TValue, TError = string, TContext = unknown>(
+export function validateField<TInput, TValue, TError = string, TContext = unknown>(
   getter: (input: TInput) => TValue | undefined,
   rule: Rule<TValue, TError, TContext>,
   defaultValue?: TValue,

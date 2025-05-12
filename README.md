@@ -70,9 +70,9 @@ type RuleResult<TError> =
 ```typescript
 import {
   composeRules,
-  branch,
+  match,
   withRetry,
-  memoizeRule,
+  withMemoize,
   withTimeout,
   when
 } from 'ts-rules-composer';
@@ -87,7 +87,7 @@ const validateCurrency = (tx: Transaction) =>
     : fail(`Unsupported currency: ${tx.currency}`);
 
 // 2. Memoized fraud check (cached for 5 minutes)
-const checkFraudRisk = memoizeRule(
+const checkFraudRisk = withMemoize(
   async (tx: Transaction) => {
     const risk = await fraudService.assess(tx);
     return risk.score < 5 ? pass() : fail("High fraud risk");
@@ -142,15 +142,15 @@ const result = await validateTransaction(paymentRequest, {
 ### Example 2: User Registration
 
 ```typescript
-import { composeRules, allRules, match, withMetrics } from 'ts-rules-composer';
+import { composeRules, every, match, withMetrics } from 'ts-rules-composer';
 
 const validateUser = composeRules([
   // Sequential validation
   validateUsernameFormat,
-  memoizeRule(checkUsernameAvailability, { ttl: 60000 }),
+  withMemoize(checkUsernameAvailability, { ttl: 60000 }),
   
   // Parallel validation
-  allRules([
+  every([
     validatePasswordStrength,
     validateEmailFormat,
     checkEmailUnique
@@ -217,12 +217,12 @@ const validateUser = composeRules([
 ], { cloneContext: true })
 ```
 
-#### `allRules(rules, options?)`  
+#### `every(rules, options?)`  
 
 Runs rules in parallel (collects all errors)  
 
 ```typescript
-const validateProfile = allRules([
+const validateProfile = every([
   validateAvatar,
   validateBio,
   validateLinks
@@ -231,7 +231,7 @@ const validateProfile = allRules([
 
 ### Control Flow
 
-#### `match(predicate, branches, default?)`  
+#### `match(accessor, cases, defaultCase?)`  
 
 Pattern matching routing
 
@@ -295,12 +295,12 @@ const isNotBanned = not(
 
 ### Performance
 
-#### `memoizeRule(rule, keyFn, options?)`  
+#### `withMemoize(rule, keyFn, options?)`  
 
 Caches rule results  
 
 ```typescript
-const cachedCheck = memoizeRule(
+const cachedCheck = withMemoize(
   dbUserLookup,
   user => user.id,
   { ttl: 30000, maxSize: 100 }
@@ -412,9 +412,10 @@ if (result.status === "failed") {
 | Function | Description | Example |
 |----------|-------------|---------|
 | `composeRules` | Sequential validation (fail-fast) | `composeRules([checkA, checkB])` |
-| `allRules` | Parallel validation (collect all errors) | `allRules([checkX, checkY])` |
+| `every` | Parallel validation (collect all errors) | `every([checkX, checkY])` |
 | `match` | Pattern matching routing | `match(getUserType, { admin: ruleA, user: ruleB })` |
-| `branch` | Conditional routing | `branch(isUnderAge,validateMinorAccount, validateAdultAccount)` |
+| `ifElse` | Conditional routing | `ifElse(isUnderAge, validateMinorAccount, validateAdultAccount)` |
+| `withFallback` | Conditional routing | `branch(isUnderAge, validateMinorAccount, validateAdultAccount)` |
 
 ### Combinators
 
@@ -429,7 +430,7 @@ if (result.status === "failed") {
 
 | Utility | Use Case | Example |
 |---------|----------|---------|
-| `memoizeRule` | Cache results | `memoizeRule(expensiveCheck, { ttl: 30000 })` |
+| `withMemoize` | Cache results | `withMemoize(expensiveCheck, { ttl: 30000 })` |
 | `withTimeout` | Add time limit | `withTimeout(networkCall, 3000, "Timeout")` |
 | `withRetry` | Automatic retries | `withRetry(unstableAPI, { attempts: 3 })` |
 

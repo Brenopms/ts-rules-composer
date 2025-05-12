@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { pick } from "./pick";
+import { validateField } from "./validate-field";
 import { pass, fail } from "../../helpers";
 import { Rule } from "../../types";
 
-describe("pick", () => {
+describe("validateField", () => {
   interface TestUser {
     name: string;
     age?: number;
@@ -32,7 +32,7 @@ describe("pick", () => {
   });
 
   it("should apply rule to extracted value", async () => {
-    const rule = pick((user: TestUser) => user.profile?.verified, mockRule);
+    const rule = validateField((user: TestUser) => user.profile?.verified, mockRule);
 
     const result = await rule(mockUser);
     expect(mockRule).toHaveBeenCalledWith(true, undefined);
@@ -40,7 +40,7 @@ describe("pick", () => {
   });
 
   it("should fail when getter returns undefined with no default", async () => {
-    const rule = pick((user: any) => user.profile.missingProp, mockRule);
+    const rule = validateField((user: any) => user.profile.missingProp, mockRule);
 
     const result = await rule(mockUser);
     expect(result).toEqual(fail("Missing required value"));
@@ -48,7 +48,7 @@ describe("pick", () => {
   });
 
   it("should use default value when getter returns undefined", async () => {
-    const rule = pick(
+    const rule = validateField(
       (user: any) => user.profile?.missingProp,
       mockRule,
       true, // default value
@@ -61,7 +61,7 @@ describe("pick", () => {
 
   it("should pass context to inner rule", async () => {
     const context = { requestId: "123" };
-    const rule = pick((user: TestUser) => user.profile?.verified, mockRule);
+    const rule = validateField((user: TestUser) => user.profile?.verified, mockRule);
 
     await rule(mockUser, context);
     expect(mockRule).toHaveBeenCalledWith(true, context);
@@ -73,7 +73,7 @@ describe("pick", () => {
       profile: null as any,
     };
 
-    const rule = pick(
+    const rule = validateField(
       (user: TestUser) => user.profile?.verified,
       mockRule,
       true, // default
@@ -92,7 +92,7 @@ describe("pick", () => {
       },
     };
 
-    const rule = pick(
+    const rule = validateField(
       (user: any) => user.profile.verified,
       mockRule,
       true, // default
@@ -102,7 +102,7 @@ describe("pick", () => {
   });
 
   it("should fail when default value is undefined", async () => {
-    const rule = pick(
+    const rule = validateField(
       (user: TestUser) => user.age,
       (age: number) => (age > 18 ? pass() : fail("Too young")),
       undefined, // explicit undefined default
@@ -114,7 +114,7 @@ describe("pick", () => {
   });
 
   it("should work with falsy default values", async () => {
-    const rule = pick(
+    const rule = validateField(
       (user: TestUser) => user.age,
       (age: number) => (age === 0 ? pass() : fail("Not zero")),
       0, // falsy default
@@ -130,7 +130,7 @@ describe("pick", () => {
       return value ? pass() : fail("Async failed");
     };
 
-    const rule = pick((user: TestUser) => user.profile?.verified, asyncRule);
+    const rule = validateField((user: TestUser) => user.profile?.verified, asyncRule);
 
     const result = await rule(mockUser);
     expect(result).toEqual(pass());
