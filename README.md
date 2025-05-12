@@ -8,7 +8,7 @@ A **dependency-free**, type-safe validation engine for composing complex busines
 
 ```typescript
 // Example: E-commerce checkout
-const validateCheckout = composeRules([
+const validateCheckout = pipeRules([
   validateCart,
   match(paymentMethod, {
     'credit_card': validateCreditCard,
@@ -69,7 +69,7 @@ type RuleResult<TError> =
 
 ```typescript
 import {
-  composeRules,
+  pipeRules,
   match,
   withRetry,
   withMemoize,
@@ -100,7 +100,7 @@ const checkFraudRisk = withMemoize(
 const validatePaymentMethod = match(
   tx => tx.paymentType,
   {
-    "credit_card": composeRules([
+    "credit_card": pipeRules([
       validateCardNumber,
       validateExpiry,
       withTimeout(bankAuthCheck, 3000, "Bank auth timeout")
@@ -111,7 +111,7 @@ const validatePaymentMethod = match(
 );
 
 // 4. Complete pipeline
-const validateTransaction = composeRules([
+const validateTransaction = pipeRules([
   validateAmount,
   validateCurrency,
   
@@ -142,9 +142,9 @@ const result = await validateTransaction(paymentRequest, {
 ### Example 2: User Registration
 
 ```typescript
-import { composeRules, every, match, withMetrics } from 'ts-rules-composer';
+import { pipeRules, every, match, withMetrics } from 'ts-rules-composer';
 
-const validateUser = composeRules([
+const validateUser = pipeRules([
   // Sequential validation
   validateUsernameFormat,
   withMemoize(checkUsernameAvailability, { ttl: 60000 }),
@@ -176,7 +176,7 @@ const instrumentedValidation = withMetrics(validateUser, {
 ### Example 3: Healthcare Appointment System
 
 ```typescript
-const bookAppointment = composeRules([
+const bookAppointment = pipeRules([
   // Context-aware validation
   requireContextRule(
     "Missing schedule data",
@@ -205,16 +205,28 @@ const result = await bookAppointment(newAppointment, clinicSchedule);
 
 ### Core Functions
 
-#### `composeRules(rules, options?)`  
+#### `pipeRules(rules, options?)`  
 
-Sequentially executes rules (fails fast)  
+Sequentially executes rules left-to-right (fails fast)  
 
 ```typescript
-const validateUser = composeRules([
+const validateUser = pipeRules([
   validateEmailFormat,
   checkEmailUnique,
   validatePassword
 ], { cloneContext: true })
+```
+
+#### `composeRules(rules, options?)`  
+
+Sequentially executes rules right-to-left (fails fast)  
+
+```typescript
+const processInput = composeRules([
+  normalizeData,
+  validateInput,
+  sanitizeInput
+])
 ```
 
 #### `every(rules, options?)`  
@@ -266,6 +278,41 @@ Executes only if condition is false
 const validateGuest = unless(
   user => user.isVerified,
   requireVerification
+)
+```
+
+#### `ifElse(condition, ifRule, elseRule?)`  
+
+Branch between two rules  
+
+```typescript
+const validateAge = ifElse(
+  user => user.age >= 18,
+  validateAdult,
+  validateMinor
+)
+```
+
+#### `oneOf(...rules)`  
+
+Tries rules until one passes  
+
+```typescript
+const validateContact = oneOf(
+  validateEmail,
+  validatePhone,
+  validateUsername
+)
+```
+
+#### `withFallback(mainRule, fallbackRule, options?)`  
+
+Fallback when main rule fails  
+
+```typescript
+const validateWithFallback = withFallback(
+  primaryValidation,
+  backupValidation
 )
 ```
 
@@ -355,6 +402,16 @@ const profileRule = withLazyContext(
 )
 ```
 
+#### `hasContext(ctx)`  
+
+Type guard for context  
+
+```typescript
+if (hasContext<AuthContext>(context)) {
+  // context is now typed as AuthContext
+}
+```
+
 ### Instrumentation
 
 #### `withDebug(rule, options)`  
@@ -368,14 +425,13 @@ const debugRule = withDebug(validateOrder, {
 })
 ```
 
-#### `withMetrics(rule, collector)`  
+#### `tap(effect)`  
 
-Collects performance metrics  
+Performs side effects  
 
 ```typescript
-const meteredRule = withMetrics(apiRule, {
-  init: () => ({ calls: 0 }),
-  onEnd: metrics => ({ ...metrics, calls: metrics.calls + 1 })
+const loggedRule = tap((input, result) => {
+  analytics.trackValidation(input, result)
 })
 ```
 
@@ -407,15 +463,37 @@ if (result.status === "failed") {
 }
 ```
 
+#### `validateField(getter, rule, defaultValue?)`  
+
+Validates object fields  
+
+```typescript
+const validateEmail = validateField(
+  user => user.email,
+  validateEmailFormat
+)
+```
+
+#### `inject(dependency, ruleFactory)`  
+
+Dependency injection  
+
+```typescript
+const createDbRule = (db: Database) => (input: string) =>
+  db.exists(input) ? pass() : fail("Not found")
+
+const dbRule = inject(database, createDbRule)
+```
+
 ### Core Functions
 
 | Function | Description | Example |
 |----------|-------------|---------|
-| `composeRules` | Sequential validation (fail-fast) | `composeRules([checkA, checkB])` |
+| `pipeRules` | Sequential validation left-right (fail-fast) | `pipeRules([checkA, checkB])` |
+| `composeRules` | Sequential validation right-left (fail-fast) | `composeRules([checkA, checkB])` |
 | `every` | Parallel validation (collect all errors) | `every([checkX, checkY])` |
 | `match` | Pattern matching routing | `match(getUserType, { admin: ruleA, user: ruleB })` |
 | `ifElse` | Conditional routing | `ifElse(isUnderAge, validateMinorAccount, validateAdultAccount)` |
-| `withFallback` | Conditional routing | `branch(isUnderAge, validateMinorAccount, validateAdultAccount)` |
 
 ### Combinators
 
@@ -425,6 +503,7 @@ if (result.status === "failed") {
 | `unless` | Negative condition | `unless(isGuest, validateAccount)` |
 | `not` | Invert rule logic | `not(isBanned, "Must not be banned")` |
 | `oneOf` | First-successful validation | `oneOf(validateV1, validateV2)` |
+| `withFallback` | Fallback rule | `withFallback(primary, backup)` |
 
 ### Performance
 
@@ -439,7 +518,6 @@ if (result.status === "failed") {
 | Tool | Purpose | Example |
 |------|---------|---------|
 | `withDebug` | Debug logging | `withDebug(rule, { name: "Validation" })` |
-| `withMetrics` | Collect metrics | `withMetrics(rule, { onEnd: trackTiming })` |
 | `tap` | Side effects | `tap((input, result) => log(result))` |
 
 ## Best Practices
