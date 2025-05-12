@@ -201,6 +201,80 @@ const bookAppointment = pipeRules([
 const result = await bookAppointment(newAppointment, clinicSchedule);
 ```
 
+### Example 4: Content Moderation System
+
+```typescript
+import { 
+  pipeRules,
+  validateField,
+  requireContextRule,
+  inject,
+  tap
+} from 'ts-rules-composer';
+
+// 1. Strongly typed context
+type ModerationContext = {
+  moderatorId: string;
+  permissions: string[];
+  environment: 'staging' | 'production';
+};
+
+// 2. Rule factory with dependency injection
+const createModerationRules = (logger: LoggerService) => 
+  pipeRules([
+    // Enforce context requirements
+    requireContextRule(
+      "Moderator context required",
+      (post, ctx: ModerationContext) => pipeRules([
+        
+        // Core validations
+        validateField(post => post.content, content => 
+          content.length > 0 || fail("Empty content")
+        ),
+        
+        // Environment-specific rule
+        when(
+          (_, ctx) => ctx.environment === 'production',
+          validateField(post => post.tags, tags =>
+            tags.length <= 5 || fail("Too many tags")
+          )
+        ),
+
+        // Permission-based rule
+        when(
+          (_, ctx) => ctx.permissions.includes('FLAG_SENSITIVE'),
+          validateField(post => post.content, checkSensitiveContent)
+        ),
+
+        // Logging side effect
+        tap((post, ctx) => {
+          logger.log({
+            action: 'moderate',
+            moderator: ctx.moderatorId,
+            postId: post.id
+          });
+        })
+      ])
+    )
+  ]);
+
+// 3. Inject dependencies
+const moderatePost = inject(
+  { logger: new Logger() },
+  createModerationRules
+);
+
+// 4. Usage
+const postModerationResult = await moderatePost(
+  { id: "post123", content: "Hello", tags: ["a"] },
+  { 
+    moderatorId: "user456", 
+    permissions: ["FLAG_SENSITIVE"],
+    environment: "production"
+  }
+);
+```
+
 ## API Reference
 
 ### Core Functions
