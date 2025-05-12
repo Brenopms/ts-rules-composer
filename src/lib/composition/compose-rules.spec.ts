@@ -54,8 +54,7 @@ describe("composeRules", () => {
 
   it("should preserve custom error types", async () => {
     type CustomError = { code: number };
-    const rule: Rule<unknown, CustomError> = () =>
-      fail({ code: 123 });
+    const rule: Rule<unknown, CustomError> = () => fail({ code: 123 });
 
     const validator = composeRules([rule]);
     const result = await validator({});
@@ -88,9 +87,11 @@ describe("composeRules", () => {
 
     it("should allow context mutation by default", async () => {
       const context = { count: 0 };
-      const validator = composeRules(
-        [expectCountRule(2), countingRule, countingRule],
-      );
+      const validator = composeRules([
+        expectCountRule(2),
+        countingRule,
+        countingRule,
+      ]);
 
       const result = await validator({}, context);
       expect(result).toEqual(pass());
@@ -99,10 +100,9 @@ describe("composeRules", () => {
 
     it("should prevent context mutations when cloneContext=true", async () => {
       const context = { count: 0 };
-      const validator = composeRules(
-        [expectCountRule(1), countingRule],
-        { cloneContext: true }
-      );
+      const validator = composeRules([expectCountRule(1), countingRule], {
+        cloneContext: true,
+      });
 
       const result = await validator({}, context);
       expect(result).toEqual(pass());
@@ -136,11 +136,13 @@ describe("composeRules", () => {
     it("should shallow clone flat objects", async () => {
       const context = { simple: "abc" };
       const validator = composeRules(
-        [(_, ctx: any) => {
-          ctx.simple = "modified";
-          return pass();
-        }],
-        { cloneContext: true }
+        [
+          (_, ctx: any) => {
+            ctx.simple = "modified";
+            return pass();
+          },
+        ],
+        { cloneContext: true },
       );
 
       await validator({}, context);
@@ -172,7 +174,7 @@ describe("composeRules", () => {
     type Input = { id: string };
     type Error = { level: number };
 
-    const rule: Rule<Input, Error> = input =>
+    const rule: Rule<Input, Error> = (input) =>
       input.id ? pass() : fail({ level: 2 });
 
     const validator = composeRules([rule]);

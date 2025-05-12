@@ -32,7 +32,10 @@ describe("validateField", () => {
   });
 
   it("should apply rule to extracted value", async () => {
-    const rule = validateField((user: TestUser) => user.profile?.verified, mockRule);
+    const rule = validateField(
+      (user: TestUser) => user.profile?.verified,
+      mockRule,
+    );
 
     const result = await rule(mockUser);
     expect(mockRule).toHaveBeenCalledWith(true, undefined);
@@ -40,7 +43,10 @@ describe("validateField", () => {
   });
 
   it("should fail when getter returns undefined with no default", async () => {
-    const rule = validateField((user: any) => user.profile.missingProp, mockRule);
+    const rule = validateField(
+      (user: any) => user.profile.missingProp,
+      mockRule,
+    );
 
     const result = await rule(mockUser);
     expect(result).toEqual(fail("Missing required value"));
@@ -61,7 +67,10 @@ describe("validateField", () => {
 
   it("should pass context to inner rule", async () => {
     const context = { requestId: "123" };
-    const rule = validateField((user: TestUser) => user.profile?.verified, mockRule);
+    const rule = validateField(
+      (user: TestUser) => user.profile?.verified,
+      mockRule,
+    );
 
     await rule(mockUser, context);
     expect(mockRule).toHaveBeenCalledWith(true, context);
@@ -130,7 +139,10 @@ describe("validateField", () => {
       return value ? pass() : fail("Async failed");
     };
 
-    const rule = validateField((user: TestUser) => user.profile?.verified, asyncRule);
+    const rule = validateField(
+      (user: TestUser) => user.profile?.verified,
+      asyncRule,
+    );
 
     const result = await rule(mockUser);
     expect(result).toEqual(pass());

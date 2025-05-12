@@ -31,12 +31,17 @@ import { Rule } from "../../types";
  *  **Type Safety**:
  *    - The rule's input type must match the getter's return type exactly
  *    - No automatic type narrowing (e.g., string | undefined won't become string even with default)
- * 
+ *
  *  **Default Values**:
  *    - Defaults are applied before rule execution (the rule sees the default value)
  *    - Default values aren't type-checked against potentially undefined returns
  */
-export function validateField<TInput, TValue, TError = string, TContext = unknown>(
+export function validateField<
+  TInput,
+  TValue,
+  TError = string,
+  TContext = unknown,
+>(
   getter: (input: TInput) => TValue | undefined,
   rule: Rule<TValue, TError, TContext>,
   defaultValue?: TValue,

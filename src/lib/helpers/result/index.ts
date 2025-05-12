@@ -1,2 +1,2 @@
-export * from './fail';
-export * from './pass';
+export * from "./fail";
+export * from "./pass";

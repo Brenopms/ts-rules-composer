@@ -83,7 +83,10 @@ describe("Full Integration Test", () => {
   const validateAge = (age: number) =>
     age >= 18 ? pass() : fail("Must be 18+");
 
-  const validateUserAge = validateField<User, number>((user) => user.age, validateAge);
+  const validateUserAge = validateField<User, number>(
+    (user) => user.age,
+    validateAge,
+  );
 
   // 2. Payment validation with fallback
   const validateCreditCard = withFallback(
@@ -99,7 +102,9 @@ describe("Full Integration Test", () => {
 
   const validatePaypal = withTimeout(
     async (paypalAccount: User["payment"]) => {
-      const valid = await mockPaymentService.validatePaypal(paypalAccount.paymentId);
+      const valid = await mockPaymentService.validatePaypal(
+        paypalAccount.paymentId,
+      );
       return valid ? pass() : fail("Paypal error");
     },
     3000,
@@ -149,8 +154,8 @@ describe("Full Integration Test", () => {
     match(
       (user: User) => user.payment.method || "",
       {
-        credit: validateField(user => user.payment, validateCreditCard),
-        paypal: validateField(user => user.payment, validatePaypal),
+        credit: validateField((user) => user.payment, validateCreditCard),
+        paypal: validateField((user) => user.payment, validatePaypal),
       },
       "Invalid payment method",
     ),
@@ -169,7 +174,7 @@ describe("Full Integration Test", () => {
 
     // Final verification
     withDebug(
-      async (user, ctx) => {
+      async (user, _ctx) => {
         const profile = await mockDb.getProfile(user.id);
         return profile?.verified ? pass() : fail("Unverified");
       },
@@ -212,7 +217,7 @@ describe("Full Integration Test", () => {
 
     if (result.status === "failed") {
       const error = getRuleError(result);
-      console.log(error)
+      console.log(error);
       expect(error).toMatch("Unverified");
     } else {
       expect.fail("Expected validation to fail");

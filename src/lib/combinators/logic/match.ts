@@ -1,4 +1,4 @@
-import { fail } from '../../helpers';
+import { fail } from "../../helpers";
 import { Rule, RuleResult } from "../../types";
 
 const isRule = <TInput, TError, TContext>(
@@ -28,7 +28,7 @@ const isRule = <TInput, TError, TContext>(
  *   },
  *   "Unsupported payment method"
  * );
- * 
+ *
  * @example
  * // With custom error type
  * interface ValidationError { code: number; message: string }
@@ -40,7 +40,7 @@ const isRule = <TInput, TError, TContext>(
  *   },
  *   { code: 400, message: "Invalid status" }
  * );
- * 
+ *
  * @example
  * // With default rule instead of error
  * const validateProduct = match(
@@ -51,7 +51,7 @@ const isRule = <TInput, TError, TContext>(
  *   },
  *   validateGenericProduct
  * );
- * 
+ *
  * @caveats
  * - The accessor function should return a primitive value (string/number/symbol)
  * - If no matching case is found and no default is provided, returns a failed result with:
@@ -70,7 +70,10 @@ export const match = <
   cases: Record<TKey, Rule<TInput, TError, TContext>>,
   defaultCase?: Rule<TInput, TError, TContext> | TError,
 ): Rule<TInput, TError, TContext> => {
-  return async (input: TInput, context?: TContext): Promise<RuleResult<TError>> => {
+  return async (
+    input: TInput,
+    context?: TContext,
+  ): Promise<RuleResult<TError>> => {
     const key = await accessor(input, context);
     const matchedRule = cases[key];
 

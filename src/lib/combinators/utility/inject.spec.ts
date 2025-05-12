@@ -1,6 +1,6 @@
 import { describe, vi, beforeEach, it, expect } from "vitest";
 import { pass, fail } from "../../helpers";
-import { inject } from './inject';
+import { inject } from "./inject";
 
 describe("inject (basic)", () => {
   const mockRule = vi.fn((input: string) =>

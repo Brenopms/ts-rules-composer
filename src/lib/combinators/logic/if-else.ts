@@ -16,7 +16,7 @@ import { Rule } from "../../types";
  *   validateAdultAccount,
  *   validateMinorAccount
  * );
- * 
+ *
  * // Without elseRule (passes when predicate is false)
  * const adultOnlyRule = branch(
  *   (user) => user.age >= 18,

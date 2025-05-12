@@ -1,6 +1,4 @@
-import { RuleResult } from './rule-result';
-
-
+import { RuleResult } from "./rule-result";
 
 /**
  * Configuration options for debug functionality.
