@@ -5,7 +5,7 @@ import {
   withTimeout,
   every,
   unless,
-  memoizeRule,
+  withMemoize,
   mapError,
   when,
   oneOf,
@@ -16,7 +16,7 @@ import {
 import { composeRules } from "../lib/composition";
 import { pass, fail } from "../lib/helpers";
 import { getRuleError } from "./helpers/get-rule-error";
-import { pick } from "../lib/combinators/utility/pick";
+import { validateField } from "../lib/combinators/utility/validate-field";
 
 describe("Full Integration Test", () => {
   type User = {
@@ -64,7 +64,7 @@ describe("Full Integration Test", () => {
   const checkEmailUnique = async (email: string) =>
     (await mockDb.checkEmail(email)) ? fail("Email already in use") : pass();
 
-  const validateUserEmail = pick<User, string>(
+  const validateUserEmail = validateField<User, string>(
     (user) => user.email,
     composeRules([validateEmailFormat, checkEmailUnique]),
   );
@@ -75,7 +75,7 @@ describe("Full Integration Test", () => {
       (await mockDb.checkUsername(username)) ? pass() : fail("Username taken"),
   ]);
 
-  const validateUserUsername = pick<User, string>(
+  const validateUserUsername = validateField<User, string>(
     (user) => user.username,
     validateUsername,
   );
@@ -83,7 +83,7 @@ describe("Full Integration Test", () => {
   const validateAge = (age: number) =>
     age >= 18 ? pass() : fail("Must be 18+");
 
-  const validateUserAge = pick<User, number>((user) => user.age, validateAge);
+  const validateUserAge = validateField<User, number>((user) => user.age, validateAge);
 
   // 2. Payment validation with fallback
   const validateCreditCard = withFallback(
@@ -121,20 +121,20 @@ describe("Full Integration Test", () => {
     (errors) => errors.join(", "),
   );
 
-  const validateUserProfile = pick<User, User["profile"]>(
+  const validateUserProfile = validateField<User, User["profile"]>(
     (user) => user.profile,
     validateProfile,
   );
 
   composeRules<User>([
-    memoizeRule(
-      pick((user) => user.email, validateEmailFormat),
+    withMemoize(
+      validateField((user) => user.email, validateEmailFormat),
       (user) => user.id,
     ),
-    pick((user) => user.email, checkEmailUnique),
-    pick((user) => user.username, validateUsername),
+    validateField((user) => user.email, checkEmailUnique),
+    validateField((user) => user.username, validateUsername),
     mapError(
-      pick((user) => user.age, validateAge),
+      validateField((user) => user.age, validateAge),
       (err) => `Age: ${err}`,
     ),
   ]);
@@ -142,15 +142,15 @@ describe("Full Integration Test", () => {
   // 4. Main pipeline
   const validateUserRegistration = composeRules<User>([
     // Account basics
-    memoizeRule(validateUserEmail, (user) => user.id + user.email),
+    withMemoize(validateUserEmail, (user) => user.id + user.email),
     validateUserUsername,
     mapError(validateUserAge, (err) => `Age: ${err}`),
     // Payment method branch
     match(
       (user: User) => user.payment.method || "",
       {
-        credit: pick(user => user.payment, validateCreditCard),
-        paypal: pick(user => user.payment, validatePaypal),
+        credit: validateField(user => user.payment, validateCreditCard),
+        paypal: validateField(user => user.payment, validatePaypal),
       },
       "Invalid payment method",
     ),
