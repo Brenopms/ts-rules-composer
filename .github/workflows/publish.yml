@@ -1,0 +1,25 @@
+name: publish
+
+on:
+  workflow_run:
+    workflows: ["test"]
+    branches: [main]
+    types: 
+      - completed
+
+jobs:
+  publish:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }} && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: 'https://registry.npmjs.org'
+      - run: npm ci --ignore-scripts
+      - run: npm run build --if-present
+      - name: Publish
+        run: npm run release
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
