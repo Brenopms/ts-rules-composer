@@ -1,4 +1,4 @@
-import { Rule, RuleResult } from "../../types";
+import type { Rule, RuleResult } from "../../types";
 
 /**
  * Creates a rule wrapper that performs side effects without modifying the result.

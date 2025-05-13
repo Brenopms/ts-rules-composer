@@ -1,5 +1,5 @@
 import { fail } from "../../helpers";
-import { Rule } from "../../types";
+import type { Rule } from "../../types";
 
 /**
  * Creates a rule that extracts a value using a getter function and validates it.

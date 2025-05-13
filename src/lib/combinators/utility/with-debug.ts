@@ -1,4 +1,4 @@
-import { DebugOptions, Rule } from "../../types";
+import type { DebugOptions, Rule } from "../../types";
 
 /**
  * Wraps a rule with debugging capabilities.

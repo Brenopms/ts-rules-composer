@@ -1,5 +1,5 @@
 import { pass } from "../helpers";
-import { CompositionOptions, Rule } from "../types";
+import type { CompositionOptions, Rule } from "../types";
 
 /**
  * Pipes multiple rules into a single rule that runs them sequentially (fail-fast).

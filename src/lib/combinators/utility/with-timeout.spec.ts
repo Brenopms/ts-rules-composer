@@ -8,7 +8,7 @@ import {
   expect,
 } from "vitest";
 import { pass, fail } from "../../helpers";
-import { Rule } from "../../types";
+import type { Rule } from "../../types";
 import { withTimeout } from "./with-timeout";
 import { getRuleError } from "../../../test/helpers/get-rule-error";
 

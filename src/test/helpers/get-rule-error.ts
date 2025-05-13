@@ -1,4 +1,4 @@
-import { RuleResult } from "../../lib/types";
+import type { RuleResult } from "../../lib/types";
 
 /**
  * Extracts the error from a failed RuleResult.

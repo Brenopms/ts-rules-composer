@@ -1,5 +1,5 @@
 import { fail, pass } from "../../helpers";
-import { Rule } from "../../types";
+import type { Rule } from "../../types";
 
 /**
  * Creates a rule that passes if any of the provided rules pass (short-circuiting).

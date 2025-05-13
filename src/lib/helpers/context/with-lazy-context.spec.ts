@@ -1,5 +1,5 @@
 import { describe, vi, beforeEach, it, expect } from "vitest";
-import { Rule } from "../../types";
+import type { Rule } from "../../types";
 import { fail, pass } from "../result";
 import { withLazyContext } from "./with-lazy-context";
 

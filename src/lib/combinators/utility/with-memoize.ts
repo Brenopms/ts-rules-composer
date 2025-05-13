@@ -1,4 +1,4 @@
-import { Rule, RuleResult } from "../../types";
+import type { Rule, RuleResult } from "../../types";
 
 /**
  * Creates a memoized version of a rule that caches results based on input keys.

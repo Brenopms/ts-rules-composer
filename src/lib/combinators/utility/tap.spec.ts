@@ -1,7 +1,7 @@
 import { describe, vi, beforeEach, it, expect } from "vitest";
 import { pipeRules } from "../../composition/pipe-rules";
 import { fail, pass } from "../../helpers";
-import { Rule } from "../../types";
+import type { Rule } from "../../types";
 import { tap } from "./tap";
 
 describe("tap (standalone)", () => {

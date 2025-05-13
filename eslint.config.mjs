@@ -24,7 +24,7 @@ export default defineConfig([
             "plugin:eslint-comments/recommended",
             "plugin:@typescript-eslint/recommended",
             "plugin:import/typescript",
-            "prettier"
+            "prettier",
         )),
 
         plugins: {
@@ -65,6 +65,7 @@ export default defineConfig([
             quotes: ["error", "double", {
                 allowTemplateLiterals: true,
             }],
+             "@typescript-eslint/consistent-type-imports": "error"
         },
     },
     {

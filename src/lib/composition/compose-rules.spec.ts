@@ -1,7 +1,7 @@
 import { composeRules } from "./compose-rules";
 import { fail, pass } from "../helpers";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { Rule } from "../types";
+import type { Rule } from "../types";
 
 describe("composeRules", () => {
   const alwaysPass = vi.fn(() => pass());

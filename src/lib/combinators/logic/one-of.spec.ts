@@ -1,6 +1,6 @@
 import { describe, beforeEach, it, expect, vi } from "vitest";
 import { fail, pass } from "../../helpers";
-import { Rule } from "../../types";
+import type { Rule } from "../../types";
 import { oneOf } from "./one-of";
 
 describe("oneOf combinator", () => {

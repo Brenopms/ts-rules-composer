@@ -1,5 +1,5 @@
 import { fail } from "../../helpers";
-import { Rule, RuleResult } from "../../types";
+import type { Rule, RuleResult } from "../../types";
 
 /**
  * Wraps a rule with timeout functionality.

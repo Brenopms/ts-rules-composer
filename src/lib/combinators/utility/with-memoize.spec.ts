@@ -1,5 +1,5 @@
 import { describe, vi, beforeEach, it, expect } from "vitest";
-import { Rule } from "../../types";
+import type { Rule } from "../../types";
 import { withMemoize } from "./with-memoize";
 import { pass } from "../../helpers";
 

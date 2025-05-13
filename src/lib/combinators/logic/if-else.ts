@@ -1,5 +1,5 @@
 import { pass } from "../../helpers";
-import { Rule } from "../../types";
+import type { Rule } from "../../types";
 
 /**
  * Conditionally executes one of two rules based on a predicate

@@ -1,4 +1,4 @@
-import { Rule } from "../../types";
+import type { Rule } from "../../types";
 
 /**
  * Creates a rule that falls back to an alternative rule if the main rule fails.

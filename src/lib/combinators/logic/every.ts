@@ -1,5 +1,5 @@
 import { fail, pass } from "../../helpers";
-import { CompositionOptions, Rule } from "../../types";
+import type { CompositionOptions, Rule } from "../../types";
 
 /**
  * Composes multiple rules into a single rule that runs them all and collects all errors.

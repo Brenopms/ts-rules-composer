@@ -1,5 +1,5 @@
 import { pass, fail } from "../../helpers";
-import { Rule } from "../../types/rule";
+import type { Rule } from "../../types/rule";
 
 /**
  * Inverts the logic of a rule - passes when original fails and vice versa.

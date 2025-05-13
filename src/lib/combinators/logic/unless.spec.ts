@@ -1,6 +1,6 @@
 import { describe, vi, beforeEach, it, expect } from "vitest";
 import { fail, pass } from "../../helpers";
-import { Rule } from "../../types";
+import type { Rule } from "../../types";
 import { unless } from "./unless";
 
 describe("unless combinator", () => {

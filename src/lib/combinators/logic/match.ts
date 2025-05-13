@@ -1,5 +1,5 @@
 import { fail } from "../../helpers";
-import { Rule, RuleResult } from "../../types";
+import type { Rule, RuleResult } from "../../types";
 
 const isRule = <TInput, TError, TContext>(
   value: unknown,

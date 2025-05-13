@@ -1,7 +1,7 @@
 import { pass, fail } from "../../helpers";
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { Rule } from "../../types";
+import type { Rule } from "../../types";
 import { every } from "./every";
 
 describe("every", () => {

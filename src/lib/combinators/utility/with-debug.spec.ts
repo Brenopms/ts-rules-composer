@@ -1,6 +1,6 @@
 import { describe, vi, beforeEach, it, expect } from "vitest";
 import { pass, fail } from "../../helpers";
-import { Rule } from "../../types";
+import type { Rule } from "../../types";
 import { withDebug } from "./with-debug";
 
 describe("withDebug", () => {

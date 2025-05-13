@@ -1,4 +1,4 @@
-import { Rule } from "../../types";
+import type { Rule } from "../../types";
 
 /**
  * Injects a dependency into a rule creation function, returning a configured rule.

@@ -1,5 +1,5 @@
 import { fail, pass } from "../../helpers";
-import { Rule } from "../../types";
+import type { Rule } from "../../types";
 
 /**
  * Transforms the error of a rule using a mapping function.

@@ -1,4 +1,4 @@
-import { RuleResult } from "./rule-result";
+import type { RuleResult } from "./rule-result";
 
 /**
  * A function that validates an input and returns a RuleResult.

@@ -1,4 +1,4 @@
-import { Rule, RuleResult } from "../../types";
+import type { Rule, RuleResult } from "../../types";
 import { fail } from "../result";
 
 /**

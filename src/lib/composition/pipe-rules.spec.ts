@@ -1,7 +1,7 @@
 import { pipeRules } from "./pipe-rules";
 import { fail, pass } from "../helpers";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { Rule } from "../types";
+import type { Rule } from "../types";
 
 describe("pipeRules", () => {
   // Mock rules

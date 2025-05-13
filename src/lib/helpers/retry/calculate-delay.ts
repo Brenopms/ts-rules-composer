@@ -1,4 +1,4 @@
-import { RetryStrategy } from "../../combinators";
+import type { RetryStrategy } from "../../combinators";
 
 export const calculateDelay = (
   strategy: RetryStrategy | undefined,
