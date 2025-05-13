@@ -1,5 +1,5 @@
-import type { Rule } from "../../types";
 import { pass } from "../../helpers";
+import type { Rule } from "../../types";
 
 /**
  * Executes a rule only if the predicate returns false.

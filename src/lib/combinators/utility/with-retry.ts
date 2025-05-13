@@ -1,5 +1,5 @@
-import type { Rule } from "../../types";
 import { calculateDelay, fail } from "../../helpers";
+import type { Rule } from "../../types";
 
 export type RetryStrategy =
   | "fixed"
