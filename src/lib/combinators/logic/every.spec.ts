@@ -106,7 +106,7 @@ describe("Niche errors", () => {
     await expect(validator({})).resolves.toEqual(pass());
   });
 
-  it("should handle falsy error values (false, 0, \"\")", async () => {
+  it('should handle falsy error values (false, 0, "")', async () => {
     const rules = [() => fail(false), () => fail(0), () => fail("")];
     const validator = every(rules as any);
     const result = await validator({});

@@ -64,6 +64,7 @@ export default defineConfig([
             }],
             quotes: ["error", "double", {
                 allowTemplateLiterals: true,
+                avoidEscape: true,
             }],
              "@typescript-eslint/consistent-type-imports": "error",
               "@typescript-eslint/consistent-type-exports": "error"
