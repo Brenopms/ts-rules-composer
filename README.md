@@ -10,7 +10,7 @@ A **dependency-free**, type-safe validation engine for composing complex busines
 // Example: E-commerce checkout
 const validateCheckout = pipeRules([
   validateCart,
-  match(paymentMethod, {
+  match((order) => order.paymentMethod, {
     'credit_card': validateCreditCard,
     'paypal': validatePaypal
   }),
@@ -23,7 +23,7 @@ const result = await validateCheckout(order);
 ## Features ✨
 
 - 🧩 **Composable** - Build pipelines with 25+ combinators (`when`, `unless`, `mapError`, etc.)
-- 🚀 **Zero Dependencies** - Lightweight (under 5KB gzipped)
+- 🚀 **Zero Dependencies** - Lightweight (under 2KB gzipped)
 - 🦾 **TypeScript First** - Full inference for inputs, contexts, and errors
 - ⏱ **Async Ready** - Mix sync/async rules seamlessly
 - 🛡 **Context-Aware** - Shared validation state
