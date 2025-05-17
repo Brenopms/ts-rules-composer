@@ -1,10 +1,12 @@
 {
     "githubPages": true,
     "includeVersion": true,
-    "out": "./genDocs",
+    "out": "../genDocs",
     "entryPoints": [
-        "./src/lib/index.ts"
+        "../src/lib/index.ts"
     ],
+    "tsconfig": "./tsconfig.typedoc.json",
+    "exclude": ["/**/**.spec.ts", "vitest.config.ts"],
     "plugin": [
         "typedoc-plugin-mermaid",
         "typedoc-github-theme",

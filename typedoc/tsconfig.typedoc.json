@@ -1,0 +1,15 @@
+{
+    "extends": "../tsconfig.json",
+    "compilerOptions": {
+        "moduleResolution": "bundler"
+    },
+    "module": "ES6",
+    "exclude": [
+        "dist/**",
+        "build/**",
+        "node_modules/**",
+        "vitest.config.ts",
+        // workaround for https://github.com/rollup/rollup/issues/5199
+        "**/**spec.ts",
+    ],
+}
