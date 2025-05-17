@@ -21,6 +21,8 @@ import type { Rule, RuleResult } from "../../types";
  * - Context changes don't invalidate cache by default
  * - Cache cleanup happens during rule execution
  * - Rejected promises are automatically evicted from cache
+ * - Successful results obey TTL rules
+ * - Cache is shared across rule instances
  */
 export const withMemoize = <TInput, TError = string, TContext = unknown>(
   rule: Rule<TInput, TError, TContext>,

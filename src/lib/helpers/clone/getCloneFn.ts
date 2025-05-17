@@ -6,11 +6,12 @@ import { shallowClone } from "./shallowClone";
 export const getCloneFn = (opts: CompositionOptions) => {
   const canUseStructuredClone = typeof structuredClone !== "undefined";
 
-  const cloneFn = opts.shallowClone
-    ? shallowClone
-    : opts.structuredClone && canUseStructuredClone
-      ? structuredClone
-      : clone;
+  const cloneFn =
+    opts.cloneStrategy === "shallow"
+      ? shallowClone
+      : opts.cloneStrategy === "structured" && canUseStructuredClone
+        ? structuredClone
+        : clone;
 
   return cloneFn;
 };
