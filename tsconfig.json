@@ -44,12 +44,15 @@
     ]
   },
   "include": [
-    "src/**/*.ts"
+    "src/**/*.ts",
   ],
   "exclude": [
     "dist/**",
     "build/**",
-    "node_modules/**"
+    "node_modules/**",
+    "vitest.config.ts",
+    // workaround for https://github.com/rollup/rollup/issues/5199
+    "**/**spec.ts",
   ],
-  "compileOnSave": false
+  "compileOnSave": false,
 }

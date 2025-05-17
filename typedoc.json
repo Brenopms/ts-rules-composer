@@ -1,0 +1,12 @@
+{
+    "githubPages": true,
+    "includeVersion": true,
+    "out": "./genDocs",
+    "entryPoints": [
+        "./src/lib/index.ts"
+    ],
+    "plugin": [
+        "typedoc-plugin-mermaid",
+        "typedoc-github-theme",
+    ]
+}
