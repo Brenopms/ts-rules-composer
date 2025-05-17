@@ -1,4 +1,5 @@
 import { pass } from "../helpers";
+import { getCloneFn } from "../helpers/clone/getCloneFn";
 import type { CompositionOptions, Rule } from "../types";
 
 /**
@@ -25,16 +26,18 @@ import type { CompositionOptions, Rule } from "../types";
  * @caveats
  * - Rules are executed from **right to left**
  * - Rules are executed sequentially (not in parallel)
- * - Context clone uses structuredClone from Node.js
+ * - Cloning behavior follows this priority:
+ *   1. Uses shallowClone if options.shallowClone = true
+ *   2. Uses structuredClone if available and options.structuredClone = true
+ *   3. Falls back to JSON clone otherwise
  */
 export const composeRules = <TInput, TError = string, TContext = unknown>(
   rules: Rule<TInput, TError, TContext>[],
   options: CompositionOptions = {},
 ): Rule<TInput, TError, TContext> => {
   return async (input: TInput, context?: TContext) => {
-    const currentContext = options?.cloneContext
-      ? structuredClone(context)
-      : context;
+    const cloneFn = getCloneFn(options);
+    const currentContext = options?.cloneContext ? cloneFn(context) : context;
 
     for (let i = rules.length - 1; i >= 0; i--) {
       const result = await rules[i](input, currentContext);

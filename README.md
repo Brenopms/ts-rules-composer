@@ -29,6 +29,7 @@ const result = await validateCheckout(order);
 - 🛡 **Context-Aware** - Shared validation state
 - 🔌 **Extensible** - Easily create custom combinators that integrate seamlessly
 - 📊 **Instrumentation** - Debugging & metrics out-of-the-box
+- 🧪 **Rigorously Tested** - 100% test coverage with 300+ test cases covering all edge cases
 
 ## Installation
 
@@ -273,6 +274,54 @@ const postModerationResult = await moderatePost(
     environment: "production"
   }
 );
+```
+
+## Context Cloning Options
+
+The library provides flexible context cloning strategies to balance between performance and correctness. You can control cloning behavior through `CompositionOptions`:
+
+```typescript
+interface CompositionOptions {
+  cloneContext?: boolean;      // Enable/disable cloning
+  shallowClone?: boolean;      // Use shallow clone when true
+  structuredClone?: boolean;   // Force structuredClone when true
+}
+```
+
+### Cloning Strategies
+
+The library automatically selects the best available cloning method based on your options and runtime environment:
+
+| Option            | Priority | Speed  | Depth | Special Types* | Circular Refs | Node.js | Browser |
+|-------------------|----------|--------|-------|----------------|---------------|---------|---------|
+| `shallowClone`    | 1st      | 🚀 Fast | Shallow | ❌ No         | ✅ Yes        | ✅      | ✅      |
+| `structuredClone` | 2nd      | 🐢 Slow | Deep  | ✅ Yes         | ✅ Yes        | 17+     | Modern  |
+| JSON Clone        | Fallback | 🏎 Fast | Deep  | ❌ No          | ❌ No         | ✅      | ✅      |
+
+*Special Types: Date, Map, Set, RegExp, etc.
+
+### Usage Examples
+
+**1. Default Behavior (Smart Auto-Detect)**
+
+```typescript
+// Automatically uses the best available clone method
+pipeRules(rules, { cloneContext: true })
+```
+
+**2. Force Shallow Clone**
+
+```typescript
+// Fastest option - only clones top-level properties
+pipeRules(rules, { cloneContext: true, shallowClone: true })
+```
+
+**3. Force Structured Clone**
+
+```typescript
+// Most accurate - preserves special object types
+pipeRules(rules, { cloneContext: true, structuredClone: true })
+// Falls back to JSON clone if structuredClone isn't available
 ```
 
 ## API Reference

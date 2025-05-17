@@ -1,4 +1,5 @@
 import { fail, pass } from "../../helpers";
+import { getCloneFn } from "../../helpers/clone/getCloneFn";
 import type { CompositionOptions, Rule } from "../../types";
 
 /**
@@ -24,15 +25,18 @@ import type { CompositionOptions, Rule } from "../../types";
  * @caveats
  * - Rules are executed in parallel (using Promise.all)
  * - All rules are executed even if some fail
+ * - Cloning behavior follows this priority:
+ *   1. Uses shallowClone if options.shallowClone = true
+ *   2. Uses structuredClone if available and options.structuredClone = true
+ *   3. Falls back to JSON clone otherwise
  */
 export const every = <TInput, TError = string, TContext = unknown>(
   rules: Rule<TInput, TError, TContext>[],
   options: CompositionOptions = {},
 ): Rule<TInput, TError[], TContext> => {
   return async (input: TInput, context?: TContext) => {
-    const currentContext = options?.cloneContext
-      ? structuredClone(context)
-      : context;
+    const cloneFn = getCloneFn(options);
+    const currentContext = options?.cloneContext ? cloneFn(context) : context;
 
     const results = await Promise.all(
       rules.map((rule) => rule(input, currentContext)),
