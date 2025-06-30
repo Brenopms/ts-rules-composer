@@ -1,9 +1,9 @@
 import { withSafeError } from "../../combinators";
-import type { Rule, SafetyOptions } from "../../types";
+import type { Rule, RuleSafetyOptions } from "../../types";
 
 export const getNormalizedRules = <TInput, TError, TContext>(
   rules: Rule<TInput, TError, TContext>[],
-  opts: SafetyOptions<TError>,
+  opts?: RuleSafetyOptions<TError>,
 ): Rule<TInput, TError, TContext>[] => {
   const normalizedRules =
     opts?.errorHandlingMode === "unsafe"

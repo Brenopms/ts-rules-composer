@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { getNormalizedRule } from "./get-normalized-rule";
-import type { Rule, SafetyOptions } from "../../types";
+import type { Rule, RuleSafetyOptions } from "../../types";
 import { pass, fail } from "../../helpers";
 
 describe("getNormalizedRule", () => {
@@ -34,7 +34,7 @@ describe("getNormalizedRule", () => {
   });
 
   describe("with errorHandlingMode = 'safe' (default)", () => {
-    const defaultOptions: SafetyOptions = {};
+    const defaultOptions: RuleSafetyOptions = {};
 
     it("should return original rule when it doesn't throw", async () => {
       const normalized = getNormalizedRule(passingRule, defaultOptions);
@@ -54,7 +54,7 @@ describe("getNormalizedRule", () => {
   });
 
   describe("with errorHandlingMode = 'unsafe'", () => {
-    const unsafeOptions: SafetyOptions = { errorHandlingMode: "unsafe" };
+    const unsafeOptions: RuleSafetyOptions = { errorHandlingMode: "unsafe" };
 
     it("should return original rule when it doesn't throw", async () => {
       const normalized = getNormalizedRule(passingRule, unsafeOptions);
@@ -93,7 +93,7 @@ describe("getNormalizedRule", () => {
       }),
     );
 
-    const transformOptions: SafetyOptions<CustomError> = {
+    const transformOptions: RuleSafetyOptions<CustomError> = {
       errorTransform: customTransform,
     };
 

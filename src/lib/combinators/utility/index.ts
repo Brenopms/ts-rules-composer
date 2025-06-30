@@ -6,4 +6,5 @@ export * from "./with-debug";
 export * from "./with-memoize";
 export * from "./with-retry";
 export * from "./with-safe-error";
+export * from "./with-safe-predicate";
 export * from "./with-timeout";

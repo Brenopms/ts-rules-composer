@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { getNormalizedRules } from "./get-normalized-rules";
-import type { Rule, SafetyOptions } from "../../types";
+import type { Rule, RuleSafetyOptions } from "../../types";
 import { pass, fail } from "../../helpers";
-import { withSafeError } from "../../combinators";
 
 describe("getNormalizedRules", () => {
   // Mock rules for testing
@@ -12,7 +11,6 @@ describe("getNormalizedRules", () => {
   }
 
   const passingRule: Rule<string> = vi.fn(() => pass());
-  const failingRule: Rule<string> = vi.fn(() => fail("Expected error"));
   const errorThrowingRule: Rule<string> = vi.fn(() => {
     throw new Error("Boom!");
   });
@@ -23,9 +21,6 @@ describe("getNormalizedRules", () => {
   const passingRuleCustom: Rule<string, CustomError> = vi.fn(() =>
     pass(),
   ) as Rule<string, CustomError>;
-  const failingRuleCustom: Rule<string, CustomError> = vi.fn(() =>
-    fail({ code: 400, message: "Expected error" }),
-  );
   const errorThrowingRuleCustom: Rule<string, CustomError> = vi.fn(() => {
     throw new Error("Boom!");
   });
@@ -35,31 +30,31 @@ describe("getNormalizedRules", () => {
   });
 
   describe("with errorHandlingMode = 'safe' (default)", () => {
-    const defaultOptions: SafetyOptions = {};
+    const defaultOptions: RuleSafetyOptions = {};
 
     it("should return original rules when they don't throw", async () => {
-        const rules = [passingRule, passingRule];
-        const normalized = getNormalizedRules(rules, defaultOptions);
-        
-        expect(normalized).toHaveLength(2);
-        
-        // Verify behavior instead of function reference
-        const result1 = await normalized[0]("test");
-        expect(result1).toEqual(pass());
-        expect(passingRule).toHaveBeenCalledWith("test", undefined);
-        
-        const result2 = await normalized[1]("test");
-        expect(result2).toEqual(pass());
-        expect(passingRule).toHaveBeenCalledWith("test", undefined);
-      });
-      it("should wrap throwing rules with safe handlers", async () => {
-        const rules = [errorThrowingRule];
-        const normalized = getNormalizedRules(rules, defaultOptions);
-        
-        const result = await normalized[0]("test");
-        expect(result.status).toBe("failed");
-        expect((result as any).error.message).toBe("Boom!");
-      });
+      const rules = [passingRule, passingRule];
+      const normalized = getNormalizedRules(rules, defaultOptions);
+
+      expect(normalized).toHaveLength(2);
+
+      // Verify behavior instead of function reference
+      const result1 = await normalized[0]("test");
+      expect(result1).toEqual(pass());
+      expect(passingRule).toHaveBeenCalledWith("test", undefined);
+
+      const result2 = await normalized[1]("test");
+      expect(result2).toEqual(pass());
+      expect(passingRule).toHaveBeenCalledWith("test", undefined);
+    });
+    it("should wrap throwing rules with safe handlers", async () => {
+      const rules = [errorThrowingRule];
+      const normalized = getNormalizedRules(rules, defaultOptions);
+
+      const result = await normalized[0]("test");
+      expect(result.status).toBe("failed");
+      expect((result as any).error.message).toBe("Boom!");
+    });
 
     it("should handle empty rules array", () => {
       const normalized = getNormalizedRules([], defaultOptions);
@@ -68,7 +63,7 @@ describe("getNormalizedRules", () => {
   });
 
   describe("with errorHandlingMode = 'unsafe'", () => {
-    const unsafeOptions: SafetyOptions = { errorHandlingMode: "unsafe" };
+    const unsafeOptions: RuleSafetyOptions = { errorHandlingMode: "unsafe" };
 
     it("should return original rules without wrapping", () => {
       const rules = [passingRule, errorThrowingRule, objectThrowingRule];
@@ -93,20 +88,20 @@ describe("getNormalizedRules", () => {
       }),
     );
 
-    const transformOptions: SafetyOptions<CustomError> = {
+    const transformOptions: RuleSafetyOptions<CustomError> = {
       errorTransform: customTransform,
     };
 
     it("should apply transform to throwing rules", async () => {
       const rules = [errorThrowingRuleCustom];
       const normalized = getNormalizedRules(rules, transformOptions);
-      
+
       // Test behavior instead of function reference
       const result = await normalized[0]("test");
       expect(result.status).toBe("failed");
       expect((result as any).error).toEqual({
         code: 500,
-        message: "Error: Boom!"
+        message: "Error: Boom!",
       });
       expect(customTransform).toHaveBeenCalled();
     });
@@ -114,7 +109,7 @@ describe("getNormalizedRules", () => {
     it("should not transform non-throwing rules", async () => {
       const rules = [passingRuleCustom];
       const normalized = getNormalizedRules(rules, transformOptions);
-      
+
       // Test behavior instead of function reference
       const result = await normalized[0]("test");
       expect(result).toEqual(pass());

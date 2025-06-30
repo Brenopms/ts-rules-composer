@@ -3,7 +3,7 @@ import type { CompositionOptions } from "../../types";
 import { clone } from "./clone";
 import { shallowClone } from "./shallowClone";
 
-export const getCloneFn = (opts: CompositionOptions) => {
+export const getCloneFn = (opts: CompositionOptions<unknown>) => {
   const canUseStructuredClone = typeof structuredClone !== "undefined";
 
   const cloneFn =
