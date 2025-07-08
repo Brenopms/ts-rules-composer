@@ -1,5 +1,5 @@
-import { fail } from "../../helpers";
-import type { Rule, RuleResult } from "../../types";
+import { fail, getNormalizedRule } from "../../helpers";
+import type { Rule, RuleResult, RuleSafetyOptions } from "../../types";
 
 const isRule = <TInput, TError, TContext>(
   value: unknown,
@@ -69,6 +69,7 @@ export const match = <
   accessor: (input: TInput, context?: TContext) => TKey | Promise<TKey>,
   cases: Record<TKey, Rule<TInput, TError, TContext>>,
   defaultCase?: Rule<TInput, TError, TContext> | TError,
+  options?: RuleSafetyOptions<TError>,
 ): Rule<TInput, TError, TContext> => {
   return async (
     input: TInput,
@@ -78,13 +79,21 @@ export const match = <
     const matchedRule = cases[key];
 
     if (matchedRule) {
-      return matchedRule(input, context);
+      const safeMatchedRule = getNormalizedRule(matchedRule, options);
+      return safeMatchedRule(input, context);
     }
 
     if (defaultCase !== undefined) {
-      return isRule<TInput, TError, TContext>(defaultCase)
-        ? defaultCase(input, context)
-        : fail(defaultCase);
+      // if default case is not a rule, fail the error/messae directly
+      if (!isRule<TInput, TError, TContext>(defaultCase)) {
+        return fail(defaultCase);
+      }
+
+      const safeDefaultCase = getNormalizedRule(
+        defaultCase as Rule<TInput, TError, TContext>,
+        options,
+      );
+      return safeDefaultCase(input, context);
     }
 
     return fail(`No matching rule for key: ${String(key)}` as TError);

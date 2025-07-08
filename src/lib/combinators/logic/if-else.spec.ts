@@ -7,6 +7,9 @@ describe("branch", () => {
   const mockTruePredicate = vi.fn(() => true);
   const mockFalsePredicate = vi.fn(() => false);
   const asyncTruePredicate = vi.fn(async () => true);
+  const mockThrowingPredicate = vi.fn(() => {
+    throw new Error("Boom!");
+  });
 
   const passingRule: Rule<string> = vi.fn(() => pass());
   const failingRule: Rule<string> = vi.fn(() => fail("Failed rule"));
@@ -68,5 +71,12 @@ describe("branch", () => {
     const result = await rule("input");
     expect(result.status).toBe("failed");
     expect(result).toEqual(fail("Failed rule"));
+  });
+
+  it("should handle throwing predicate", async () => {
+    const rule = ifElse(mockThrowingPredicate, passingRule, failingRule);
+    const result = await rule("input");
+    expect(result.status).toBe("failed");
+    expect(result).toEqual(fail(new Error("Boom!")));
   });
 });

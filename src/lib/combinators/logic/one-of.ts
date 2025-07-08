@@ -1,5 +1,5 @@
-import { fail, pass } from "../../helpers";
-import type { Rule } from "../../types";
+import { fail, getNormalizedRules, pass } from "../../helpers";
+import type { Rule, RuleSafetyOptions } from "../../types";
 
 /**
  * Creates a rule that passes if any of the provided rules pass (short-circuiting).
@@ -19,16 +19,18 @@ import type { Rule } from "../../types";
  * - Returns all errors if all rules fail
  */
 export const oneOf = <TInput, TError = string, TContext = unknown>(
-  ...rules: Rule<TInput, TError, TContext>[]
+  rules: Rule<TInput, TError, TContext>[],
+  options?: RuleSafetyOptions<TError>,
 ): Rule<TInput, TError[], TContext> => {
   return async (input: TInput, context?: TContext) => {
+    const normalizedRules = getNormalizedRules(rules, options);
     const errors: TError[] = [];
 
     if (!rules || rules.length === 0) {
       return pass();
     }
 
-    for (const rule of rules) {
+    for (const rule of normalizedRules) {
       const result = await rule(input, context);
       if (result.status === "passed") {
         return pass();

@@ -1,5 +1,7 @@
-import { pass } from "../../helpers";
-import type { Rule } from "../../types";
+import { fail, getNormalizedRules, pass } from "../../helpers";
+import type { Predicate, Rule } from "../../types";
+import type { SafetyOptions } from "../../types/safety-options";
+import { withSafePredicate } from "../utility";
 
 /**
  * Conditionally executes one of two rules based on a predicate
@@ -11,29 +13,46 @@ import type { Rule } from "../../types";
  * @param elseRule - Rule to execute when predicate returns false (optional)
  * @returns A new rule that conditionally executes one of two rules
  * @example
- * const rule = branch(
+ * const rule = ifElse(
  *   (user) => user.age >= 18,
  *   validateAdultAccount,
  *   validateMinorAccount
  * );
  *
  * // Without elseRule (passes when predicate is false)
- * const adultOnlyRule = branch(
+ * const adultOnlyRule = ifElse(
  *   (user) => user.age >= 18,
  *   validateAdultAccount
  * );
  */
 export const ifElse = <TInput, TError = string, TContext = unknown>(
-  predicate: (input: TInput, context?: TContext) => boolean | Promise<boolean>,
+  predicate: Predicate<TInput, TContext>,
   ifRule: Rule<TInput, TError, TContext>,
   elseRule?: Rule<TInput, TError, TContext>,
+  options?: SafetyOptions<TError>,
 ): Rule<TInput, TError, TContext> => {
   return async (input: TInput, context?: TContext) => {
-    const shouldBranch = await predicate(input, context);
+    const safePredicate = withSafePredicate<TInput, TError, TContext>(
+      predicate,
+      options?.predicateErrorTransform,
+    );
+    const safePredicateResult = await safePredicate(input, context);
+
+    // Predicate fail to run or returned invalid result
+    if (safePredicateResult.status === "failed") {
+      return fail(safePredicateResult.error);
+    }
+
+    const [normalizedIfRule, normalizedElseRule] = getNormalizedRules(
+      [ifRule, elseRule!],
+      options,
+    );
+
+    const shouldBranch = safePredicateResult.value;
     return shouldBranch
-      ? ifRule(input, context)
+      ? normalizedIfRule(input, context)
       : elseRule
-        ? elseRule(input, context)
+        ? normalizedElseRule(input, context)
         : pass();
   };
 };

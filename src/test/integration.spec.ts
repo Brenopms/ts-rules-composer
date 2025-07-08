@@ -164,10 +164,10 @@ describe("Full Integration Test", () => {
     when(
       (user) => user.profile !== undefined,
       mapError(
-        oneOf(
+        oneOf([
           validateUserProfile,
           not(() => fail("Profile blocked"), "Profile must be valid"),
-        ),
+        ]),
         (errors) => errors.join(", "),
       ),
     ),

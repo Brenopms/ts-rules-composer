@@ -1,5 +1,8 @@
+import { fail, getNormalizedRule } from "../../helpers";
 import { pass } from "../../helpers/result/pass";
+import type { Predicate, RuleSafetyOptions } from "../../types";
 import type { Rule } from "../../types/rule";
+import { withSafePredicate } from "../utility";
 
 /**
  * Conditionally executes a rule based on a predicate.
@@ -18,12 +21,22 @@ import type { Rule } from "../../types/rule";
  * - The predicate can be async
  * - If predicate returns false, the rule automatically passes
  */
-export const when = <TInput, TError = string>(
-  predicate: (input: TInput) => boolean | Promise<boolean>,
-  rule: Rule<TInput, TError>,
-): Rule<TInput, TError> => {
-  return async (input: TInput, context?: unknown) => {
-    const shouldRun = await predicate(input);
-    return shouldRun ? rule(input, context) : pass();
+export const when = <TInput, TError = string, TContext = unknown>(
+  predicate: Predicate<TInput, TContext>,
+  rule: Rule<TInput, TError, TContext>,
+  options?: RuleSafetyOptions<TError>,
+): Rule<TInput, TError, TContext> => {
+  return async (input: TInput, context?: TContext) => {
+    const normalizedRule = getNormalizedRule(rule, options);
+    const safePredicate = withSafePredicate<TInput, TError, TContext>(
+      predicate,
+    );
+
+    const safePredicateResult = await safePredicate(input, context);
+    if (safePredicateResult.status === "failed") {
+      return fail(safePredicateResult.error);
+    }
+
+    return safePredicateResult.value ? normalizedRule(input, context) : pass();
   };
 };

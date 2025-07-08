@@ -1,4 +1,5 @@
-import type { Rule, RuleResult } from "../../types";
+import { getNormalizedRule } from "../../helpers";
+import type { Rule, RuleResult, RuleSafetyOptions } from "../../types";
 
 /**
  * Creates a memoized version of a rule that caches results based on input keys.
@@ -30,7 +31,7 @@ export const withMemoize = <TInput, TError = string, TContext = unknown>(
   options: {
     ttl?: number; // Milliseconds
     maxSize?: number;
-  } = {},
+  } & RuleSafetyOptions<TError> = {},
 ): Rule<TInput, TError, TContext> => {
   const cache = new Map<
     string,
@@ -67,7 +68,8 @@ export const withMemoize = <TInput, TError = string, TContext = unknown>(
     }
 
     // Cache miss
-    const result = rule(input, context);
+    const normalizedRule = getNormalizedRule(rule, options);
+    const result = normalizedRule(input, context);
     cache.set(key, {
       result,
       timestamp: now,

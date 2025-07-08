@@ -13,7 +13,7 @@ describe("oneOf combinator", () => {
   });
 
   it("should pass if any rule passes", async () => {
-    const validator = oneOf(failingRule1, passingRule, failingRule2);
+    const validator = oneOf([failingRule1, passingRule, failingRule2]);
     const result = await validator({});
 
     expect(result).toEqual(pass());
@@ -23,14 +23,14 @@ describe("oneOf combinator", () => {
   });
 
   it("should fail with all errors if no rules pass", async () => {
-    const validator = oneOf(failingRule1, failingRule2);
+    const validator = oneOf([failingRule1, failingRule2]);
     const result = await validator({});
 
     expect(result).toEqual(fail(["Error 1", "Error 2"]));
   });
 
   it("should handle empty rules array", async () => {
-    const validator = oneOf();
+    const validator = oneOf([]);
     const result = await validator({});
 
     expect(result).toEqual(pass()); // Vacuous truth
@@ -40,7 +40,7 @@ describe("oneOf combinator", () => {
     const context = { userId: 123 };
     const rule = vi.fn(() => pass());
 
-    await oneOf(rule)({}, context);
+    await oneOf([rule])({}, context);
     expect(rule).toHaveBeenCalledWith({}, context);
   });
 
@@ -50,7 +50,7 @@ describe("oneOf combinator", () => {
       return pass();
     });
 
-    const result = await oneOf(asyncRule)({});
+    const result = await oneOf([asyncRule])({});
     expect(result).toEqual(pass());
   });
 
@@ -60,7 +60,7 @@ describe("oneOf combinator", () => {
     const typedRule: Rule<StrictInput, string> = () => pass();
 
     // Valid usage
-    oneOf(typedRule, () => fail("Error"));
+    oneOf([typedRule, () => fail("Error")]);
 
     // @ts-expect-error - Should fail if input types mismatch
     oneOf(typedRule, (input: { other: number }) => pass());

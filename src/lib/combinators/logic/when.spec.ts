@@ -19,7 +19,7 @@ describe("when combinator", () => {
 
     await conditionalRule(input);
 
-    expect(mockPredicateTrue).toHaveBeenCalledWith(input);
+    expect(mockPredicateTrue).toHaveBeenCalledWith(input, undefined);
     expect(mockRule).toHaveBeenCalledWith(input, undefined);
   });
 
@@ -28,7 +28,7 @@ describe("when combinator", () => {
     const input = { active: false };
     const result = await conditionalRule(input);
 
-    expect(mockPredicateFalse).toHaveBeenCalledWith(input);
+    expect(mockPredicateFalse).toHaveBeenCalledWith(input, undefined);
     expect(result).toEqual(pass());
     expect(mockRule).not.toHaveBeenCalled();
   });
@@ -74,16 +74,6 @@ describe("when combinator", () => {
     }
   });
 
-  it("should pass context to rule but not predicate", async () => {
-    const context = { authToken: "xyz" };
-    const rule = vi.fn(() => pass());
-
-    await when(mockPredicateTrue, rule)({}, context);
-
-    expect(mockPredicateTrue).toHaveBeenCalledWith({});
-    expect(rule).toHaveBeenCalledWith({}, context);
-  });
-
   it("should work with async rules needing context", async () => {
     const context = {
       db: {
@@ -106,9 +96,11 @@ describe("when combinator", () => {
     const errorCondition = () => {
       throw new Error("Condition failed");
     };
-    const conditionalRule = when(errorCondition, mockRule);
+    const conditionalRule = when(errorCondition, mockRule, {
+      errorHandlingMode: "unsafe",
+    });
 
-    expect(conditionalRule({})).rejects.toThrow("Condition failed");
+    expect(conditionalRule({})).resolves.toEqual(fail(new Error("Condition failed")));
     expect(mockRule).not.toHaveBeenCalled();
   });
 
@@ -116,7 +108,9 @@ describe("when combinator", () => {
     const errorRule = () => {
       throw new Error("Rule failed");
     };
-    const conditionalRule = when(() => true, errorRule);
+    const conditionalRule = when(() => true, errorRule, {
+      errorHandlingMode: "unsafe",
+    });
 
     expect(conditionalRule({})).rejects.toThrow("Rule failed");
   });

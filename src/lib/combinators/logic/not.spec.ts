@@ -56,7 +56,9 @@ describe("not combinator", () => {
       throw new Error("Boom!");
     });
 
-    const invertedRule = not(errorRule, errorMsg);
+    const invertedRule = not(errorRule, errorMsg, {
+      errorHandlingMode: "unsafe",
+    });
     await expect(invertedRule({})).rejects.toThrow("Boom!");
   });
 });

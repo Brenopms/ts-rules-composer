@@ -1,4 +1,4 @@
-import { fail, pass } from "../../helpers";
+import { fail, getNormalizedRules, pass } from "../../helpers";
 import { getCloneFn } from "../../helpers/clone/getCloneFn";
 import type { CompositionOptions, Rule } from "../../types";
 
@@ -32,14 +32,15 @@ import type { CompositionOptions, Rule } from "../../types";
  */
 export const every = <TInput, TError = string, TContext = unknown>(
   rules: Rule<TInput, TError, TContext>[],
-  options: CompositionOptions = {},
+  options: CompositionOptions<TError> = {},
 ): Rule<TInput, TError[], TContext> => {
   return async (input: TInput, context?: TContext) => {
     const cloneFn = getCloneFn(options);
     const currentContext = options?.cloneContext ? cloneFn(context) : context;
+    const normalizedRules = getNormalizedRules(rules, options);
 
     const results = await Promise.all(
-      rules.map((rule) => rule(input, currentContext)),
+      normalizedRules.map((rule) => rule(input, currentContext)),
     );
 
     const errors = results.flatMap((r) =>

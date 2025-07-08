@@ -276,6 +276,92 @@ const postModerationResult = await moderatePost(
 );
 ```
 
+## Error Handling Standardization
+
+This library provides consistent error handling across all validation operations through a standardized system:
+
+### Core Principles
+
+1. **No Uncaught Exceptions** - All errors are converted to `RuleResult` objects
+2. **Type Safety** - Custom error types are preserved throughout operations
+3. **Flexible Control** - Choose between safety and performance with error handling modes
+
+### Standardization Functions
+
+| Function                | Purpose                                                                 |
+|-------------------------|-------------------------------------------------------------------------|
+| `withSafeError`         | Wraps rules to catch exceptions and convert to failed validation results|
+| `withSafePredicate`     | Safely handles predicate functions that may throw                       |
+| `getNormalizedRule`     | Applies consistent error handling to single rules                       |
+| `getNormalizedRules`    | Batch processes multiple rules with standardized error handling         |
+
+### Error Handling Modes
+
+Configure via `RuleSafetyOptions`:
+
+```typescript
+{
+  errorHandlingMode?: 'safe' | 'unsafe',  // Default: 'safe'
+  errorTransform?: (error: unknown) => TError // Custom error conversion
+}
+```
+
+**Modes**:
+
+- `safe`: (Default) All errors are caught and converted to validation failures
+- `unsafe`: Lets exceptions propagate (for performance-critical paths)
+
+### Error Flow
+
+```mermaid
+graph TD
+    A[Raw Error] -->|Thrown| B{Handling Mode?}
+    B -->|safe| C[Convert to RuleResult]
+    B -->|unsafe| D[Propagate Exception]
+    C --> E[Apply errorTransform if provided]
+    E --> F[Return Failed Result]
+```
+
+### Best Practices
+
+1. **For validation logic**:
+
+   ```typescript
+   // Safe mode with custom error transformation
+   const rule = getNormalizedRule(myRule, {
+     errorTransform: (e) => ({ code: 500, message: String(e) })
+   });
+   ```
+
+2. **For performance-critical paths**:
+
+   ```typescript
+   // Unsafe mode - ensure calling code handles exceptions
+   const fastRule = getNormalizedRule(highPerfRule, {
+     errorHandlingMode: 'unsafe'
+   });
+   ```
+
+3. **Custom error types**:
+
+   ```typescript
+   type APIError = { status: number };
+   const apiRule: Rule<string, APIError> = /*...*/;
+   // Preserves APIError type through all transformations
+   ```
+
+### Debugging Tips
+
+Enable debug mode to get enhanced error information:
+
+```typescript
+import { withDebug } from './combinators';
+
+const debugRule = withDebug(myRule, {
+  onError: (error) => console.error('Rule failed:', error)
+});
+```
+
 ## Context Cloning Options
 
 The library provides flexible context cloning strategies to balance between performance and correctness. You can control cloning behavior through `CompositionOptions`:

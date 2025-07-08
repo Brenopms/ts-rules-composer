@@ -1,4 +1,5 @@
-import { pass, fail } from "../../helpers";
+import { pass, fail, getNormalizedRule } from "../../helpers";
+import type { RuleSafetyOptions } from "../../types";
 import type { Rule } from "../../types/rule";
 
 /**
@@ -17,9 +18,12 @@ import type { Rule } from "../../types/rule";
 export const not = <TInput, TError = string>(
   rule: Rule<TInput, TError>,
   error: TError,
+  options?: RuleSafetyOptions<TError>,
 ): Rule<TInput, TError> => {
   return async (input: TInput, context?: unknown) => {
-    const result = await rule(input, context);
+    const normalizedRule = getNormalizedRule(rule, options);
+
+    const result = await normalizedRule(input, context);
     return result.status === "passed" ? fail(error) : pass();
   };
 };

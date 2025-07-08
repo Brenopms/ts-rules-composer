@@ -1,4 +1,5 @@
-import type { Rule, RuleResult } from "../../types";
+import { getNormalizedRule } from "../../helpers";
+import type { Rule, RuleResult, RuleSafetyOptions } from "../../types";
 
 /**
  * Creates a rule wrapper that performs side effects without modifying the result.
@@ -23,11 +24,13 @@ export const tap = <TInput, TError = string, TContext = unknown>(
     result: RuleResult<TError>,
     context?: TContext,
   ) => Promise<void> | void,
+  options?: RuleSafetyOptions<TError>,
 ): ((
   rule: Rule<TInput, TError, TContext>,
 ) => Rule<TInput, TError, TContext>) => {
   return (rule) => async (input, context) => {
-    const result = await rule(input, context);
+    const safeRule = getNormalizedRule(rule, options);
+    const result = await safeRule(input, context);
     try {
       await effect(input, result, context);
     } catch (error) {

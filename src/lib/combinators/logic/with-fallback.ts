@@ -1,4 +1,5 @@
-import type { Rule } from "../../types";
+import { getNormalizedRules } from "../../helpers";
+import type { Rule, RuleSafetyOptions } from "../../types";
 
 /**
  * Creates a rule that falls back to an alternative rule if the main rule fails.
@@ -20,17 +21,21 @@ import type { Rule } from "../../types";
 export const withFallback = <TInput, TError, TContext>(
   mainRule: Rule<TInput, TError, TContext>,
   fallbackRule: Rule<TInput, TError, TContext>,
-  options: {
+  options: RuleSafetyOptions<TError> & {
     onlyFallbackOn?: (error: TError) => boolean;
   } = {},
 ): Rule<TInput, TError, TContext> => {
   return async (input: TInput, context?: TContext) => {
-    const result = await mainRule(input, context);
+    const [mainSafeRule, fallbackSafeRule] = getNormalizedRules([
+      mainRule,
+      fallbackRule,
+    ]);
+    const result = await mainSafeRule(input, context);
     if (
       result.status === "failed" &&
       (!options.onlyFallbackOn || options.onlyFallbackOn(result.error))
     ) {
-      return fallbackRule(input, context);
+      return fallbackSafeRule(input, context);
     }
     return result;
   };

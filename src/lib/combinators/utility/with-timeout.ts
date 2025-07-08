@@ -1,5 +1,5 @@
-import { fail } from "../../helpers";
-import type { Rule, RuleResult } from "../../types";
+import { fail, getNormalizedRule } from "../../helpers";
+import type { Rule, RuleResult, RuleSafetyOptions } from "../../types";
 
 /**
  * Wraps a rule with timeout functionality.
@@ -24,11 +24,13 @@ export const withTimeout = <TInput, TError, TContext>(
   rule: Rule<TInput, TError, TContext>,
   timeoutMs: number,
   timeoutError: TError,
+  options?: RuleSafetyOptions<TError>,
 ): Rule<TInput, TError, TContext> => {
   return async (input, context) => {
+    const safeRule = getNormalizedRule(rule, options);
     const timeout = new Promise<RuleResult<TError>>((resolve) =>
       setTimeout(() => resolve(fail(timeoutError)), timeoutMs),
     );
-    return Promise.race([rule(input, context), timeout]);
+    return Promise.race([safeRule(input, context), timeout]);
   };
 };
