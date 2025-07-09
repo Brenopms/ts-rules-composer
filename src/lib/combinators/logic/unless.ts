@@ -35,7 +35,7 @@ export const unless = <TInput, TError = string, TContext = unknown>(
     const normalizedRule = getNormalizedRule(rule, options);
     const safePredicate = withSafePredicate<TInput, TError, TContext>(
       predicate,
-      options?.predicateErrorTransform
+      options?.predicateErrorTransform,
     );
 
     const safePredicateResult = await safePredicate(input, context);
