@@ -29,7 +29,7 @@ const result = await validateCheckout(order);
 - 🛡 **Context-Aware** - Shared validation state
 - 🔌 **Extensible** - Easily create custom combinators that integrate seamlessly
 - 📊 **Instrumentation** - Debugging & metrics out-of-the-box
-- 🧪 **Rigorously Tested** - 100% test coverage with 300+ test cases covering all edge cases
+- 🧪 **Rigorously Tested** - 95+% test coverage with 300+ test cases covering all edge cases
 
 ## Installation
 
@@ -135,9 +135,7 @@ const validateTransaction = pipeRules([
 ]);
 
 // Usage
-const result = await validateTransaction(paymentRequest, {
-  userKycStatus: await getKycStatus(userId)
-});
+const result = await validateTransaction(paymentRequest);
 ```
 
 ### Example 2: User Registration
@@ -526,7 +524,7 @@ const validateProfile = every([
 
 ### Control Flow
 
-#### `match(accessor, cases, defaultCase?)`  
+#### `match(accessor, cases, defaultCase?, options?)`  
 
 Pattern matching routing
 
@@ -576,12 +574,12 @@ const validateAge = ifElse(
 )
 ```
 
-#### `oneOf(...rules)`  
+#### `oneOf(rules, options?)`  
 
 Tries rules until one passes  
 
 ```typescript
-const validateContact = oneOf(, options?
+const validateContact = oneOf(
   validateEmail,
   validatePhone,
   validateUsername
@@ -621,6 +619,28 @@ const isNotBanned = not(
   checkBanStatus,
   "Account must be active"
 )
+```
+
+#### `withSafeError(rule, errorTransform?)`  
+
+Wraps a rule to catch errors and convert them to failed RuleResults
+
+```typescript
+const customSafeRule = withSafeError(riskyRule, e => ({
+  code: 500,
+  message: String(e)
+}));
+```
+
+#### `withSafePredicate(rule, errorTransform?)`  
+
+Wraps a predicate function with error handling and type safety
+
+```typescript
+const safePredicate = withSafePredicate(
+  (input: string) => input.length > 5,
+  (err) => `Predicate failed: ${String(err)}`
+);
 ```
 
 ### Performance
