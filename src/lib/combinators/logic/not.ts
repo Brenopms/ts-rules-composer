@@ -8,6 +8,11 @@ import type { Rule } from "../../types/rule";
  * @template TError - The type of the error (defaults to string)
  * @param rule - The rule to invert
  * @param error - The error to return when original rule passes
+ * @param options - Configuration for error handling safety
+ * @param options.errorHandlingMode - Determines how errors are handled:
+ *   - 'safe': (default) Converts thrown errors to validation failures
+ *   - 'unsafe': Lets errors propagate (use only in performance-critical paths)
+ * @param options.errorTransform - Custom transformation for caught errors
  * @returns A new rule with inverted logic
  * @example
  * const isNotAdmin = not(isAdmin, "User must not be admin");

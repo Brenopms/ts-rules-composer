@@ -107,7 +107,7 @@ describe("Full Integration Test", () => {
       );
       return valid ? pass() : fail("Paypal error");
     },
-    3000,
+    100,
     "Paypal timeout",
   );
 

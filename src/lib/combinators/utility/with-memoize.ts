@@ -8,9 +8,13 @@ import type { Rule, RuleResult, RuleSafetyOptions } from "../../types";
  * @template TContext - The type of the context object (optional)
  * @param rule - The rule to memoize
  * @param keyFn - Function that generates a cache key from the input
- * @param options - Memoization options
+ * @param options - Memoization and safety options
  * @param options.ttl - Time-to-live for cache entries in milliseconds
  * @param options.maxSize - Maximum number of entries to keep in cache
+ * @param options.errorHandlingMode - Determines how errors are handled:
+ *   - 'safe': (default) Converts thrown errors to validation failures
+ *   - 'unsafe': Lets errors propagate (use only in performance-critical paths)
+ * @param options.errorTransform - Custom transformation for caught errors
  * @returns A memoized version of the rule
  * @example
  * const memoizedRule = withMemoize(

@@ -10,6 +10,10 @@ import type { Rule, RuleSafetyOptions } from "../../types";
  * @param fallbackRule - Rule to execute if main rule fails
  * @param options - Configuration options
  * @param options.onlyFallbackOn - Predicate to conditionally enable fallback
+ * @param options.errorHandlingMode - Determines how errors are handled:
+ *   - 'safe': (default) Converts thrown errors to validation failures
+ *   - 'unsafe': Lets errors propagate (use only in performance-critical paths)
+ * @param options.errorTransform - Custom transformation for caught errors
  * @returns A new composite rule
  * @example
  * const rule = withFallback(

@@ -1,7 +1,8 @@
 import { fail, getNormalizedRule } from "../../helpers";
 import { pass } from "../../helpers/result/pass";
-import type { Predicate, RuleSafetyOptions } from "../../types";
+import type { Predicate } from "../../types";
 import type { Rule } from "../../types/rule";
+import { SafetyOptions } from "../../types/safety-options";
 import { withSafePredicate } from "../utility";
 
 /**
@@ -11,6 +12,12 @@ import { withSafePredicate } from "../utility";
  * @template TError - The type of the error (defaults to string)
  * @param predicate - Function that determines whether to execute the rule
  * @param rule - Rule to execute when predicate returns true
+ * @param options - Configuration for error handling and predicate safety
+ * @param options.errorHandlingMode - Determines how errors are handled:
+ *   - 'safe': (default) Converts thrown errors to validation failures
+ *   - 'unsafe': Lets errors propagate (use only in performance-critical paths)
+ * @param options.errorTransform - Custom transformation for caught errors
+ * @param options.predicateErrorTransform - Special error handler for predicate failures
  * @returns A new rule that conditionally executes the input rule
  * @example
  * const rule = when(
@@ -24,12 +31,13 @@ import { withSafePredicate } from "../utility";
 export const when = <TInput, TError = string, TContext = unknown>(
   predicate: Predicate<TInput, TContext>,
   rule: Rule<TInput, TError, TContext>,
-  options?: RuleSafetyOptions<TError>,
+  options?: SafetyOptions<TError>,
 ): Rule<TInput, TError, TContext> => {
   return async (input: TInput, context?: TContext) => {
     const normalizedRule = getNormalizedRule(rule, options);
     const safePredicate = withSafePredicate<TInput, TError, TContext>(
       predicate,
+      options?.predicateErrorTransform,
     );
 
     const safePredicateResult = await safePredicate(input, context);

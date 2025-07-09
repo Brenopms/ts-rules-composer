@@ -9,6 +9,11 @@ import type { Rule, RuleResult, RuleSafetyOptions } from "../../types";
  * @param rule - The rule to wrap with timeout
  * @param timeoutMs - Timeout duration in milliseconds
  * @param timeoutError - Error to return if timeout occurs
+ * @param options - Configuration for error handling safety
+ * @param options.errorHandlingMode - Determines how errors are handled:
+ *   - 'safe': (default) Converts thrown errors to validation failures
+ *   - 'unsafe': Lets errors propagate (use only in performance-critical paths)
+ * @param options.errorTransform - Custom transformation for caught errors
  * @returns A new rule that fails with timeoutError if execution takes longer than timeoutMs
  * @example
  * const rule = withTimeout(

@@ -1,5 +1,5 @@
-import { fail } from "../../helpers";
-import type { Rule } from "../../types";
+import { fail, getNormalizedRule } from "../../helpers";
+import type { Rule, RuleSafetyOptions } from "../../types";
 
 /**
  * Creates a rule that extracts a value using a getter function and validates it.
@@ -10,6 +10,11 @@ import type { Rule } from "../../types";
  * @param getter - Function that extracts the value from input
  * @param rule - Rule to apply to the extracted value
  * @param defaultValue - Optional default value if getter returns undefined
+ * @param options - Configuration for error handling safety
+ * @param options.errorHandlingMode - Determines how errors are handled:
+ *   - 'safe': (default) Converts thrown errors to validation failures
+ *   - 'unsafe': Lets errors propagate (use only in performance-critical paths)
+ * @param options.errorTransform - Custom transformation for caught errors
  * @returns A new rule that validates the extracted value
  * @example
  * const validateName = validateField(
@@ -45,15 +50,17 @@ export function validateField<
   getter: (input: TInput) => TValue | undefined,
   rule: Rule<TValue, TError, TContext>,
   defaultValue?: TValue,
+  options?: RuleSafetyOptions<TError>,
 ): Rule<TInput, TError, TContext> {
   return async (input: TInput, context?: TContext) => {
     const value = getter(input);
     const finalValue = value !== undefined ? value : defaultValue;
+    const safeRule = getNormalizedRule(rule, options);
 
     if (finalValue === undefined) {
       return fail("Missing required value" as unknown as TError);
     }
 
-    return rule(finalValue, context);
+    return safeRule(finalValue, context);
   };
 }

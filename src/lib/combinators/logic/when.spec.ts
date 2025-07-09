@@ -100,7 +100,9 @@ describe("when combinator", () => {
       errorHandlingMode: "unsafe",
     });
 
-    expect(conditionalRule({})).resolves.toEqual(fail(new Error("Condition failed")));
+    expect(conditionalRule({})).resolves.toEqual(
+      fail(new Error("Condition failed")),
+    );
     expect(mockRule).not.toHaveBeenCalled();
   });
 

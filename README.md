@@ -60,8 +60,8 @@ Always returns:
 
 ```typescript
 type RuleResult<TError> =
-  | { readonly status: "passed" }
-  | { readonly status: "failed"; readonly error: TError };
+  | { readonly status: "passed" }; // pass()
+  | { readonly status: "failed"; readonly error: TError }; // fail(error)
 ```
 
 ## Usage Examples
@@ -143,7 +143,7 @@ const result = await validateTransaction(paymentRequest, {
 ### Example 2: User Registration
 
 ```typescript
-import { pipeRules, every, match, withMetrics } from 'ts-rules-composer';
+import { pipeRules, every, match } from 'ts-rules-composer';
 
 const validateUser = pipeRules([
   // Sequential validation
@@ -167,11 +167,6 @@ const validateUser = pipeRules([
     fail('Unknown role')
   )
 ]);
-
-// With instrumentation
-const instrumentedValidation = withMetrics(validateUser, {
-  onEnd: (result) => trackAnalytics(result)
-});
 ```
 
 ### Example 3: Healthcare Appointment System
@@ -362,6 +357,85 @@ const debugRule = withDebug(myRule, {
 });
 ```
 
+### Error Handling Precedence Rules
+
+**Key Principle**: Composition configuration always overrides individual rule settings. This ensures consistent behavior within each composition block.
+
+```mermaid
+graph TD
+    A[Composition Config] -->|Overrides| B[Individual Rule Config]
+    style A stroke:#28cc9e,stroke-width:2px
+    style B stroke:#ff9f43
+```
+
+#### Hierarchy of Control
+
+1. **Composition-Level Setting** (Highest priority)
+   - `pipeRules/composeRules/every/oneOf` configurations
+2. **Rule-Level Configuration** (Only applies if composition allows)
+   - `withSafeError` or `getNormalizedRule` settings
+3. **Global Default** (`safe` mode)
+
+#### Behavior Matrix
+
+| Composition Mode | Rule Mode       | Effective Behavior       |
+|------------------|-----------------|--------------------------|
+| `safe`           | Any             | All rules run in safe mode |
+| `unsafe`         | Not specified   | Rule's native behavior    |
+| `unsafe`         | `safe`          | Rule runs in safe mode    |
+| `unsafe`         | `unsafe`        | Rule runs in unsafe mode  |
+
+#### Complete Error Flow
+
+```mermaid
+graph TD
+    A[Raw Error] --> B{Composition<br>Configuration?}
+    B -->|safe| C[Force Safe Handling]
+    B -->|unsafe| D{Individual Rule<br>Configuration?}
+    D -->|safe or not specified| C[Propagate Exception]
+    D -->|unsafe| E
+    C --> F[Apply errorTransform]
+    F --> G[Return Failed Result]
+    E --> H[Propagate Raw Exception]
+
+    style B stroke:#28cc9e,stroke-width:2px
+    style D stroke:#ff9f43
+    classDef green fill:#e6f7e6,stroke:#28cc9e
+    classDef yellow fill:#fff8e6,stroke:#ff9f43
+    class B,D green,yellow
+
+```
+
+#### Examples
+
+**1. Composition Forces Safe Mode** (Overrides all rules)
+
+```typescript
+// All rules will use safe mode regardless of their own config
+const pipeline = pipeRules([
+  unsafeRule,                // Will be forced to safe mode
+  withSafeError(rule, {      // Configuration ignored
+    errorHandlingMode: 'unsafe' 
+  })
+], {
+  errorHandlingMode: 'safe'  // ← Takes precedence
+})
+```
+
+**2. Unsafe Composition with Mixed Rules**
+
+```typescript
+// Rules can specify their own mode since composition allows it
+const pipeline = pipeRules([
+  unsafeRule,                // Runs in unsafe mode
+  withSafeError(rule, {      // Runs in safe mode
+    errorHandlingMode: 'safe' 
+  })
+], {
+  errorHandlingMode: 'unsafe' // ← Allows rule-level configs
+})
+```
+
 ## Context Cloning Options
 
 The library provides flexible context cloning strategies to balance between performance and correctness. You can control cloning behavior through `CompositionOptions`:
@@ -468,7 +542,7 @@ const validatePayment = match(
 )
 ```
 
-#### `when(condition, rule)`  
+#### `when(condition, rule, options?)`  
 
 Executes only if condition is true  
 
@@ -479,7 +553,7 @@ const validateAdmin = when(
 )
 ```
 
-#### `unless(condition, rule)`  
+#### `unless(condition, rule, options?)`  
 
 Executes only if condition is false  
 
@@ -490,7 +564,7 @@ const validateGuest = unless(
 )
 ```
 
-#### `ifElse(condition, ifRule, elseRule?)`  
+#### `ifElse(condition, ifRule, elseRule?, options?)`  
 
 Branch between two rules  
 
@@ -507,7 +581,7 @@ const validateAge = ifElse(
 Tries rules until one passes  
 
 ```typescript
-const validateContact = oneOf(
+const validateContact = oneOf(, options?
   validateEmail,
   validatePhone,
   validateUsername
@@ -527,7 +601,7 @@ const validateWithFallback = withFallback(
 
 ### Error Handling
 
-#### `mapError(rule, transform)`  
+#### `mapError(rule, transform, options?)`  
 
 Transforms error output  
 
@@ -538,7 +612,7 @@ const friendlyErrors = mapError(
 )
 ```
 
-#### `not(rule, error)`  
+#### `not(rule, error, options?)`  
 
 Inverts rule logic  
 
@@ -563,7 +637,7 @@ const cachedCheck = withMemoize(
 )
 ```
 
-#### `withTimeout(rule, ms, timeoutError)`  
+#### `withTimeout(rule, ms, timeoutError, options?)`  
 
 Adds execution timeout  
 
@@ -600,7 +674,7 @@ const authRule = requireContextRule(
 )
 ```
 
-#### `withLazyContext(loader, rule)`  
+#### `withLazyContext(loader, rule, options?)`  
 
 Lazy-loads context  
 
@@ -634,7 +708,7 @@ const debugRule = withDebug(validateOrder, {
 })
 ```
 
-#### `tap(effect)`  
+#### `tap(effect, options?)`  
 
 Performs side effects  
 

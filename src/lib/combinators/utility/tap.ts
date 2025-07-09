@@ -7,6 +7,11 @@ import type { Rule, RuleResult, RuleSafetyOptions } from "../../types";
  * @template TError - The type of the error (defaults to string)
  * @template TContext - The type of the context object (optional)
  * @param effect - Side effect function receiving input, result and context
+ * @param options - Configuration for error handling safety
+ * @param options.errorHandlingMode - Determines how errors are handled:
+ *   - 'safe': (default) Converts thrown errors to validation failures
+ *   - 'unsafe': Lets errors propagate (use only in performance-critical paths)
+ * @param options.errorTransform - Custom transformation for caught errors
  * @returns A function that wraps a rule with the tap effect
  * @example
  * const withLogging = tap((input, result) => {

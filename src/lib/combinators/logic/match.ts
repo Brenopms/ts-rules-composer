@@ -16,6 +16,11 @@ const isRule = <TInput, TError, TContext>(
  * @param accessor - Function that extracts the match key from input
  * @param cases - Object mapping keys to their corresponding rules
  * @param defaultCase - Optional default rule or error when no match is found
+ * @param options - Configuration for error handling safety
+ * @param options.errorHandlingMode - Determines how errors are handled:
+ *   - 'safe': (default) Converts thrown errors to validation failures
+ *   - 'unsafe': Lets errors propagate (use only in performance-critical paths)
+ * @param options.errorTransform - Custom transformation for caught errors
  * @returns A new rule that executes the matching case's rule
  * @example
  * // Basic usage with string error type

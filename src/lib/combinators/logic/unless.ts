@@ -10,6 +10,12 @@ import { withSafePredicate } from "../utility";
  * @template TContext - The type of the context object (optional)
  * @param predicate - Condition to check
  * @param rule - Rule to execute when predicate is false
+ * @param options - Configuration for error handling and predicate safety
+ * @param options.errorHandlingMode - Determines how errors are handled:
+ *   - 'safe': (default) Converts thrown errors to validation failures
+ *   - 'unsafe': Lets errors propagate (use only in performance-critical paths)
+ * @param options.errorTransform - Custom transformation for caught errors
+ * @param options.predicateErrorTransform - Special error handler for predicate failures
  * @returns A rule that conditionally executes based on the predicate
  * @example
  * const rule = unless(
@@ -29,6 +35,7 @@ export const unless = <TInput, TError = string, TContext = unknown>(
     const normalizedRule = getNormalizedRule(rule, options);
     const safePredicate = withSafePredicate<TInput, TError, TContext>(
       predicate,
+      options?.predicateErrorTransform
     );
 
     const safePredicateResult = await safePredicate(input, context);

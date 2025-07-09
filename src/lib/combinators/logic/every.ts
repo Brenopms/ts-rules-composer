@@ -10,6 +10,11 @@ import type { CompositionOptions, Rule } from "../../types";
  * @param rules - Array of rules to compose
  * @param options - Configuration options
  * @param options.cloneContext - Whether to clone the context for each rule (default: false)
+ * @param options.cloneStrategy -Which strategy to use when cloning the context
+ * @param options.errorHandlingMode - Determines how errors are handled:
+ *   - 'safe': (default) Converts thrown errors to validation failures
+ *   - 'unsafe': Lets errors propagate (use only in performance-critical paths)
+ * @param options.errorTransform - Custom transformation for caught errors
  * @returns A new rule that returns all errors from all failing rules
  * @example
  * const rule = every([

@@ -1,4 +1,4 @@
-import { pass } from "../helpers";
+import { getNormalizedRules, pass } from "../helpers";
 import { getCloneFn } from "../helpers/clone/getCloneFn";
 import type { CompositionOptions, Rule } from "../types";
 
@@ -12,6 +12,10 @@ import type { CompositionOptions, Rule } from "../types";
  * @param rules - Array of rules to compose
  * @param options - Configuration options
  * @param options.cloneContext - Whether to clone the context for each rule (default: false)
+ * @param options.errorHandlingMode - Determines how errors are handled:
+ *   - 'safe': (default) Converts thrown errors to validation failures
+ *   - 'unsafe': Lets errors propagate (use only in performance-critical paths)
+ * @param options.errorTransform - Custom transformation for caught errors
  * @returns A new rule that composes all input rules
  *
  * @example
@@ -38,9 +42,10 @@ export const composeRules = <TInput, TError = string, TContext = unknown>(
   return async (input: TInput, context?: TContext) => {
     const cloneFn = getCloneFn(options);
     const currentContext = options?.cloneContext ? cloneFn(context) : context;
+    const normalizedRules = getNormalizedRules(rules);
 
-    for (let i = rules.length - 1; i >= 0; i--) {
-      const result = await rules[i](input, currentContext);
+    for (let i = normalizedRules.length - 1; i >= 0; i--) {
+      const result = await normalizedRules[i](input, currentContext);
       if (result.status === "failed") {
         return result;
       }

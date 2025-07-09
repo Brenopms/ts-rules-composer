@@ -11,6 +11,12 @@ import { withSafePredicate } from "../utility";
  * @param predicate - Function that determines which rule to execute
  * @param ifRule - Rule to execute when predicate returns true
  * @param elseRule - Rule to execute when predicate returns false (optional)
+ * @param options - Configuration for error handling and predicate safety
+ * @param options.errorHandlingMode - Determines how errors are handled:
+ *   - 'safe': (default) Converts thrown errors to validation failures
+ *   - 'unsafe': Lets errors propagate (use only in performance-critical paths)
+ * @param options.errorTransform - Custom transformation for caught errors
+ * @param options.predicateErrorTransform - Special error handler for predicate failures
  * @returns A new rule that conditionally executes one of two rules
  * @example
  * const rule = ifElse(
