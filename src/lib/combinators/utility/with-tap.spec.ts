@@ -2,7 +2,7 @@ import { describe, vi, beforeEach, it, expect } from "vitest";
 import { pipeRules } from "../../composition/pipe-rules";
 import { fail, pass } from "../../helpers";
 import type { Rule } from "../../types";
-import { tap } from "./tap";
+import { withTap } from "./with-tap";
 
 describe("tap (standalone)", () => {
   const mockEffect = vi.fn();
@@ -15,7 +15,7 @@ describe("tap (standalone)", () => {
 
   // Basic functionality
   it("should call effect without modifying rule result", async () => {
-    const tappedRule = tap(mockEffect)(mockRule);
+    const tappedRule = withTap(mockEffect)(mockRule);
     const input = { test: "value" };
     const result = await tappedRule(input);
 
@@ -29,7 +29,7 @@ describe("tap (standalone)", () => {
     const errorEffect = vi.fn(() => {
       throw new Error("Effect failed");
     });
-    const tappedRule = tap(errorEffect)(mockRule);
+    const tappedRule = withTap(errorEffect)(mockRule);
 
     await expect(tappedRule({})).resolves.toEqual(pass());
     expect(errorEffect).toHaveBeenCalled();
@@ -37,7 +37,7 @@ describe("tap (standalone)", () => {
 
   // Context handling
   it("should pass context to both rule and effect", async () => {
-    const tappedRule = tap(mockEffect)(mockRule);
+    const tappedRule = withTap(mockEffect)(mockRule);
     await tappedRule({}, mockContext);
 
     expect(mockRule).toHaveBeenCalledWith({}, mockContext);
@@ -49,7 +49,7 @@ describe("tap (standalone)", () => {
     const asyncEffect = vi.fn(async () => {
       await Promise.resolve();
     });
-    const tappedRule = tap(asyncEffect)(mockRule);
+    const tappedRule = withTap(asyncEffect)(mockRule);
     await tappedRule({});
 
     expect(asyncEffect).toHaveBeenCalled();
@@ -62,7 +62,7 @@ describe("tap (standalone)", () => {
     const effect1 = vi.fn();
     const effect2 = vi.fn();
 
-    const pipeline = tap(effect2)(pipeRules([tap(effect1)(rule1), rule2]));
+    const pipeline = withTap(effect2)(pipeRules([withTap(effect1)(rule1), rule2]));
 
     await pipeline({});
     expect(effect1).toHaveBeenCalledWith({}, pass(), undefined);
@@ -75,17 +75,17 @@ describe("tap (standalone)", () => {
     const typedRule: Rule<StrictInput> = () => pass();
 
     // Valid usage
-    tap((input: StrictInput) => console.log(input.id))(typedRule);
+    withTap((input: StrictInput) => console.log(input.id))(typedRule);
 
     // @ts-expect-error - Should fail if effect expects wrong input type
-    tap((input: { other: number }) => {})(typedRule);
+    withTap((input: { other: number }) => {})(typedRule);
   });
 
   // Edge cases
   it("should handle null/undefined inputs", async () => {
     const effect = vi.fn();
     const rule = () => pass();
-    const tappedRule = tap(effect)(rule);
+    const tappedRule = withTap(effect)(rule);
 
     await tappedRule(null as any);
     expect(effect).toHaveBeenCalledWith(null, pass(), undefined);
@@ -95,7 +95,7 @@ describe("tap (standalone)", () => {
     const asyncEffect = async () => {
       await Promise.resolve();
     };
-    const tappedRule = tap(asyncEffect)(mockRule);
+    const tappedRule = withTap(asyncEffect)(mockRule);
 
     await expect(tappedRule({})).resolves.toEqual(pass());
   });

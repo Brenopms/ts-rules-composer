@@ -728,14 +728,16 @@ const debugRule = withDebug(validateOrder, {
 })
 ```
 
-#### `tap(effect, options?)`  
+#### `withTap(effect, options?)`  
 
-Performs side effects  
+Wraps a rule with side effects without modifying its result
 
 ```typescript
-const loggedRule = tap((input, result) => {
+const loggedRule = withTap((input, result) => {
   analytics.trackValidation(input, result)
 })
+
+const ruleResult = await loggedRule(input)
 ```
 
 ### Utilities
