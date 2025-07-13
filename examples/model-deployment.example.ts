@@ -7,6 +7,7 @@ import {
   fail,
   pipeRules,
   Rule,
+  tap
 } from "../src/lib";
 
 // 1. Define types
@@ -63,7 +64,7 @@ const checkRisk = (services: Injected["riskService"]): Rule<Deployment> =>
 // 3. Factory function with injection
 const createDeploymentValidator = (deps: Injected) =>
   pipeRules([
-    withTap((input) => deps.logger.log("Deployment started", { input })),
+    tap((input) => deps.logger.log("Deployment started", { input })),
 
     withLazyContext<Deployment, string, Context>(
       async (deployment) => {
@@ -79,7 +80,7 @@ const createDeploymentValidator = (deps: Injected) =>
 
     checkRisk(deps.riskService),
 
-    withTap((_, __) => deps.logger.log("Deployment passed", {})),
+    tap((_, __) => deps.logger.log("Deployment passed", {})),
   ]);
 
 // 4. Setup
@@ -124,4 +125,13 @@ const validateDeployment = inject(
 
   const result = await validateDeployment(deployment);
   console.log("Result:", result);
+
+  const outdatedDeploymenty: Deployment = {
+    modelId: "gpt-9000",
+    version: "1.1.0",
+    userId: "u456",
+  };
+
+  const outdatedResult = await validateDeployment(outdatedDeploymenty);
+  console.log("Result 2 (outdated):", outdatedResult);
 })();
