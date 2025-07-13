@@ -1,5 +1,6 @@
 export * from "./inject";
 export * from "./map-error";
+export * from "./tap";
 export * from "./with-tap";
 export * from "./validate-field";
 export * from "./with-debug";

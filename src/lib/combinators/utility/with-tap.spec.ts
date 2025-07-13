@@ -62,7 +62,9 @@ describe("tap (standalone)", () => {
     const effect1 = vi.fn();
     const effect2 = vi.fn();
 
-    const pipeline = withTap(effect2)(pipeRules([withTap(effect1)(rule1), rule2]));
+    const pipeline = withTap(effect2)(
+      pipeRules([withTap(effect1)(rule1), rule2]),
+    );
 
     await pipeline({});
     expect(effect1).toHaveBeenCalledWith({}, pass(), undefined);
