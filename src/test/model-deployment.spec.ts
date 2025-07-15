@@ -26,13 +26,6 @@ const mockRegistry = {
 const mockRiskService = {
   assess: vi.fn(async () => 5),
 };
-
-const validDeployment = {
-  modelId: "model-x",
-  version: "1.2.0",
-  userId: "u1",
-};
-
 // 1. Define types
 type Deployment = {
   modelId: string;
@@ -108,6 +101,11 @@ const createDeploymentValidator = (deps: Injected) =>
 
 describe("model-deployment-validator", () => {
   let validateDeployment: Rule<Deployment, string>;
+  const validDeployment: Deployment = {
+    modelId: "model-x",
+    version: "1.2.0",
+    userId: "u1",
+  };
 
   beforeEach(() => {
     vi.clearAllMocks();
