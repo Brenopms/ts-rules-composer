@@ -3,7 +3,6 @@
     "incremental": false,
     "target": "ES2018",
     "outDir": "dist",
-    "rootDir": "src",
     "sourceRoot": "src",
     "moduleResolution": "node",
     "module": "ES6",
