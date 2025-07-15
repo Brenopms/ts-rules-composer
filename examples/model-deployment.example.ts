@@ -1,13 +1,12 @@
+import type { Rule } from "../src/lib";
 import {
   inject,
   withLazyContext,
   withMemoize,
-  withTap,
   pass,
   fail,
   pipeRules,
-  Rule,
-  tap
+  tap,
 } from "../src/lib";
 
 // 1. Define types
@@ -30,7 +29,7 @@ type Context = {
 
 type Injected = {
   logger: {
-    log: (msg: string, payload: any) => void;
+    log: (msg: string, payload: unknown) => void;
   };
   riskService: {
     assess: (modelId: string) => Promise<number>;
@@ -85,7 +84,7 @@ const createDeploymentValidator = (deps: Injected) =>
 
 // 4. Setup
 const mockLogger = {
-  log: (msg: string, payload: any) =>
+  log: (msg: string, payload: unknown) =>
     console.log(`[LOG] ${msg}:`, JSON.stringify(payload, null, 2)),
 };
 

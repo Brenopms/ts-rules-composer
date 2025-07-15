@@ -45,7 +45,9 @@ export const withRetry = <TInput, TError = string, TContext = unknown>(
     for (let attempt = 1; attempt <= attempts; attempt++) {
       try {
         const result = await rule(input, context);
-        if (result.status === "passed") return result;
+        if (result.status === "passed") {
+          return result;
+        }
         lastError = result.error;
       } catch (error) {
         lastError = error;

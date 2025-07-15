@@ -45,6 +45,7 @@
   },
   "include": [
     "src/**/*.ts",
+    "examples/**/*.ts"
   ],
   "exclude": [
     "dist/**",

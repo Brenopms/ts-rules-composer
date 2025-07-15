@@ -1,3 +1,4 @@
+import type { Rule } from "../src/lib";
 import {
   pipeRules,
   every,
@@ -5,7 +6,6 @@ import {
   withMemoize,
   pass,
   fail,
-  Rule,
   mapError,
 } from "../src/lib";
 

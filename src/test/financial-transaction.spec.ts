@@ -1,4 +1,5 @@
-import type { Rule } from "../src/lib";
+import { vi, describe, beforeEach, it, expect } from "vitest";
+import type { Rule } from "../lib";
 import {
   pipeRules,
   match,
@@ -8,7 +9,16 @@ import {
   when,
   pass,
   fail,
-} from "../src/lib";
+} from "../lib";
+
+// Mock services
+const fraudService = {
+  assess: vi.fn(),
+};
+
+const bankService = {
+  authCheck: vi.fn(),
+};
 
 // Types
 interface Transaction {
@@ -25,15 +35,6 @@ interface Transaction {
 }
 
 const SUPPORTED_CURRENCIES = ["USD", "EUR", "GBP"];
-
-// Mock services
-const fraudService = {
-  assess: async (_tx: Transaction) => ({ score: 2 }),
-};
-
-const bankService = {
-  authCheck: async (_cardNumber: string) => true,
-};
 
 // 1. Basic validators
 const validateAmount: Rule<Transaction> = (tx: Transaction) =>
@@ -129,7 +130,7 @@ const validatePaymentMethod: Rule<Transaction> = match(
     credit_card: pipeRules([
       validateCardNumber,
       validateExpiry,
-      withTimeout(bankAuthCheck, 3000, "Bank auth timeout"),
+      withTimeout(bankAuthCheck, 500, "Bank auth timeout"),
     ]),
     crypto: validateWalletAddress,
     bank_transfer: validateIBAN,
@@ -156,33 +157,95 @@ const validateTransaction: Rule<Transaction> = pipeRules([
   }),
 ]);
 
-// Example usage
-(async () => {
-  const validTransaction = {
-    amount: 500,
-    currency: "USD",
-    userId: "user123",
-    recipient: "recipient456",
-    paymentType: "credit_card",
-    accountType: "personal",
-    cardNumber: "4111111111111111", // Valid test Visa number
-    expiry: "12/25",
-  };
+// Test cases
+describe("Transaction Validation", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fraudService.assess.mockResolvedValue({ score: 2 }); // Low risk by default
+    bankService.authCheck.mockResolvedValue(true); // Success by default
+  });
 
-  const validResult = await validateTransaction(validTransaction);
-  console.log(validResult);
+  it("should validate a successful credit card transaction", async () => {
+    const transaction = {
+      amount: 500,
+      currency: "USD",
+      userId: "user123",
+      recipient: "recipient456",
+      paymentType: "credit_card",
+      accountType: "personal",
+      cardNumber: "4111111111111111", // Valid test Visa number
+      expiry: "12/25",
+    };
 
-  const invalidTransaction = {
-    amount: 500,
-    currency: "XYZ", // Invalid
-    userId: "user123",
-    recipient: "recipient456",
-    paymentType: "credit_card",
-    accountType: "personal",
-    cardNumber: "4111111111111111",
-    expiry: "12/25",
-  };
+    const result = await validateTransaction(transaction);
+    expect(result).toEqual(pass());
+  });
 
-  const invalidResult = await validateTransaction(invalidTransaction);
-  console.log(invalidResult);
-})();
+  it("should validate a successful crypto transaction", async () => {
+    const transaction = {
+      amount: 2000,
+      currency: "USD",
+      userId: "user123",
+      recipient: "recipient456",
+      paymentType: "crypto",
+      accountType: "business",
+      walletAddress: "0x71C7656EC7ab88b098defB751B7401B5f6d8976F",
+    };
+
+    const result = await validateTransaction(transaction);
+    expect(result).toEqual(pass());
+    expect(fraudService.assess).toHaveBeenCalled(); // Should check fraud for >$1000
+  });
+
+  it("should fail for invalid currency", async () => {
+    const transaction = {
+      amount: 500,
+      currency: "XYZ", // Invalid
+      userId: "user123",
+      recipient: "recipient456",
+      paymentType: "credit_card",
+      accountType: "personal",
+      cardNumber: "4111111111111111",
+      expiry: "12/25",
+    };
+
+    const result = await validateTransaction(transaction);
+    expect(result).toEqual(fail("Unsupported currency: XYZ"));
+  });
+
+  it("should timeout slow bank auth", async () => {
+    const transaction = {
+      amount: 500,
+      currency: "USD",
+      userId: "user123",
+      recipient: "recipient456",
+      paymentType: "credit_card",
+      accountType: "personal",
+      cardNumber: "4111111111111111",
+      expiry: "12/25",
+    };
+
+    // Mock a slow response
+    bankService.authCheck.mockImplementation(
+      () => new Promise((resolve) => setTimeout(() => resolve(true), 600)),
+    );
+
+    const result = await validateTransaction(transaction);
+    expect(result).toEqual(fail("Bank auth timeout"));
+  });
+
+  it("should enforce business transfer limits", async () => {
+    const transaction = {
+      amount: 200000, // Over limit
+      currency: "USD",
+      userId: "user123",
+      recipient: "recipient456",
+      paymentType: "crypto",
+      accountType: "business",
+      walletAddress: "0x71C7656EC7ab88b098defB751B7401B5f6d8976F",
+    };
+
+    const result = await validateTransaction(transaction);
+    expect(result).toEqual(fail("Business transfers limited to $100,000"));
+  });
+});
