@@ -30,6 +30,7 @@ const result = await validateCheckout(order);
 - 🔌 **Extensible** - Easily create custom combinators that integrate seamlessly
 - 📊 **Instrumentation** - Debugging & metrics out-of-the-box
 - 🧪 **Rigorously Tested** - 95+% test coverage with 300+ test cases covering all edge cases
+- 🌐 **Node.js + Browser Compatible** – Works in modern browsers and most Node.js versions (14+)
 
 ## Installation
 
@@ -65,6 +66,12 @@ type RuleResult<TError> =
 ```
 
 ## Usage Examples
+
+Complete examples can be found here:
+
+- 🧑‍💻 [User Registration](./examples/user-registration.example.ts)
+- 💳 [Financial Transaction Validation](./examples/financial-transaction.example.ts)
+- 🚀 [Model Deployment Validator](./examples/model-deployment.example.ts)
 
 ### Example 1: Financial Transaction Validation
 
@@ -728,6 +735,17 @@ const debugRule = withDebug(validateOrder, {
 })
 ```
 
+#### `tap(effect, options?)`  
+
+Creates a standalone tap effect for use in composition pipelines
+
+```typescript
+pipeRules([
+  tap((input) => console.log('Processing: ', input)),
+  validateInput
+])
+```
+
 #### `withTap(effect, options?)`  
 
 Wraps a rule with side effects without modifying its result
@@ -833,14 +851,33 @@ const dbRule = inject(database, createDbRule)
 4. **Type Narrowing** - Use `requireContextRule` for safety
 5. **Instrument** - Add metrics in production
 
-```mermaid
-graph TD
-    A[Input] --> B{Valid?}
-    B -->|Yes| C[Process]
-    B -->|No| D[Collect Errors]
-    C --> E[Output]
-    D --> E
-```
+## 🔍 Comparison to Other Libraries
+
+While many libraries focus on schema validation or static rules, `ts-rules-composer` is designed specifically for **composable business logic**, dynamic workflows, and contextual validation pipelines.
+
+Here’s how it compares to popular alternatives:
+
+| Library                                                                  | Type                    | Async | Context-Aware | Type Inference | Size (gzipped)          | Notes                                            |
+| ------------------------------------------------------------------------ | ----------------------- | ----- | ------------- | -------------- | ------------- | ------------------------------------------------ |
+| **`ts-rules-composer`**                                                  | Rule engine, functional | ✅     | ✅             | ✅              | \~4KB  | Built for composing complex, contextual rules    |
+| [`zod`](https://github.com/colinhacks/zod)                               | Schema validation       | ✅     | ❌             | ✅              | \~40KB        | Excellent for static object validation           |
+| [`io-ts`](https://github.com/gcanti/io-ts)                               | Runtime type validation | ✅     | ❌             | ✅              | \~5KB+       | Powerful but requires deep functional patterns   |
+| [`json-rules-engine`](https://github.com/CacheControl/json-rules-engine) | Declarative JSON rules  | ✅     | ❌             | ❌              | \~25KB        | Config-based rules, limited type safety          |
+| [`casl`](https://casl.js.org/)                                           | Authorization DSL       | ✅     | ✅             | ⚠️ Limited     | \~6KB         | Great for access control, not general validation |
+
+---
+
+### 🧠 When to Use `ts-rules-composer`
+
+Choose `ts-rules-composer` when your validation or rule logic:
+
+- Involves **multiple branching paths**, retries, timeouts, or side effects
+- Requires **shared context** (e.g. user metadata, database, external services)
+- Needs **clean separation** of rule logic and pipeline composition
+- Must run in both **Node.js or the browser**
+- Should remain **type-safe** and **composable**
+
+This library is not meant to replace schema validators like `zod`, but to complement them — it's ideal when your business logic **cannot be expressed declaratively** or **requires orchestration** of multiple validation steps.
 
 ## Contributing
 
