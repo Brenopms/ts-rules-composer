@@ -2,7 +2,7 @@ import { fail, getNormalizedRule } from "../../helpers";
 import { pass } from "../../helpers/result/pass";
 import type { Predicate } from "../../types";
 import type { Rule } from "../../types/rule";
-import { SafetyOptions } from "../../types/safety-options";
+import type { SafetyOptions } from "../../types/safety-options";
 import { withSafePredicate } from "../utility";
 
 /**
