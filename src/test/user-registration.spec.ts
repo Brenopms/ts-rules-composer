@@ -117,9 +117,7 @@ describe("user-registration-validator", () => {
       ...baseUser,
       password: "123",
     });
-    expect(result).toEqual(
-      fail("Password must be at least 8 characters long"),
-    );
+    expect(result).toEqual(fail("Password must be at least 8 characters long"));
   });
 
   it("should fail on invalid email format", async () => {
