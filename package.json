@@ -9,6 +9,12 @@
   "license": "MIT",
   "sideEffects": false,
   "type": "module",
+  "files": [
+    "dist/**",
+    "README.md",
+    "LICENSE",
+    "package.json"
+  ],
   "exports": {
     "import": {
       "types": "./dist/index.d.ts",
