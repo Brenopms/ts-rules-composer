@@ -44,26 +44,94 @@ pnpm add ts-rules-composer
 
 ## Core Concepts
 
-### 1. Rules
+### ⚛️ The Atomic Validation Unit
 
-The atomic validation unit:
+At the heart of `ts-rules-composer` lies the **Rule** — a function that performs a single validation step.
 
-```typescript
-type Rule<TInput, TError = string, TContext = unknown> = (
-  input: TInput,
-  context?: TContext
-) => Promise<RuleResult<TError>> | RuleResult<TError>;
+Rules are:
+
+- **Minimal**: they validate one thing only.
+- **Composable**: they can be combined using higher-order combinators.
+- **Pure** (ideally): they take an input and return a result, without mutating external state.
+- **Async-compatible**: all rules can be sync or async, and combinators handle both transparently.
+- **Context-aware**: optional `context` can be passed to any rule for dependency injection, configuration, or shared state.
+
+#### 🧩 Rule Signature
+
+```ts
+type Rule<TInput, TError = string, TContext = unknown> =
+  (input: TInput, context?: TContext) => Promise<RuleResult<TError>> | RuleResult<TError>;
 ```
 
-### 2. Results
+- `TInput` – the type of input the rule receives
+- `TError` – the type of error returned on failure (defaults to `string`)
+- `TContext` – optional shared context object passed to the rule
+- `Result` – your rule can return synchronously or asynchronously
 
-Always returns:
+#### 🧪 Rule Result
 
-```typescript
-type RuleResult<TError> =
-  | { readonly status: "passed" }; // pass()
-  | { readonly status: "failed"; readonly error: TError }; // fail(error)
+Rules must return one of two outcomes:
+
+```ts
+type RuleResult<TError = string> =
+  | { status: "passed" }
+  | { status: "failed"; error: TError | TError[] };
 ```
+
+Use the utility functions `pass()` and `fail(error)` to return results:
+
+```ts
+import { pass, fail } from 'ts-rules-composer';
+
+const isEven = (n: number) =>
+  n % 2 === 0 ? pass() : fail("Must be even");
+```
+
+#### 🧠 Context Example
+
+Context is optional but powerful. It lets rules access external services, user configuration, or metadata.
+
+```ts
+type Ctx = { threshold: number };
+
+const isAboveThreshold = (n: number, ctx?: Ctx) =>
+  n > (ctx?.threshold ?? 0) ? pass() : fail("Below threshold");
+```
+
+When composing rules, context will be passed automatically to all child rules.
+
+#### 🔗 Composing Rules
+
+Rules are designed to be combined using **combinators** like `pipeRules`, `every`, `oneOf`, `when`, and `match`.
+
+```ts
+import { pipeRules } from 'ts-rules-composer';
+
+const validate = pipeRules([
+  isEven,
+  isAboveThreshold
+]);
+
+const result = await validate(4, { threshold: 2 });
+// → { status: "passed" }
+
+const result2 = await validate(3, { threshold: 2 });
+// → { status: "failed", error: "Must be even" }
+```
+
+---
+
+#### 🧰 Summary
+
+| Feature           | Supported |
+| ----------------- | --------- |
+| Sync & Async      | ✅         |
+| Error Aggregation | ✅         |
+| Context Injection | ✅         |
+| Type Inference    | ✅         |
+| Composition       | ✅         |
+
+Each rule is a **unit of validation** that plugs into powerful composition pipelines. You write simple rules and then combine them into expressive, testable flows using composable logic.
 
 ## Usage Examples
 
