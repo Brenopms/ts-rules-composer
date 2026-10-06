@@ -61,6 +61,79 @@ describe("withFallback", () => {
     expect(mockFallback).toHaveBeenCalledWith("test", context);
   });
 
+  it("should propagate a primary rule throw in unsafe mode", async () => {
+    const thrown = new Error("primary threw");
+    const primaryRule = vi.fn(() => {
+      throw thrown;
+    });
+    const fallbackRule = vi.fn();
+
+    const rule = withFallback(primaryRule, fallbackRule, {
+      errorHandlingMode: "unsafe",
+    });
+
+    await expect(rule("test")).rejects.toBe(thrown);
+    expect(fallbackRule).not.toHaveBeenCalled();
+  });
+
+  it("should propagate a fallback rule throw in unsafe mode", async () => {
+    const thrown = new Error("fallback threw");
+    const primaryRule = vi.fn().mockResolvedValue(fail("try fallback"));
+    const fallbackRule = vi.fn(() => {
+      throw thrown;
+    });
+
+    const rule = withFallback(primaryRule, fallbackRule, {
+      errorHandlingMode: "unsafe",
+    });
+
+    await expect(rule("test")).rejects.toBe(thrown);
+  });
+
+  it("should transform a primary rule throw", async () => {
+    const transformedError = { message: "transformed primary" };
+    const primaryRule = vi.fn(() => {
+      throw new Error("primary threw");
+    });
+    const fallbackRule = vi.fn();
+
+    const rule = withFallback(primaryRule, fallbackRule, {
+      errorTransform: () => transformedError,
+      onlyFallbackOn: () => false,
+    });
+
+    await expect(rule("test")).resolves.toEqual(fail(transformedError));
+    expect(fallbackRule).not.toHaveBeenCalled();
+  });
+
+  it("should transform a fallback rule throw", async () => {
+    const transformedError = { message: "transformed fallback" };
+    const primaryRule = vi.fn().mockResolvedValue(fail("try fallback"));
+    const fallbackRule = vi.fn(() => {
+      throw new Error("fallback threw");
+    });
+
+    const rule = withFallback(primaryRule, fallbackRule, {
+      errorTransform: () => transformedError,
+    });
+
+    await expect(rule("test")).resolves.toEqual(fail(transformedError));
+  });
+
+  it("should leave explicit RuleResults unchanged by the error transform", async () => {
+    const explicitFailure = fail("declared failure");
+    const primaryRule = vi.fn().mockResolvedValue(explicitFailure);
+    const fallbackRule = vi.fn();
+
+    const rule = withFallback(primaryRule, fallbackRule, {
+      errorTransform: () => "transformed",
+      onlyFallbackOn: () => false,
+    });
+
+    await expect(rule("test")).resolves.toBe(explicitFailure);
+    expect(fallbackRule).not.toHaveBeenCalled();
+  });
+
   it("should maintain type safety", async () => {
     // Type test - no runtime assertion needed
     const stringRule = (_: string) => pass();
