@@ -56,6 +56,19 @@ describe("pipeRules", () => {
     expect(rule1).toHaveBeenCalledWith(input, context);
     expect(rule2).toHaveBeenCalledWith(input, context);
   });
+
+  it("should apply safe error transforms and propagate errors in unsafe mode", async () => {
+    const throws: Rule<unknown, string> = () => {
+      throw new Error("boom");
+    };
+
+    await expect(
+      pipeRules([throws], { errorTransform: () => "transformed" })({}),
+    ).resolves.toEqual(fail("transformed"));
+    await expect(
+      pipeRules([throws], { errorHandlingMode: "unsafe" })({}),
+    ).rejects.toThrow("boom");
+  });
 });
 
 // Error type propagation

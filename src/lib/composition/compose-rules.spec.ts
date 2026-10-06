@@ -52,6 +52,19 @@ describe("composeRules", () => {
     expect(rule2).toHaveBeenCalledWith({}, context);
   });
 
+  it("should apply safe error transforms and propagate errors in unsafe mode", async () => {
+    const throws: Rule<unknown, string> = () => {
+      throw new Error("boom");
+    };
+
+    await expect(
+      composeRules([throws], { errorTransform: () => "transformed" })({}),
+    ).resolves.toEqual(fail("transformed"));
+    await expect(
+      composeRules([throws], { errorHandlingMode: "unsafe" })({}),
+    ).rejects.toThrow("boom");
+  });
+
   it("should preserve custom error types", async () => {
     type CustomError = { code: number };
     const rule: Rule<unknown, CustomError> = () => fail({ code: 123 });

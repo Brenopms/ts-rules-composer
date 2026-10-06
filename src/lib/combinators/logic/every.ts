@@ -1,5 +1,4 @@
-import { fail, getNormalizedRules, pass } from "../../helpers";
-import { getCloneFn } from "../../helpers/clone/getCloneFn";
+import { prepareRuleExecution } from "../../composition/rule-execution";
 import type { CompositionOptions, Rule } from "../../types";
 
 /**
@@ -9,7 +8,7 @@ import type { CompositionOptions, Rule } from "../../types";
  * @template TContext - The type of the context object (optional)
  * @param rules - Array of rules to compose
  * @param options - Configuration options
- * @param options.cloneContext - Whether to clone the context for each rule (default: false)
+ * @param options.cloneContext - Whether to clone the context once per composed invocation (default: false)
  * @param options.cloneStrategy -Which strategy to use when cloning the context
  * @param options.errorHandlingMode - Determines how errors are handled:
  *   - 'safe': (default) Converts thrown errors to validation failures
@@ -39,19 +38,5 @@ export const every = <TInput, TError = string, TContext = unknown>(
   rules: Rule<TInput, TError, TContext>[],
   options: CompositionOptions<TError> = {},
 ): Rule<TInput, TError[], TContext> => {
-  return async (input: TInput, context?: TContext) => {
-    const cloneFn = getCloneFn(options);
-    const currentContext = options?.cloneContext ? cloneFn(context) : context;
-    const normalizedRules = getNormalizedRules(rules, options);
-
-    const results = await Promise.all(
-      normalizedRules.map((rule) => rule(input, currentContext)),
-    );
-
-    const errors = results.flatMap((r) =>
-      r.status === "failed" ? [r.error] : [],
-    );
-
-    return errors.length > 0 ? fail(errors) : pass();
-  };
+  return prepareRuleExecution(rules, options, "parallelCollect");
 };
