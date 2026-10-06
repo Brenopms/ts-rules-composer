@@ -11,7 +11,7 @@ describe("withFallback", () => {
     mockFallback.mockReset();
   });
 
-  it("should execute fallback when main rule fails", async () => {
+  it("should execute the fallback Rule when the main Rule fails", async () => {
     mockMainRule.mockResolvedValue(fail("Main failed"));
     mockFallback.mockResolvedValue(pass());
 
@@ -23,7 +23,7 @@ describe("withFallback", () => {
     expect(result).toEqual(pass());
   });
 
-  it("should not execute fallback when main rule passes", async () => {
+  it("should not execute the fallback Rule when the main Rule passes", async () => {
     mockMainRule.mockResolvedValue(pass());
 
     const rule = withFallback(mockMainRule, mockFallback);
@@ -33,7 +33,7 @@ describe("withFallback", () => {
     expect(result).toEqual(pass());
   });
 
-  it("should respect conditional fallback predicate", async () => {
+  it("should respect the conditional fallback Rule predicate", async () => {
     mockMainRule.mockResolvedValue(fail({ code: "RETRYABLE" }));
     mockFallback.mockResolvedValue(pass());
 
@@ -49,7 +49,7 @@ describe("withFallback", () => {
     expect(mockFallback).toHaveBeenCalledTimes(1); // Not called for FATAL
   });
 
-  it("should preserve context", async () => {
+  it("should preserve Context", async () => {
     const context = { auth: true };
     mockMainRule.mockResolvedValue(fail("Failed"));
     mockFallback.mockResolvedValue(pass());
@@ -61,7 +61,7 @@ describe("withFallback", () => {
     expect(mockFallback).toHaveBeenCalledWith("test", context);
   });
 
-  it("should propagate a primary rule throw in unsafe mode", async () => {
+  it("should propagate a primary Rule throw in unsafe mode", async () => {
     const thrown = new Error("primary threw");
     const primaryRule = vi.fn(() => {
       throw thrown;
@@ -76,7 +76,7 @@ describe("withFallback", () => {
     expect(fallbackRule).not.toHaveBeenCalled();
   });
 
-  it("should propagate a fallback rule throw in unsafe mode", async () => {
+  it("should propagate a fallback Rule throw in unsafe mode", async () => {
     const thrown = new Error("fallback threw");
     const primaryRule = vi.fn().mockResolvedValue(fail("try fallback"));
     const fallbackRule = vi.fn(() => {
@@ -90,7 +90,7 @@ describe("withFallback", () => {
     await expect(rule("test")).rejects.toBe(thrown);
   });
 
-  it("should transform a primary rule throw", async () => {
+  it("should transform a primary Rule throw", async () => {
     const transformedError = { message: "transformed primary" };
     const primaryRule = vi.fn(() => {
       throw new Error("primary threw");
@@ -106,7 +106,7 @@ describe("withFallback", () => {
     expect(fallbackRule).not.toHaveBeenCalled();
   });
 
-  it("should transform a fallback rule throw", async () => {
+  it("should transform a fallback Rule throw", async () => {
     const transformedError = { message: "transformed fallback" };
     const primaryRule = vi.fn().mockResolvedValue(fail("try fallback"));
     const fallbackRule = vi.fn(() => {
@@ -134,7 +134,7 @@ describe("withFallback", () => {
     expect(fallbackRule).not.toHaveBeenCalled();
   });
 
-  it("should maintain type safety", async () => {
+  it("should maintain Rule type safety", async () => {
     // Type test - no runtime assertion needed
     const stringRule = (_: string) => pass();
     const numberRule = (_: number) => pass();

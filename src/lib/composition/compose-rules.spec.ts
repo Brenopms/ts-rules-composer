@@ -11,12 +11,12 @@ describe("composeRules", () => {
     vi.clearAllMocks();
   });
 
-  it("should return pass if no rules are provided", async () => {
+  it("should return a passed RuleResult if no Rules are provided", async () => {
     const result = await composeRules([])({});
     expect(result).toEqual(pass());
   });
 
-  it("should return pass if all rules pass", async () => {
+  it("should return a passed RuleResult if all Rules pass", async () => {
     const rule1 = alwaysPass;
     const rule2 = alwaysPass;
     const validator = composeRules([rule1, rule2]);
@@ -29,7 +29,7 @@ describe("composeRules", () => {
     expect(rule1).toHaveBeenCalledWith(input, undefined); // called first
   });
 
-  it("should fail fast on first failure (right-to-left)", async () => {
+  it("should fail fast on the first failed RuleResult (right-to-left)", async () => {
     const errorMsg = "First error";
     const rule1 = failWithMsg(errorMsg);
     const rule2 = alwaysPass;
@@ -42,7 +42,7 @@ describe("composeRules", () => {
     expect(rule2).not.toHaveBeenCalled(); // skipped
   });
 
-  it("should pass context to all rules", async () => {
+  it("should pass Context to all Rules", async () => {
     const rule1 = vi.fn(() => pass());
     const rule2 = vi.fn(() => pass());
     const validator = composeRules([rule1, rule2]);
@@ -52,7 +52,7 @@ describe("composeRules", () => {
     expect(rule2).toHaveBeenCalledWith({}, context);
   });
 
-  it("should apply safe error transforms and propagate errors in unsafe mode", async () => {
+  it("should apply safe error transforms and propagate thrown Rule errors in unsafe mode", async () => {
     const throws: Rule<unknown, string> = () => {
       throw new Error("boom");
     };
@@ -65,7 +65,7 @@ describe("composeRules", () => {
     ).rejects.toThrow("boom");
   });
 
-  it("should preserve custom error types", async () => {
+  it("should preserve custom Rule error types", async () => {
     type CustomError = { code: number };
     const rule: Rule<unknown, CustomError> = () => fail({ code: 123 });
 
@@ -75,13 +75,13 @@ describe("composeRules", () => {
     expect(result).toEqual(fail({ code: 123 }));
   });
 
-  it("should handle 1000+ rules without stack overflow", async () => {
+  it("should handle 1000+ Rules without stack overflow", async () => {
     const manyRules = Array(1000).fill(() => pass());
     const validator = composeRules(manyRules);
     await expect(validator({})).resolves.toEqual(pass());
   });
 
-  describe("Context behavior tests", () => {
+  describe("Context behavior", () => {
     const countingRule = vi.fn((_: unknown, ctx: any) => {
       ctx.count = (ctx.count || 0) + 1;
       return pass();
@@ -98,7 +98,7 @@ describe("composeRules", () => {
       vi.clearAllMocks();
     });
 
-    it("should allow context mutation by default", async () => {
+    it("should allow Context mutation by default", async () => {
       const context = { count: 0 };
       const validator = composeRules([
         expectCountRule(2),
@@ -111,7 +111,7 @@ describe("composeRules", () => {
       expect(context.count).toBe(2);
     });
 
-    it("should prevent context mutations when cloneContext=true", async () => {
+    it("should prevent Context mutations when cloneContext=true", async () => {
       const context = { count: 0 };
       const validator = composeRules([expectCountRule(1), countingRule], {
         cloneContext: true,
@@ -122,7 +122,7 @@ describe("composeRules", () => {
       expect(context.count).toBe(0);
     });
 
-    it("should deep clone complex context", async () => {
+    it("should deep clone complex Context", async () => {
       const context = { nested: { value: 0 } };
       const mutateNested = vi.fn((_, ctx) => {
         ctx.nested.value++;
@@ -140,13 +140,13 @@ describe("composeRules", () => {
       expect(mutateNested.mock.calls[1][1].nested.value).toBe(2);
     });
 
-    it("should handle null/undefined context safely", async () => {
+    it("should handle null/undefined Context safely", async () => {
       const validator = composeRules([], { cloneContext: true });
       await expect(validator({}, null)).resolves.not.toThrow();
       await expect(validator({}, undefined)).resolves.not.toThrow();
     });
 
-    it("should shallow clone flat objects", async () => {
+    it("should shallow clone flat Context objects", async () => {
       const context = { simple: "abc" };
       const validator = composeRules(
         [
@@ -163,7 +163,7 @@ describe("composeRules", () => {
     });
   });
 
-  it("should prevent accidental context mutation", async () => {
+  it("should prevent accidental Context mutation", async () => {
     const context = { count: 0 };
 
     const rule1 = (_: any, ctx: any) => {
@@ -199,7 +199,7 @@ describe("composeRules", () => {
     expect(invalid).toEqual(fail({ level: 2 }));
   });
 
-  it("should not retain rule references post-execution", async () => {
+  it("should not retain Rule references post-execution", async () => {
     let heavy = new Array(1e6).fill("x");
     const rule = () => {
       heavy = null!;
@@ -212,7 +212,7 @@ describe("composeRules", () => {
     expect(() => heavy.length).toThrow();
   });
 
-  it("should handle circular reference errors", async () => {
+  it("should handle circular Rule error values", async () => {
     const obj: any = { self: null };
     obj.self = obj;
 

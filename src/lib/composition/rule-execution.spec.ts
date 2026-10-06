@@ -4,7 +4,7 @@ import type { Rule } from "../types";
 import { prepareRuleExecution } from "./rule-execution";
 
 describe("prepareRuleExecution", () => {
-  it("snapshots rules and executes them forward with fail-fast behavior", async () => {
+  it("snapshots Rules and executes them forward with fail-fast behavior", async () => {
     const calls: string[] = [];
     const first: Rule<unknown> = () => {
       calls.push("first");
@@ -22,7 +22,7 @@ describe("prepareRuleExecution", () => {
     expect(calls).toEqual(["first"]);
   });
 
-  it("executes in reverse order", async () => {
+  it("executes Rules in reverse order", async () => {
     const calls: string[] = [];
     const rules: Rule<unknown>[] = [
       () => {
@@ -41,7 +41,7 @@ describe("prepareRuleExecution", () => {
     expect(calls).toEqual(["last", "first"]);
   });
 
-  it("collects parallel failures in rule order for mixed sync and async rules", async () => {
+  it("collects parallel failures in Rule order for mixed sync and async Rules", async () => {
     const rules: Rule<unknown>[] = [
       async () => {
         await new Promise((resolve) => setTimeout(resolve, 10));
@@ -56,7 +56,7 @@ describe("prepareRuleExecution", () => {
     ).resolves.toEqual(fail(["first", "second"]));
   });
 
-  it("passes one cloned context to every child rule", async () => {
+  it("passes one cloned Context to every child Rule", async () => {
     const contexts: unknown[] = [];
     const rules: Rule<unknown, string, { count: number }>[] = [
       (_, context) => {
@@ -84,7 +84,64 @@ describe("prepareRuleExecution", () => {
     expect(original.count).toBe(0);
   });
 
-  it("applies safety options to thrown errors", async () => {
+  it("passes the same Context reference to every child Rule by default", async () => {
+    const receivedContexts: unknown[] = [];
+    const context = { requestId: "request-1" };
+    const rules: Rule<unknown, string, typeof context>[] = [
+      (_, receivedContext) => {
+        receivedContexts.push(receivedContext);
+        return pass();
+      },
+      (_, receivedContext) => {
+        receivedContexts.push(receivedContext);
+        return pass();
+      },
+    ];
+
+    await expect(
+      prepareRuleExecution(rules, {}, "forwardFailFast")({}, context),
+    ).resolves.toEqual(pass());
+    expect(receivedContexts).toEqual([context, context]);
+    expect(receivedContexts[0]).toBe(context);
+    expect(receivedContexts[1]).toBe(context);
+  });
+
+  it("returns a passed RuleResult for empty Rules under every execution policy", async () => {
+    const policies = [
+      "forwardFailFast",
+      "reverseFailFast",
+      "parallelCollect",
+    ] as const;
+
+    for (const policy of policies) {
+      await expect(prepareRuleExecution([], {}, policy)({})).resolves.toEqual(
+        pass(),
+      );
+    }
+  });
+
+  it("executes large Rule collections under every execution policy", async () => {
+    const policies = [
+      "forwardFailFast",
+      "reverseFailFast",
+      "parallelCollect",
+    ] as const;
+
+    for (const policy of policies) {
+      let executions = 0;
+      const rules: Rule<unknown>[] = Array.from({ length: 1_000 }, () => () => {
+        executions += 1;
+        return pass();
+      });
+
+      await expect(
+        prepareRuleExecution(rules, {}, policy)({}),
+      ).resolves.toEqual(pass());
+      expect(executions).toBe(1_000);
+    }
+  });
+
+  it("applies safety options to thrown Rule errors", async () => {
     const throws: Rule<unknown, string> = () => {
       throw new Error("boom");
     };
