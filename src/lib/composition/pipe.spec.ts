@@ -36,7 +36,7 @@ describe("pipe", () => {
     );
   });
 
-  it("should work with rule combinators", () => {
+  it("should work with Rule combinators", () => {
     const add1 = (x: number) => x + 1;
     const times2 = (x: number) => x * 2;
     const toString = (x: number) => x.toString();

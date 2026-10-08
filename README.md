@@ -513,6 +513,11 @@ const pipeline = pipeRules([
 
 The library provides flexible context cloning strategies to balance between performance and correctness. You can control cloning behavior through `CompositionOptions`:
 
+When `cloneContext` is enabled, the Context is cloned once for each composed Rule
+invocation. That clone is shared by all child Rules in that invocation, so changes
+made by one child Rule are visible to the others; the original Context is left
+unchanged.
+
 ```typescript
 interface CompositionOptions {
   cloneContext?: boolean;      // Enable/disable cloning

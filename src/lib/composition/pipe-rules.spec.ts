@@ -12,12 +12,12 @@ describe("pipeRules", () => {
     vi.clearAllMocks();
   });
 
-  it("should return pass if no rules are provided", async () => {
+  it("should return a passed RuleResult if no Rules are provided", async () => {
     const result = await pipeRules([])({});
     expect(result).toEqual(pass());
   });
 
-  it("should return pass if all rules pass", async () => {
+  it("should return a passed RuleResult if all Rules pass", async () => {
     const rule1 = alwaysPass;
     const rule2 = alwaysPass;
     const validator = pipeRules([rule1, rule2]);
@@ -30,7 +30,7 @@ describe("pipeRules", () => {
     expect(rule2).toHaveBeenCalledWith(input, undefined);
   });
 
-  it("should fail fast on first failure", async () => {
+  it("should fail fast on the first failed RuleResult", async () => {
     const errorMsg = "First error";
     const rule1 = failWithMsg(errorMsg);
     const rule2 = alwaysPass; // Should never be called
@@ -44,7 +44,7 @@ describe("pipeRules", () => {
     expect(rule2).not.toHaveBeenCalled();
   });
 
-  it("should pass context to all rules", async () => {
+  it("should pass Context to all Rules", async () => {
     const rule1 = vi.fn(() => pass());
     const rule2 = vi.fn(() => pass());
     const validator = pipeRules([rule1, rule2]);
@@ -56,10 +56,23 @@ describe("pipeRules", () => {
     expect(rule1).toHaveBeenCalledWith(input, context);
     expect(rule2).toHaveBeenCalledWith(input, context);
   });
+
+  it("should apply safe error transforms and propagate thrown Rule errors in unsafe mode", async () => {
+    const throws: Rule<unknown, string> = () => {
+      throw new Error("boom");
+    };
+
+    await expect(
+      pipeRules([throws], { errorTransform: () => "transformed" })({}),
+    ).resolves.toEqual(fail("transformed"));
+    await expect(
+      pipeRules([throws], { errorHandlingMode: "unsafe" })({}),
+    ).rejects.toThrow("boom");
+  });
 });
 
 // Error type propagation
-it("should preserve custom error types", async () => {
+it("should preserve custom Rule error types", async () => {
   type CustomError = { code: number; message: string };
   const rule: Rule<unknown, CustomError> = () =>
     fail({ code: 400, message: "Bad" });
@@ -70,7 +83,7 @@ it("should preserve custom error types", async () => {
   expect(result).toEqual(fail({ code: 400, message: "Bad" }));
 });
 
-it("should handle 1000+ rules without stack overflow", async () => {
+it("should handle 1000+ Rules without stack overflow", async () => {
   const manyRules = Array(1000).fill(() => pass());
   const validator = pipeRules(manyRules);
   await expect(validator({})).resolves.toEqual(pass());
@@ -94,7 +107,7 @@ describe("Context behavior tests", () => {
     vi.clearAllMocks();
   });
 
-  it("should allow context mutation by default (shared reference)", async () => {
+  it("should allow Context mutation by default (shared reference)", async () => {
     const context = { count: 0 };
     const validator = pipeRules(
       [countingRule, countingRule, expectCountRule(2)], // Expect both mutations to apply
@@ -106,7 +119,7 @@ describe("Context behavior tests", () => {
     expect(context.count).toBe(2); // Original context modified
   });
 
-  it("should prevent context mutations when cloneContext=true", async () => {
+  it("should prevent Context mutations when cloneContext=true", async () => {
     const context = { count: 0 };
     const validator = pipeRules([countingRule, expectCountRule(1)], {
       cloneContext: true,
@@ -119,7 +132,7 @@ describe("Context behavior tests", () => {
     expect(countingRule.mock.calls[0][1].count).toBe(1); // First clone
   });
 
-  it("should deep clone complex context objects", async () => {
+  it("should deep clone complex Context objects", async () => {
     const context = { nested: { value: 0 } };
     const mutateNested = vi.fn((_, ctx) => {
       ctx.nested.value++;
@@ -137,13 +150,13 @@ describe("Context behavior tests", () => {
     expect(mutateNested.mock.calls[1][1].nested.value).toBe(2); // Fresh clone
   });
 
-  it("should handle null/undefined context", async () => {
+  it("should handle null/undefined Context", async () => {
     const nullValidator = pipeRules([], { cloneContext: true });
     await expect(nullValidator({}, null)).resolves.not.toThrow();
     await expect(nullValidator({}, undefined)).resolves.not.toThrow();
   });
 
-  it("should shallow clone when possible for performance", async () => {
+  it("should shallow clone Context when possible for performance", async () => {
     const context = { simple: "value" };
     const validator = pipeRules(
       [
@@ -160,7 +173,7 @@ describe("Context behavior tests", () => {
   });
 });
 
-it("should prevent accidental context mutation", async () => {
+it("should prevent accidental Context mutation", async () => {
   const context = { count: 0 };
 
   const rule1 = (_: any, ctx: any) => {
@@ -181,7 +194,7 @@ it("should prevent accidental context mutation", async () => {
   );
 });
 
-it("should preserve custom generic types through composition", async () => {
+it("should preserve custom generic types through Rule execution", async () => {
   type CustomInput = { id: string };
   type CustomError = { severity: number };
 
@@ -196,7 +209,7 @@ it("should preserve custom generic types through composition", async () => {
   expect(result2).toEqual(fail({ severity: 5 }));
 });
 
-it("should not retain rule references after execution", async () => {
+it("should not retain Rule references after execution", async () => {
   let heavyObject = new Array(1e6).fill(0); // 1MB object
   const rule = () => {
     heavyObject = null!; // Simulate cleanup
@@ -210,7 +223,7 @@ it("should not retain rule references after execution", async () => {
   expect(() => heavyObject.length).toThrow();
 });
 
-it("should handle circular reference errors", async () => {
+it("should handle circular Rule error values", async () => {
   const obj: any = { self: null };
   obj.self = obj;
   const validator = pipeRules([() => fail(obj)]);

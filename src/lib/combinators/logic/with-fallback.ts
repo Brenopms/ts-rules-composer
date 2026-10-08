@@ -30,10 +30,10 @@ export const withFallback = <TInput, TError, TContext>(
   } = {},
 ): Rule<TInput, TError, TContext> => {
   return async (input: TInput, context?: TContext) => {
-    const [mainSafeRule, fallbackSafeRule] = getNormalizedRules([
-      mainRule,
-      fallbackRule,
-    ]);
+    const [mainSafeRule, fallbackSafeRule] = getNormalizedRules(
+      [mainRule, fallbackRule],
+      options,
+    );
     const result = await mainSafeRule(input, context);
     if (
       result.status === "failed" &&

@@ -3,7 +3,7 @@ import type { RuleSafetyOptions } from "./rule-safety-options";
 
 /**
  * Options for rule composition functions.
- * @property cloneContext - Whether to clone the context for each rule
+ * @property cloneContext - Whether to clone the context once per composed invocation
  * @property cloneStrategy - Which strategy to use when cloning the context
  * @property errorHandling - Determines how the combinator handles thrown errors
  *   - "safe": (default) Catches errors and converts them to failed RuleResults

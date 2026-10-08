@@ -1,14 +1,14 @@
-import { vi, describe, beforeEach, it, expect } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Rule } from "../lib";
 import {
-  pipeRules,
-  match,
-  withRetry,
-  withMemoize,
-  withTimeout,
-  when,
-  pass,
   fail,
+  match,
+  pass,
+  pipeRules,
+  when,
+  withMemoize,
+  withRetry,
+  withTimeout,
 } from "../lib";
 
 // Mock services
@@ -35,6 +35,14 @@ interface Transaction {
 }
 
 const SUPPORTED_CURRENCIES = ["USD", "EUR", "GBP"];
+
+const getFutureExpiry = () => {
+  const date = new Date();
+  date.setMonth(date.getMonth() + 1);
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = String(date.getFullYear() % 100).padStart(2, "0");
+  return `${month}/${year}`;
+};
 
 // 1. Basic validators
 const validateAmount: Rule<Transaction> = (tx: Transaction) =>
@@ -174,7 +182,7 @@ describe("Transaction Validation", () => {
       paymentType: "credit_card",
       accountType: "personal",
       cardNumber: "4111111111111111", // Valid test Visa number
-      expiry: "12/25",
+      expiry: getFutureExpiry(),
     };
 
     const result = await validateTransaction(transaction);
@@ -222,7 +230,7 @@ describe("Transaction Validation", () => {
       paymentType: "credit_card",
       accountType: "personal",
       cardNumber: "4111111111111111",
-      expiry: "12/25",
+      expiry: getFutureExpiry(),
     };
 
     // Mock a slow response
