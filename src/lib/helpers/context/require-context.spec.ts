@@ -1,4 +1,4 @@
-import { describe, vi, beforeEach, it, expect } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fail, pass } from "../result";
 import { requireContextRule } from "./require-context";
 

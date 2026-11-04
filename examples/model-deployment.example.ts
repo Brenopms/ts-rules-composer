@@ -1,12 +1,12 @@
 import type { Rule } from "../src/lib";
 import {
-  inject,
-  withLazyContext,
-  withMemoize,
-  pass,
   fail,
+  inject,
+  pass,
   pipeRules,
   tap,
+  withLazyContext,
+  withMemoize,
 } from "../src/lib";
 
 // 1. Define types

@@ -1,11 +1,13 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { inject, pass, fail } from "../lib";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  type Rule,
-  withMemoize,
+  fail,
+  inject,
+  pass,
   pipeRules,
+  type Rule,
   tap,
   withLazyContext,
+  withMemoize,
 } from "../lib";
 
 const mockLogger = {

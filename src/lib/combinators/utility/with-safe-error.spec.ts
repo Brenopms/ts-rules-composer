@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { withSafeError } from "./with-safe-error";
-import { pass, fail } from "../../helpers";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fail, pass } from "../../helpers";
 import type { Rule, RuleResult } from "../../types";
+import { withSafeError } from "./with-safe-error";
 
 describe("withSafeError", () => {
   // Mock rules for testing

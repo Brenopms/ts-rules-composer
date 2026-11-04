@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { tap } from "./tap";
-import { pass } from "../../helpers";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { pipeRules } from "../../composition";
+import { pass } from "../../helpers";
+import { tap } from "./tap";
 
 describe("tap", () => {
   const mockEffect = vi.fn();

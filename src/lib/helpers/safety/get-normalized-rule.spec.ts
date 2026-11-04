@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { getNormalizedRule } from "./get-normalized-rule";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fail, pass } from "../../helpers";
 import type { Rule, RuleSafetyOptions } from "../../types";
-import { pass, fail } from "../../helpers";
+import { getNormalizedRule } from "./get-normalized-rule";
 
 describe("getNormalizedRule", () => {
   // Mock rules for testing

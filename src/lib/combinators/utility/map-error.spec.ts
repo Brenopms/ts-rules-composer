@@ -1,4 +1,4 @@
-import { describe, beforeEach, it, expect, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fail, pass } from "../../helpers";
 import { mapError } from "./map-error";
 

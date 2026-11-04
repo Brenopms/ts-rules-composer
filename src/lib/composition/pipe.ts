@@ -1,4 +1,4 @@
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny: generic function arity
 type AnyFunction = (...args: any[]) => any;
 
 /**

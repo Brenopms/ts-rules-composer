@@ -1,6 +1,5 @@
-import { pass, fail } from "../../helpers";
-
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fail, pass } from "../../helpers";
 import type { Rule } from "../../types";
 import { every } from "./every";
 

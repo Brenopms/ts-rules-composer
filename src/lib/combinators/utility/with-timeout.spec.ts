@@ -1,16 +1,16 @@
 import {
-  describe,
-  beforeAll,
-  vi,
-  afterEach,
   afterAll,
-  it,
+  afterEach,
+  beforeAll,
+  describe,
   expect,
+  it,
+  vi,
 } from "vitest";
-import { pass, fail } from "../../helpers";
+import { getRuleError } from "../../../test/helpers/get-rule-error";
+import { fail, pass } from "../../helpers";
 import type { Rule } from "../../types";
 import { withTimeout } from "./with-timeout";
-import { getRuleError } from "../../../test/helpers/get-rule-error";
 
 describe("withTimeout", () => {
   beforeAll(() => {

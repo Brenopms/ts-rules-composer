@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { validateField } from "./validate-field";
-import { pass, fail } from "../../helpers";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fail, pass } from "../../helpers";
 import type { Rule } from "../../types";
+import { validateField } from "./validate-field";
 
 describe("validateField", () => {
   interface TestUser {

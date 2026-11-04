@@ -1,4 +1,4 @@
-import type { Predicate, PredicateSafe, PredicateResult } from "../../types";
+import type { Predicate, PredicateResult, PredicateSafe } from "../../types";
 
 /**
  * Wraps a predicate function with error handling and type safety.
