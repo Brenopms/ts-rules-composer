@@ -1,6 +1,6 @@
-import { describe, it, expect, vi } from "vitest";
-import { match } from "./match";
+import { describe, expect, it, vi } from "vitest";
 import type { Rule } from "../../types";
+import { match } from "./match";
 
 describe("match combinator", () => {
   // Mock rules for testing

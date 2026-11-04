@@ -1,7 +1,7 @@
-import { describe, vi, beforeEach, it, expect } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { pass } from "../../helpers";
 import type { Rule } from "../../types";
 import { withMemoize } from "./with-memoize";
-import { pass } from "../../helpers";
 
 describe("withMemoize", () => {
   const mockRule = vi.fn(() => pass());

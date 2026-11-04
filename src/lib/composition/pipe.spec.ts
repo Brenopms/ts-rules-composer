@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { pipe } from "./pipe";
 
 describe("pipe", () => {
@@ -39,9 +39,9 @@ describe("pipe", () => {
   it("should work with Rule combinators", () => {
     const add1 = (x: number) => x + 1;
     const times2 = (x: number) => x * 2;
-    const toString = (x: number) => x.toString();
+    const stringify = (x: number) => x.toString();
 
-    const result = pipe(3, add1, times2, toString);
+    const result = pipe(3, add1, times2, stringify);
     expect(result).toBe("8");
   });
 });

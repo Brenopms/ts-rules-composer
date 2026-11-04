@@ -5,33 +5,34 @@ on:
     branches:
       - main
       - dev
-
   pull_request:
     types:
       - opened
       - synchronize
+
+permissions:
+  contents: read
 
 jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [22.x]
+        node-version: [22.x, 24.x]
     steps:
-      - uses: actions/checkout@v2
-      - name: Build on Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v1
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
+          cache: npm
       - run: npm ci --ignore-scripts
-      - run: npm run build --if-present
-        name: Build
-      - run: npm test
-        env:
-          CI: true
-      - run: npm run lint
-        env:
-          CI: true
-      - run: npm run format
+      - name: Check (lint + format)
+        run: npm run check
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Build
+        run: npm run build
+      - name: Test
+        run: npm test
         env:
           CI: true

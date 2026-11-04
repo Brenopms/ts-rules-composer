@@ -1,13 +1,13 @@
 import type { Rule } from "../src/lib";
 import {
-  pipeRules,
-  match,
-  withRetry,
-  withMemoize,
-  withTimeout,
-  when,
-  pass,
   fail,
+  match,
+  pass,
+  pipeRules,
+  when,
+  withMemoize,
+  withRetry,
+  withTimeout,
 } from "../src/lib";
 
 // Types

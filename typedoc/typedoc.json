@@ -1,14 +1,8 @@
 {
-    "githubPages": true,
-    "includeVersion": true,
-    "out": "../genDocs",
-    "entryPoints": [
-        "../src/lib/index.ts"
-    ],
-    "tsconfig": "./tsconfig.typedoc.json",
-    "exclude": ["/**/**.spec.ts", "vitest.config.ts"],
-    "plugin": [
-        "typedoc-plugin-mermaid",
-        "typedoc-github-theme",
-    ]
+  "githubPages": true,
+  "includeVersion": true,
+  "out": "../genDocs",
+  "entryPoints": ["../src/lib/index.ts"],
+  "tsconfig": "./tsconfig.typedoc.json",
+  "plugin": ["typedoc-plugin-mermaid", "typedoc-github-theme"]
 }

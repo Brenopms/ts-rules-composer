@@ -30,7 +30,7 @@ const result = await validateCheckout(order);
 - 🔌 **Extensible** - Easily create custom combinators that integrate seamlessly
 - 📊 **Instrumentation** - Debugging & metrics out-of-the-box
 - 🧪 **Rigorously Tested** - 95+% test coverage with 300+ test cases covering all edge cases
-- 🌐 **Node.js + Browser Compatible** – Works in modern browsers and most Node.js versions (14+)
+- 🌐 **Node.js + Browser Compatible** – Works in modern browsers and Node.js 22+
 
 ## Installation
 

@@ -3,6 +3,13 @@ import { fail, pass } from "../helpers";
 import type { Rule } from "../types";
 import { prepareRuleExecution } from "./rule-execution";
 
+// The public overloads split the policy union; this helper accepts it whole.
+const prepareForPolicy = prepareRuleExecution as <TError>(
+  rules: Rule<unknown, TError>[],
+  options: Record<string, never>,
+  policy: "forwardFailFast" | "reverseFailFast" | "parallelCollect",
+) => Rule<unknown, TError | TError[]>;
+
 describe("prepareRuleExecution", () => {
   it("snapshots Rules and executes them forward with fail-fast behavior", async () => {
     const calls: string[] = [];
@@ -114,9 +121,9 @@ describe("prepareRuleExecution", () => {
     ] as const;
 
     for (const policy of policies) {
-      await expect(
-        prepareRuleExecution([], {}, policy as any)({}),
-      ).resolves.toEqual(pass());
+      await expect(prepareForPolicy([], {}, policy)({})).resolves.toEqual(
+        pass(),
+      );
     }
   });
 
@@ -134,9 +141,9 @@ describe("prepareRuleExecution", () => {
         return pass();
       });
 
-      await expect(
-        prepareRuleExecution(rules, {}, policy as any)({}),
-      ).resolves.toEqual(pass());
+      await expect(prepareForPolicy(rules, {}, policy)({})).resolves.toEqual(
+        pass(),
+      );
       expect(executions).toBe(1_000);
     }
   });

@@ -1,12 +1,12 @@
 import type { Rule } from "../src/lib";
 import {
-  pipeRules,
   every,
-  match,
-  withMemoize,
-  pass,
   fail,
   mapError,
+  match,
+  pass,
+  pipeRules,
+  withMemoize,
 } from "../src/lib";
 
 // Types

@@ -1,22 +1,22 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  every,
+  mapError,
+  match,
+  not,
+  oneOf,
+  unless,
+  when,
+  withDebug,
   withFallback,
+  withMemoize,
   withRetry,
   withTimeout,
-  every,
-  unless,
-  withMemoize,
-  mapError,
-  when,
-  oneOf,
-  not,
-  withDebug,
-  match,
 } from "../lib/combinators";
-import { pipeRules } from "../lib/composition";
-import { pass, fail } from "../lib/helpers";
-import { getRuleError } from "./helpers/get-rule-error";
 import { validateField } from "../lib/combinators/utility/validate-field";
+import { pipeRules } from "../lib/composition";
+import { fail, pass } from "../lib/helpers";
+import { getRuleError } from "./helpers/get-rule-error";
 
 describe("Full Integration Test", () => {
   type User = {

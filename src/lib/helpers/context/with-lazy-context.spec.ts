@@ -1,4 +1,4 @@
-import { describe, vi, beforeEach, it, expect } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Rule } from "../../types";
 import { fail, pass } from "../result";
 import { withLazyContext } from "./with-lazy-context";

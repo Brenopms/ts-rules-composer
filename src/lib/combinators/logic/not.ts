@@ -1,4 +1,4 @@
-import { pass, fail, getNormalizedRule } from "../../helpers";
+import { fail, getNormalizedRule, pass } from "../../helpers";
 import type { RuleSafetyOptions } from "../../types";
 import type { Rule } from "../../types/rule";
 

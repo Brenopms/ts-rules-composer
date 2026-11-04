@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { getNormalizedRule } from "./get-normalized-rule";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { fail, pass } from "../../helpers";
 import type { Rule, RuleSafetyOptions } from "../../types";
-import { pass, fail } from "../../helpers";
+import { getNormalizedRule } from "./get-normalized-rule";
 
 describe("getNormalizedRule", () => {
   // Mock rules for testing
@@ -71,7 +71,9 @@ describe("getNormalizedRule", () => {
       });
 
       const normalized = getNormalizedRule(throwingRule, unsafeOptions);
-      expect(async () => await normalized("test")).rejects.toThrow("Boom!");
+      await expect(async () => await normalized("test")).rejects.toThrow(
+        "Boom!",
+      );
 
       expect(throwingRule).toHaveBeenCalledWith("test");
     });
@@ -79,7 +81,7 @@ describe("getNormalizedRule", () => {
     it("should preserve original error throwing behavior", async () => {
       const normalized = getNormalizedRule(objectThrowingRule, unsafeOptions);
 
-      expect(async () => await normalized("test")).rejects.toEqual({
+      await expect(async () => await normalized("test")).rejects.toEqual({
         code: 500,
       });
     });

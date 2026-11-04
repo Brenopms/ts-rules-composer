@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { when } from "./when";
-import { pass } from "../../helpers/result/pass";
 import { fail } from "../../helpers/result/fail";
+import { pass } from "../../helpers/result/pass";
+import { when } from "./when";
 
 describe("when combinator", () => {
   const mockRule = vi.fn(() => pass());
@@ -100,7 +100,7 @@ describe("when combinator", () => {
       errorHandlingMode: "unsafe",
     });
 
-    expect(conditionalRule({})).resolves.toEqual(
+    await expect(conditionalRule({})).resolves.toEqual(
       fail(new Error("Condition failed")),
     );
     expect(mockRule).not.toHaveBeenCalled();
@@ -114,6 +114,6 @@ describe("when combinator", () => {
       errorHandlingMode: "unsafe",
     });
 
-    expect(conditionalRule({})).rejects.toThrow("Rule failed");
+    await expect(conditionalRule({})).rejects.toThrow("Rule failed");
   });
 });

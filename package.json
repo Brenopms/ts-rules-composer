@@ -16,60 +16,47 @@
     "package.json"
   ],
   "exports": {
-    "import": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    },
-    "require": {
-      "types": "./dist/index.d.cts",
-      "require": "./dist/index.cjs"
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     }
   },
   "scripts": {
-    "prepublish": "npm run build",
-    "build": "tsup",
-    "format": "prettier \"src/**/*.ts\" --check",
-    "format:fix": "prettier \"src/**/*.ts\" --write",
-    "lint": "eslint ./src/",
-    "lint:fix": "eslint --fix ./src",
-    "test": "run-s build test:*",
-    "test:prettier": "prettier \"src/**/*.ts\" --list-different",
-    "test:unit": "vitest run",
+    "prepublishOnly": "npm run build",
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "typecheck": "tsc --noEmit",
+    "check": "biome check .",
+    "check:fix": "biome check --write .",
+    "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "watch:build": "tsc -p tsconfig.json -w",
-    "watch:test": "vitest",
+    "test:watch": "vitest",
     "generate-docs": "typedoc --options typedoc/typedoc.json",
     "release": "semantic-release"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   },
   "devDependencies": {
-    "@eslint/compat": "^1.2.9",
-    "@eslint/eslintrc": "^3.3.1",
-    "@eslint/js": "^9.26.0",
-    "@vitest/coverage-v8": "^3.1.2",
+    "@arethetypeswrong/core": "^0.18.5",
+    "@biomejs/biome": "^2.6.4",
+    "@types/node": "^22.20.5",
+    "@vitest/coverage-v8": "^5.1.0",
     "conventional-changelog-conventionalcommits": "^8.0.0",
-    "cspell": "^8.19.2",
-    "cz-conventional-changelog": "^3.3.0",
-    "eslint": "^9.25.1",
-    "eslint-config-prettier": "^10.1.2",
-    "eslint-plugin-eslint-comments": "^3.2.0",
-    "eslint-plugin-import": "^2.31.0",
-    "gh-pages": "^6.3.0",
-    "npm-run-all": "^4.1.5",
-    "open-cli": "^8.0.0",
-    "prettier": "^3.5.3",
-    "semantic-release": "^24.2.3",
-    "standard-version": "^9.5.0",
-    "ts-node": "^10.9.2",
-    "tsup": "^8.4.0",
-    "typedoc": "^0.28.3",
+    "publint": "^0.3.25",
+    "semantic-release": "^25.0.9",
+    "tsdown": "^0.23.5",
+    "typedoc": "^0.28.20",
     "typedoc-github-theme": "^0.3.0",
     "typedoc-plugin-mermaid": "^1.12.0",
-    "typescript": "^5.8.3",
-    "typescript-eslint": "^8.32.1",
-    "vitest": "^3.1.2"
+    "typescript": "^6.0.3",
+    "vitest": "^5.1.0"
   },
   "keywords": [
     "validation",
@@ -81,5 +68,9 @@
     "context-aware",
     "business logic",
     "async"
-  ]
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Brenopms/ts-rules-engine.git"
+  }
 }
