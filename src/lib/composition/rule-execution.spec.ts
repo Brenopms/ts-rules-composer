@@ -114,9 +114,9 @@ describe("prepareRuleExecution", () => {
     ] as const;
 
     for (const policy of policies) {
-      await expect(prepareRuleExecution([], {}, policy)({})).resolves.toEqual(
-        pass(),
-      );
+      await expect(
+        prepareRuleExecution([], {}, policy as any)({}),
+      ).resolves.toEqual(pass());
     }
   });
 
@@ -135,7 +135,7 @@ describe("prepareRuleExecution", () => {
       });
 
       await expect(
-        prepareRuleExecution(rules, {}, policy)({}),
+        prepareRuleExecution(rules, {}, policy as any)({}),
       ).resolves.toEqual(pass());
       expect(executions).toBe(1_000);
     }
