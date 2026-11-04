@@ -7,9 +7,9 @@
  *   - "unsafe": Lets errors propagate normally (for performance-critical cases)
  *
  * @property errorTransform - Optional custom error transformation function
- *   Only valid when errorHandlingMode is "safe" (or omitted); combining it with
- *   "unsafe" is a compile error because the transform would never run. Allows customizing how thrown errors
- *   are converted to the rule's error type.
+ *   Allows customizing how thrown errors are converted to the rule's error
+ *   type. Only valid when errorHandlingMode is "safe" (or omitted); combining
+ *   it with "unsafe" is a compile error because the transform would never run.
  *
  * @example
  * // Basic usage with default safe handling
