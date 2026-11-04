@@ -34,10 +34,6 @@
     "typecheck": "tsc --noEmit",
     "check": "biome check .",
     "check:fix": "biome check --write .",
-    "format": "biome format .",
-    "format:fix": "biome format --write .",
-    "lint": "biome lint .",
-    "lint:fix": "biome lint --write .",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
@@ -72,5 +68,9 @@
     "context-aware",
     "business logic",
     "async"
-  ]
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Brenopms/ts-rules-engine.git"
+  }
 }
