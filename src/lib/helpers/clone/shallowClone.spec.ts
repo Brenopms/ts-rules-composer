@@ -15,6 +15,8 @@ describe("shallowClone", () => {
     expect(copy.a).toBe(original.a);
   });
 
+  // Pins current behavior: any falsy input (including 0 and "") yields {}.
+  // Documents the contract as it is today, not necessarily as it should be.
   it.each([null, undefined, 0, ""])(
     "returns {} for falsy input %p",
     (value) => {

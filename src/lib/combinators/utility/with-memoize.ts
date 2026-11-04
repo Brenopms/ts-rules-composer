@@ -27,7 +27,8 @@ import type { Rule, RuleResult, RuleSafetyOptions } from "../../types";
  * - Cache cleanup happens during rule execution
  * - Rejected promises are automatically evicted from cache
  * - Successful results obey TTL rules
- * - Cache is shared across rule instances
+ * - Each call to withMemoize creates its own cache; it is not shared across memoized rules
+ * - Entries are evicted oldest-inserted first (FIFO) once maxSize is reached; hits do not refresh recency
  */
 export const withMemoize = <TInput, TError = string, TContext = unknown>(
   rule: Rule<TInput, TError, TContext>,
