@@ -35,6 +35,7 @@
     "check": "biome check .",
     "check:fix": "biome check --write .",
     "test": "vitest run",
+    "test:dist": "vitest run --config vitest.dist.config.ts",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "generate-docs": "typedoc --options typedoc/typedoc.json",

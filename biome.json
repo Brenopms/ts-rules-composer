@@ -5,6 +5,7 @@
     "includes": [
       "src/**",
       "examples/**",
+      "test-dist/**",
       "*.ts",
       "*.json",
       "typedoc/*.json",
