@@ -32,6 +32,8 @@ jobs:
         run: npm run typecheck
       - name: Build
         run: npm run build
+      - name: Test dist
+        run: npm run test:dist
       - name: Test
         run: npm test
         env:
