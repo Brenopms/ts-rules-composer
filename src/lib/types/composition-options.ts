@@ -5,12 +5,12 @@ import type { RuleSafetyOptions } from "./rule-safety-options";
  * Options for rule composition functions.
  * @property cloneContext - Whether to clone the context once per composed invocation
  * @property cloneStrategy - Which strategy to use when cloning the context
- * @property errorHandling - Determines how the combinator handles thrown errors
+ * @property errorHandlingMode - Determines how the combinator handles thrown errors
  *   - "safe": (default) Catches errors and converts them to failed RuleResults
  *   - "unsafe": Lets errors propagate normally (for performance-critical cases)
  *
  * @property errorTransform - Optional custom error transformation function
- *   Only used when errorHandling="safe". Allows customizing how thrown errors
+ *   Only valid when errorHandlingMode is "safe" (or omitted). Allows customizing how thrown errors
  *   are converted to the rule's error type.
  *
  *

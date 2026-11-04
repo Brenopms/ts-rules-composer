@@ -67,7 +67,10 @@ describe("getNormalizedRules", () => {
 
     it("should return original rules without wrapping", () => {
       const rules = [passingRule, errorThrowingRule, objectThrowingRule];
-      const normalized = getNormalizedRules(rules, unsafeOptions);
+      const normalized = getNormalizedRules<string, unknown, unknown>(
+        rules,
+        unsafeOptions,
+      );
 
       expect(normalized).toEqual(rules);
     });
