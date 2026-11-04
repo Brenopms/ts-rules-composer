@@ -5,25 +5,25 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write
+
 jobs:
-  test:
+  docs:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [22.x]
     steps:
-      - uses: actions/checkout@v2
-      - name: Build on Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 24
+          cache: npm
       - run: npm ci --ignore-scripts
 
       - name: Run typedoc to generate html documentation
         run: npm run generate-docs
 
       - name: Deploy 🚀
-        uses: JamesIves/github-pages-deploy-action@4.1.4
+        uses: JamesIves/github-pages-deploy-action@v4
         with:
           branch: gh-pages
           folder: genDocs

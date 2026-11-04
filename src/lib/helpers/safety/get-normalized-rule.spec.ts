@@ -71,7 +71,9 @@ describe("getNormalizedRule", () => {
       });
 
       const normalized = getNormalizedRule(throwingRule, unsafeOptions);
-      expect(async () => await normalized("test")).rejects.toThrow("Boom!");
+      await expect(async () => await normalized("test")).rejects.toThrow(
+        "Boom!",
+      );
 
       expect(throwingRule).toHaveBeenCalledWith("test");
     });
@@ -79,7 +81,7 @@ describe("getNormalizedRule", () => {
     it("should preserve original error throwing behavior", async () => {
       const normalized = getNormalizedRule(objectThrowingRule, unsafeOptions);
 
-      expect(async () => await normalized("test")).rejects.toEqual({
+      await expect(async () => await normalized("test")).rejects.toEqual({
         code: 500,
       });
     });

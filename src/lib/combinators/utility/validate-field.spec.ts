@@ -107,7 +107,7 @@ describe("validateField", () => {
       true, // default
     );
 
-    expect(rule(errorUser)).rejects.toThrow("Getter error");
+    await expect(rule(errorUser)).rejects.toThrow("Getter error");
   });
 
   it("should fail when default value is undefined", async () => {
