@@ -58,17 +58,18 @@ export const withMemoize = <TInput, TError = string, TContext = unknown>(
       }
     }
 
-    // Size management
-    if (options.maxSize && cache.size >= options.maxSize) {
-      const oldestKey = cache.keys().next().value;
-      if (oldestKey) {
-        cache.delete(oldestKey);
-      }
+    // Cache hit
+    const cached = cache.get(key);
+    if (cached) {
+      return cached.result;
     }
 
-    // Cache hit
-    if (cache.has(key)) {
-      return cache.get(key)!.result;
+    // Size management (FIFO): only a miss adds an entry, so only a miss evicts
+    if (options.maxSize && cache.size >= options.maxSize) {
+      const oldestKey = cache.keys().next().value;
+      if (oldestKey !== undefined) {
+        cache.delete(oldestKey);
+      }
     }
 
     // Cache miss
