@@ -71,6 +71,6 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Brenopms/ts-rules-engine.git"
+    "url": "git+https://github.com/Brenopms/ts-rules-composer.git"
   }
 }
