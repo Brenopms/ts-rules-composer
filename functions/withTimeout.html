@@ -43,18 +43,7 @@
 </div></li>
 <li><span><code class="tsd-tag">Optional</code><span class="tsd-kind-parameter">options</span>: <a href="../types/RuleSafetyOptions.html" class="tsd-signature-type tsd-kind-type-alias">RuleSafetyOptions</a><span class="tsd-signature-symbol">&lt;</span><a class="tsd-signature-type tsd-kind-type-parameter" href="#withtimeoutterror">TError</a><span class="tsd-signature-symbol">&gt;</span></span>
 <div class="tsd-comment tsd-typography"><p>Configuration for error handling safety</p>
-</div>
-<div class="tsd-comment tsd-typography"><p>Configuration options for error handling behavior in rule combinators</p>
-</div>
-<ul class="tsd-parameters">
-<li class="tsd-parameter">
-<h5 id="errorhandlingmode"><code class="tsd-tag">Optional</code><span class="tsd-kind-property">errorHandlingMode</span><span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">&quot;safe&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;unsafe&quot;</span></h5></li>
-<li class="tsd-parameter">
-<h5 id="errortransform"><code class="tsd-tag">Optional</code><span class="tsd-kind-property">errorTransform</span><span class="tsd-signature-symbol">?: </span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">error</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">unknown</span><span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="../types/RuleSafetyOptions.html#terror">TError</a></h5>
-<div class="tsd-comment tsd-typography"><p>Optional custom error transformation function
-Only used when errorHandling=&quot;safe&quot;. Allows customizing how thrown errors
-are converted to the rule's error type.</p>
-</div></li></ul></li></ul></div>
+</div></li></ul></div>
 <h4 class="tsd-returns-title">Returns <a href="../types/Rule.html" class="tsd-signature-type tsd-kind-type-alias">Rule</a><span class="tsd-signature-symbol">&lt;</span><a class="tsd-signature-type tsd-kind-type-parameter" href="#withtimeouttinput">TInput</a><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#withtimeoutterror">TError</a><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#withtimeouttcontext">TContext</a><span class="tsd-signature-symbol">&gt;</span></h4><p>A new rule that fails with timeoutError if execution takes longer than timeoutMs</p>
 
 <div class="tsd-comment tsd-typography">
@@ -70,7 +59,7 @@ are converted to the rule's error type.</p>
 </ul>
 </div></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Brenopms/ts-rules-composer/blob/7543fa4acc239c4fca0e1c28f08a8b0e593bcdd6/src/lib/combinators/utility/with-timeout.ts#L28">combinators/utility/with-timeout.ts:28</a></li></ul></aside></div></li></ul></section></div>
+<li>Defined in <a href="https://github.com/Brenopms/ts-rules-composer/blob/93228bb632dc3bf938810ea171dd64facd3e3cd3/src/lib/combinators/utility/with-timeout.ts#L28">combinators/utility/with-timeout.ts:28</a></li></ul></aside></div></li></ul></section></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">

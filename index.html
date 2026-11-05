@@ -213,7 +213,7 @@ body.dark, :root[data-theme="dark"] {
 <p><strong>Modes</strong>:</p>
 <ul>
 <li><code>safe</code>: (Default) All errors are caught and converted to validation failures</li>
-<li><code>unsafe</code>: Lets exceptions propagate (for performance-critical paths)</li>
+<li><code>unsafe</code>: Lets exceptions propagate (for performance-critical paths). <code>errorTransform</code> has no effect in this mode, so passing both is a compile error.</li>
 </ul>
 <h3 id="error-flow" class="tsd-anchor-link">Error Flow<a href="#error-flow" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="mermaid-block"><div class="mermaid dark">%%{init:{"theme":"dark"}}%%
