@@ -4,8 +4,8 @@
  *
  *
  * @property predicateErrorTransform - Optional custom error transformation function
- *   Only used when errorHandling="safe". Allows customizing how thrown errors
- *   are converted to the rule's error type.
+ *   Allows customizing how thrown errors are converted to the rule's error
+ *   type. Only valid when errorHandlingMode is "safe" (or omitted).
  *
  *
  * @example

@@ -377,7 +377,7 @@ Configure via `RuleSafetyOptions`:
 **Modes**:
 
 - `safe`: (Default) All errors are caught and converted to validation failures
-- `unsafe`: Lets exceptions propagate (for performance-critical paths)
+- `unsafe`: Lets exceptions propagate (for performance-critical paths). `errorTransform` has no effect in this mode, so passing both is a compile error.
 
 ### Error Flow
 
