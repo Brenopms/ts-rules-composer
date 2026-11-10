@@ -6,6 +6,7 @@ import type { Rule } from "../../types/rule";
  * Inverts the logic of a rule - passes when original fails and vice versa.
  * @template TInput - The type of the input to validate
  * @template TError - The type of the error (defaults to string)
+ * @template TContext - The type of the context object (optional, defaults to unknown)
  * @param rule - The rule to invert
  * @param error - The error to return when original rule passes
  * @param options - Configuration for error handling safety
@@ -20,12 +21,12 @@ import type { Rule } from "../../types/rule";
  * - The original rule's error is discarded when it fails
  * - Always uses the provided error when original passes
  */
-export const not = <TInput, TError = string>(
-  rule: Rule<TInput, TError>,
+export const not = <TInput, TError = string, TContext = unknown>(
+  rule: Rule<TInput, TError, TContext>,
   error: TError,
   options?: RuleSafetyOptions<TError>,
-): Rule<TInput, TError> => {
-  return async (input: TInput, context?: unknown) => {
+): Rule<TInput, TError, TContext> => {
+  return async (input: TInput, context?: TContext) => {
     const normalizedRule = getNormalizedRule(rule, options);
 
     const result = await normalizedRule(input, context);

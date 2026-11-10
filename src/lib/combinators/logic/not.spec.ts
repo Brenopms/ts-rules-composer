@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { fail, pass } from "../../helpers";
+import type { Rule } from "../../types";
 import { not } from "./not";
 
 describe("not combinator", () => {
@@ -37,6 +38,21 @@ describe("not combinator", () => {
     await invertedRule({}, context);
 
     expect(contextAwareRule).toHaveBeenCalledWith({}, context);
+  });
+
+  it("keeps the context type of a context-aware rule", async () => {
+    type Ctx = { userId: number };
+    const ctxRule: Rule<string, string, Ctx> = (_input, ctx) =>
+      ctx?.userId === 1 ? pass() : fail("wrong user");
+
+    const inverted = not(ctxRule, errorMsg);
+
+    expectTypeOf(inverted).toEqualTypeOf<Rule<string, string, Ctx>>();
+    // @ts-expect-error context must match Ctx, not unknown
+    inverted("x", { userId: "not a number" });
+
+    expect(await inverted("x", { userId: 1 })).toEqual(fail(errorMsg));
+    expect(await inverted("x", { userId: 2 })).toEqual(pass());
   });
 
   it("should handle async rules", async () => {
