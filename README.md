@@ -796,6 +796,14 @@ const resilientRule = withRetry(
 )
 ```
 
+By default both failed results and thrown exceptions are retried. A failed
+result is a decision, not a transient fault: for policy checks and guardrails
+use `retryOn: "thrown"` so a "no" is never retried into a "yes".
+
+```typescript
+const policy = withRetry(judgeRule, { attempts: 3, retryOn: "thrown" })
+```
+
 ### Context Management
 
 #### `requireContextRule(error, rule, typeGuard?)`  
