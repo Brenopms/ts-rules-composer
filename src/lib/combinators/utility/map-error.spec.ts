@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { fail, pass } from "../../helpers";
+import type { Rule } from "../../types";
 import { mapError } from "./map-error";
 
 describe("mapError combinator", () => {
@@ -38,6 +39,23 @@ describe("mapError combinator", () => {
 
     expect(contextAwareRule).toHaveBeenCalledWith({}, context);
     expect(mockTransform).toHaveBeenCalledWith("Original");
+  });
+
+  it("keeps the context type of a context-aware rule", async () => {
+    type Ctx = { userId: number };
+    const ctxRule: Rule<string, string, Ctx> = (_input, ctx) =>
+      ctx?.userId === 1 ? pass() : fail("wrong user");
+
+    const mapped = mapError(ctxRule, (error) => ({ code: error }));
+
+    expectTypeOf(mapped).toEqualTypeOf<Rule<string, { code: string }, Ctx>>();
+    // @ts-expect-error context must match Ctx, not unknown
+    mapped("x", { userId: "not a number" });
+
+    expect(await mapped("x", { userId: 1 })).toEqual(pass());
+    expect(await mapped("x", { userId: 2 })).toEqual(
+      fail({ code: "wrong user" }),
+    );
   });
 
   it("should handle async rules", async () => {
