@@ -13,7 +13,7 @@
 <section class="tsd-panel">
 <ul class="tsd-signatures">
 <li class="">
-<div class="tsd-signature tsd-anchor-link" id="withretry"><span class="tsd-kind-call-signature">withRetry</span><span class="tsd-signature-symbol">&lt;</span><a class="tsd-signature-type tsd-kind-type-parameter" href="#withretrytinput">TInput</a><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#withretryterror">TError</a> <span class="tsd-signature-symbol">=</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#withretrytcontext">TContext</a> <span class="tsd-signature-symbol">=</span> <span class="tsd-signature-type">unknown</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">(</span><br/>    <span class="tsd-kind-parameter">rule</span><span class="tsd-signature-symbol">:</span> <a href="../types/Rule.html" class="tsd-signature-type tsd-kind-type-alias">Rule</a><span class="tsd-signature-symbol">&lt;</span><a class="tsd-signature-type tsd-kind-type-parameter" href="#withretrytinput">TInput</a><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#withretryterror">TError</a><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#withretrytcontext">TContext</a><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">options</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-symbol">{</span><br/>        <span class="tsd-kind-property">attempts</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>        <span class="tsd-kind-property">delayMs</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>        <span class="tsd-kind-property">retryOn</span><span class="tsd-signature-symbol">?:</span> <a href="../types/RetryOn.html" class="tsd-signature-type tsd-kind-type-alias">RetryOn</a><span class="tsd-signature-symbol">;</span><br/>        <span class="tsd-kind-property">retryStrategy</span><span class="tsd-signature-symbol">?:</span> <a href="../types/RetryStrategy.html" class="tsd-signature-type tsd-kind-type-alias">RetryStrategy</a><span class="tsd-signature-symbol">;</span><br/>        <span class="tsd-kind-property">shouldRetry</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">error</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">unknown</span><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">attempt</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">;</span><br/>    <span class="tsd-signature-symbol">}</span><span class="tsd-signature-symbol">,</span><br/><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <a href="../types/Rule.html" class="tsd-signature-type tsd-kind-type-alias">Rule</a><span class="tsd-signature-symbol">&lt;</span><a class="tsd-signature-type tsd-kind-type-parameter" href="#withretrytinput">TInput</a><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#withretryterror">TError</a> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;MAX_RETRIES_EXCEEDED&quot;</span><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#withretrytcontext">TContext</a><span class="tsd-signature-symbol">&gt;</span><a href="#withretry" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-signature tsd-anchor-link" id="withretry"><span class="tsd-kind-call-signature">withRetry</span><span class="tsd-signature-symbol">&lt;</span><a class="tsd-signature-type tsd-kind-type-parameter" href="#withretrytinput">TInput</a><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#withretryterror">TError</a> <span class="tsd-signature-symbol">=</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#withretrytcontext">TContext</a> <span class="tsd-signature-symbol">=</span> <span class="tsd-signature-type">unknown</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">(</span><br/>    <span class="tsd-kind-parameter">rule</span><span class="tsd-signature-symbol">:</span> <a href="../types/Rule.html" class="tsd-signature-type tsd-kind-type-alias">Rule</a><span class="tsd-signature-symbol">&lt;</span><a class="tsd-signature-type tsd-kind-type-parameter" href="#withretrytinput">TInput</a><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#withretryterror">TError</a><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#withretrytcontext">TContext</a><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">options</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">WithRetryOptions</span><span class="tsd-signature-symbol">&lt;</span><a class="tsd-signature-type tsd-kind-type-parameter" href="#withretryterror">TError</a><span class="tsd-signature-symbol">&gt;</span> <span class="tsd-signature-symbol">&amp;</span> <span class="tsd-signature-symbol">{</span> <span class="tsd-kind-property">onExhausted</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">&quot;last-error&quot;</span> <span class="tsd-signature-symbol">}</span><span class="tsd-signature-symbol">,</span><br/><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <a href="../types/Rule.html" class="tsd-signature-type tsd-kind-type-alias">Rule</a><span class="tsd-signature-symbol">&lt;</span><a class="tsd-signature-type tsd-kind-type-parameter" href="#withretrytinput">TInput</a><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#withretryterror">TError</a><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#withretrytcontext">TContext</a><span class="tsd-signature-symbol">&gt;</span><a href="#withretry" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
 <div class="tsd-comment tsd-typography"><p>Wraps a rule with retry logic for handling transient failures.</p>
 </div>
@@ -35,33 +35,44 @@
 <li><span><span class="tsd-kind-parameter">rule</span>: <a href="../types/Rule.html" class="tsd-signature-type tsd-kind-type-alias">Rule</a><span class="tsd-signature-symbol">&lt;</span><a class="tsd-signature-type tsd-kind-type-parameter" href="#withretrytinput">TInput</a><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#withretryterror">TError</a><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#withretrytcontext">TContext</a><span class="tsd-signature-symbol">&gt;</span></span>
 <div class="tsd-comment tsd-typography"><p>The rule to wrap with retry logic</p>
 </div></li>
-<li><span><span class="tsd-kind-parameter">options</span>: <span class="tsd-signature-symbol">{</span><br/>    <span class="tsd-kind-property">attempts</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <span class="tsd-kind-property">delayMs</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <span class="tsd-kind-property">retryOn</span><span class="tsd-signature-symbol">?:</span> <a href="../types/RetryOn.html" class="tsd-signature-type tsd-kind-type-alias">RetryOn</a><span class="tsd-signature-symbol">;</span><br/>    <span class="tsd-kind-property">retryStrategy</span><span class="tsd-signature-symbol">?:</span> <a href="../types/RetryStrategy.html" class="tsd-signature-type tsd-kind-type-alias">RetryStrategy</a><span class="tsd-signature-symbol">;</span><br/>    <span class="tsd-kind-property">shouldRetry</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">error</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">unknown</span><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">attempt</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span><span class="tsd-signature-symbol"> = {}</span></span>
+<li><span><span class="tsd-kind-parameter">options</span>: <span class="tsd-signature-type">WithRetryOptions</span><span class="tsd-signature-symbol">&lt;</span><a class="tsd-signature-type tsd-kind-type-parameter" href="#withretryterror">TError</a><span class="tsd-signature-symbol">&gt;</span> <span class="tsd-signature-symbol">&amp;</span> <span class="tsd-signature-symbol">{</span> <span class="tsd-kind-property">onExhausted</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">&quot;last-error&quot;</span> <span class="tsd-signature-symbol">}</span></span>
 <div class="tsd-comment tsd-typography"><p>Retry configuration</p>
 </div>
 <ul class="tsd-parameters">
 <li class="tsd-parameter">
-<h5><code class="tsd-tag">Optional</code><span class="tsd-kind-property">attempts</span><span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">number</span></h5>
+<h5><span>attempts</span></h5>
 <div class="tsd-comment tsd-typography"><p>Maximum number of attempts (default: 3)</p>
 </div></li>
 <li class="tsd-parameter">
-<h5><code class="tsd-tag">Optional</code><span class="tsd-kind-property">delayMs</span><span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">number</span></h5>
+<h5><span>delayMs</span></h5>
 <div class="tsd-comment tsd-typography"><p>Delay between attempts in milliseconds (default: 100)</p>
 </div></li>
 <li class="tsd-parameter">
-<h5><code class="tsd-tag">Optional</code><span class="tsd-kind-property">retryOn</span><span class="tsd-signature-symbol">?: </span><a href="../types/RetryOn.html" class="tsd-signature-type tsd-kind-type-alias">RetryOn</a></h5>
+<h5><span>shouldRetry</span></h5>
+<div class="tsd-comment tsd-typography"><p>Function to determine if a failure should be retried</p>
+</div></li>
+<li class="tsd-parameter">
+<h5><span>retryOn</span></h5>
 <div class="tsd-comment tsd-typography"><p>What to retry: &quot;failed&quot; results, &quot;thrown&quot; exceptions, or &quot;both&quot; (default)</p>
 </div></li>
 <li class="tsd-parameter">
-<h5><code class="tsd-tag">Optional</code><span class="tsd-kind-property">retryStrategy</span><span class="tsd-signature-symbol">?: </span><a href="../types/RetryStrategy.html" class="tsd-signature-type tsd-kind-type-alias">RetryStrategy</a></h5></li>
+<h5><span>onExhausted</span></h5>
+<div class="tsd-comment tsd-typography"><p>What to return when every attempt fails:
+&quot;max-retries&quot; (default) returns &quot;MAX_RETRIES_EXCEEDED&quot;; &quot;last-error&quot;
+returns the final error unchanged and keeps the error type as <code>TError</code></p>
+</div></li></ul>
+<ul class="tsd-parameters">
 <li class="tsd-parameter">
-<h5><code class="tsd-tag">Optional</code><span class="tsd-kind-property">shouldRetry</span><span class="tsd-signature-symbol">?: </span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">error</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">unknown</span><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">attempt</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">boolean</span></h5>
-<div class="tsd-comment tsd-typography"><p>Function to determine if a failure should be retried</p>
+<h5><span class="tsd-kind-property">onExhausted</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">&quot;last-error&quot;</span></h5>
+<div class="tsd-comment tsd-typography"><p>What to return when every attempt fails:
+&quot;max-retries&quot; (default) returns &quot;MAX_RETRIES_EXCEEDED&quot;; &quot;last-error&quot;
+returns the final error unchanged and keeps the error type as <code>TError</code></p>
 </div></li></ul></li></ul></div>
-<h4 class="tsd-returns-title">Returns <a href="../types/Rule.html" class="tsd-signature-type tsd-kind-type-alias">Rule</a><span class="tsd-signature-symbol">&lt;</span><a class="tsd-signature-type tsd-kind-type-parameter" href="#withretrytinput">TInput</a><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#withretryterror">TError</a> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;MAX_RETRIES_EXCEEDED&quot;</span><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#withretrytcontext">TContext</a><span class="tsd-signature-symbol">&gt;</span></h4><p>A new rule with retry capability</p>
+<h4 class="tsd-returns-title">Returns <a href="../types/Rule.html" class="tsd-signature-type tsd-kind-type-alias">Rule</a><span class="tsd-signature-symbol">&lt;</span><a class="tsd-signature-type tsd-kind-type-parameter" href="#withretrytinput">TInput</a><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#withretryterror">TError</a><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#withretrytcontext">TContext</a><span class="tsd-signature-symbol">&gt;</span></h4><p>A new rule with retry capability</p>
 
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-example">
-<h4 class="tsd-anchor-link" id="example">Example<a href="#example" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><pre><code class="ts"><span class="hl-1">const</span><span class="hl-2"> </span><span class="hl-3">rule</span><span class="hl-2"> = </span><span class="hl-4">withRetry</span><span class="hl-2">(</span><span class="hl-5">apiCheckRule</span><span class="hl-2">, {</span><br/><span class="hl-2">  </span><span class="hl-5">attempts:</span><span class="hl-2"> </span><span class="hl-7">5</span><span class="hl-2">,</span><br/><span class="hl-2">  </span><span class="hl-5">delayMs:</span><span class="hl-2"> </span><span class="hl-7">500</span><span class="hl-2">,</span><br/><span class="hl-2">  </span><span class="hl-4">shouldRetry</span><span class="hl-5">:</span><span class="hl-2"> (</span><span class="hl-5">error</span><span class="hl-2">) </span><span class="hl-1">=&gt;</span><span class="hl-2"> </span><span class="hl-5">error</span><span class="hl-2">.</span><span class="hl-5">statusCode</span><span class="hl-2"> === </span><span class="hl-7">503</span><br/><span class="hl-2">});</span>
+<h4 class="tsd-anchor-link" id="example">Example<a href="#example" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><pre><code class="ts"><span class="hl-1">const</span><span class="hl-2"> </span><span class="hl-3">rule</span><span class="hl-2"> = </span><span class="hl-4">withRetry</span><span class="hl-2">(</span><span class="hl-5">apiCheckRule</span><span class="hl-2">, {</span><br/><span class="hl-2">  </span><span class="hl-5">attempts:</span><span class="hl-2"> </span><span class="hl-7">5</span><span class="hl-2">,</span><br/><span class="hl-2">  </span><span class="hl-5">delayMs:</span><span class="hl-2"> </span><span class="hl-7">500</span><span class="hl-2">,</span><br/><span class="hl-2">  </span><span class="hl-4">shouldRetry</span><span class="hl-5">:</span><span class="hl-2"> (</span><span class="hl-5">error</span><span class="hl-2">) </span><span class="hl-1">=&gt;</span><span class="hl-2"> </span><span class="hl-5">error</span><span class="hl-2">.</span><span class="hl-5">statusCode</span><span class="hl-2"> === </span><span class="hl-7">503</span><span class="hl-2">,</span><br/><span class="hl-2">  </span><span class="hl-5">onExhausted:</span><span class="hl-2"> </span><span class="hl-6">&quot;last-error&quot;</span><br/><span class="hl-2">});</span>
 </code><button type="button">Copy</button></pre>
 
 </div>
@@ -74,11 +85,173 @@ where a &quot;no&quot; must stay a &quot;no&quot;</li>
 <li>A failure excluded by <code>retryOn</code> is returned immediately (a thrown exception
 becomes a failed result carrying the thrown value)</li>
 <li><code>retryOn</code> and <code>shouldRetry</code> compose: an attempt is retried only if both allow it</li>
-<li>The final error will be &quot;MAX_RETRIES_EXCEEDED&quot; if all attempts fail</li>
+<li>By default the final error is &quot;MAX_RETRIES_EXCEEDED&quot; if all attempts fail,
+which hides why the rule failed; use <code>onExhausted: &quot;last-error&quot;</code> to keep it</li>
+<li>With &quot;last-error&quot; the final error may be a thrown value, as with <code>shouldRetry</code></li>
 </ul>
 </div></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Brenopms/ts-rules-composer/blob/94af68201f99fba535ac16c3c89b84e417335c5c/src/lib/combinators/utility/with-retry.ts#L40">combinators/utility/with-retry.ts:40</a></li></ul></aside></div></li></ul></section></div>
+<li>Defined in <a href="https://github.com/Brenopms/ts-rules-composer/blob/2861585daaa4cb89e801037203a146303110d00e/src/lib/combinators/utility/with-retry.ts#L54">combinators/utility/with-retry.ts:54</a></li></ul></aside></div></li>
+<li class="">
+<div class="tsd-signature tsd-anchor-link" id="withretry-1"><span class="tsd-kind-call-signature">withRetry</span><span class="tsd-signature-symbol">&lt;</span><a class="tsd-signature-type tsd-kind-type-parameter" href="#withretrytinput-1">TInput</a><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#withretryterror-1">TError</a> <span class="tsd-signature-symbol">=</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#withretrytcontext-1">TContext</a> <span class="tsd-signature-symbol">=</span> <span class="tsd-signature-type">unknown</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">(</span><br/>    <span class="tsd-kind-parameter">rule</span><span class="tsd-signature-symbol">:</span> <a href="../types/Rule.html" class="tsd-signature-type tsd-kind-type-alias">Rule</a><span class="tsd-signature-symbol">&lt;</span><a class="tsd-signature-type tsd-kind-type-parameter" href="#withretrytinput-1">TInput</a><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#withretryterror-1">TError</a><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#withretrytcontext-1">TContext</a><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">options</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">WithRetryOptions</span><span class="tsd-signature-symbol">&lt;</span><a class="tsd-signature-type tsd-kind-type-parameter" href="#withretryterror-1">TError</a><span class="tsd-signature-symbol">&gt;</span> <span class="tsd-signature-symbol">&amp;</span> <span class="tsd-signature-symbol">{</span> <span class="tsd-kind-property">onExhausted</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">&quot;max-retries&quot;</span> <span class="tsd-signature-symbol">}</span><span class="tsd-signature-symbol">,</span><br/><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <a href="../types/Rule.html" class="tsd-signature-type tsd-kind-type-alias">Rule</a><span class="tsd-signature-symbol">&lt;</span><a class="tsd-signature-type tsd-kind-type-parameter" href="#withretrytinput-1">TInput</a><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#withretryterror-1">TError</a> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;MAX_RETRIES_EXCEEDED&quot;</span><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#withretrytcontext-1">TContext</a><span class="tsd-signature-symbol">&gt;</span><a href="#withretry-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Wraps a rule with retry logic for handling transient failures.</p>
+</div>
+<section class="tsd-panel">
+<h4>Type Parameters</h4>
+<ul class="tsd-type-parameter-list">
+<li><span id="withretrytinput-1"><span class="tsd-kind-type-parameter">TInput</span></span>
+<div class="tsd-comment tsd-typography"><p>The type of the input to validate</p>
+</div></li>
+<li><span id="withretryterror-1"><span class="tsd-kind-type-parameter">TError</span> = <span class="tsd-signature-type">string</span></span>
+<div class="tsd-comment tsd-typography"><p>The type of the error (defaults to string)</p>
+</div></li>
+<li><span id="withretrytcontext-1"><span class="tsd-kind-type-parameter">TContext</span> = <span class="tsd-signature-type">unknown</span></span>
+<div class="tsd-comment tsd-typography"><p>The type of the context object (optional)</p>
+</div></li></ul></section>
+<div class="tsd-parameters">
+<h4 class="tsd-parameters-title">Parameters</h4>
+<ul class="tsd-parameter-list">
+<li><span><span class="tsd-kind-parameter">rule</span>: <a href="../types/Rule.html" class="tsd-signature-type tsd-kind-type-alias">Rule</a><span class="tsd-signature-symbol">&lt;</span><a class="tsd-signature-type tsd-kind-type-parameter" href="#withretrytinput-1">TInput</a><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#withretryterror-1">TError</a><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#withretrytcontext-1">TContext</a><span class="tsd-signature-symbol">&gt;</span></span>
+<div class="tsd-comment tsd-typography"><p>The rule to wrap with retry logic</p>
+</div></li>
+<li><span><code class="tsd-tag">Optional</code><span class="tsd-kind-parameter">options</span>: <span class="tsd-signature-type">WithRetryOptions</span><span class="tsd-signature-symbol">&lt;</span><a class="tsd-signature-type tsd-kind-type-parameter" href="#withretryterror-1">TError</a><span class="tsd-signature-symbol">&gt;</span> <span class="tsd-signature-symbol">&amp;</span> <span class="tsd-signature-symbol">{</span> <span class="tsd-kind-property">onExhausted</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">&quot;max-retries&quot;</span> <span class="tsd-signature-symbol">}</span></span>
+<div class="tsd-comment tsd-typography"><p>Retry configuration</p>
+</div>
+<ul class="tsd-parameters">
+<li class="tsd-parameter">
+<h5><span>attempts</span></h5>
+<div class="tsd-comment tsd-typography"><p>Maximum number of attempts (default: 3)</p>
+</div></li>
+<li class="tsd-parameter">
+<h5><span>delayMs</span></h5>
+<div class="tsd-comment tsd-typography"><p>Delay between attempts in milliseconds (default: 100)</p>
+</div></li>
+<li class="tsd-parameter">
+<h5><span>shouldRetry</span></h5>
+<div class="tsd-comment tsd-typography"><p>Function to determine if a failure should be retried</p>
+</div></li>
+<li class="tsd-parameter">
+<h5><span>retryOn</span></h5>
+<div class="tsd-comment tsd-typography"><p>What to retry: &quot;failed&quot; results, &quot;thrown&quot; exceptions, or &quot;both&quot; (default)</p>
+</div></li>
+<li class="tsd-parameter">
+<h5><span>onExhausted</span></h5>
+<div class="tsd-comment tsd-typography"><p>What to return when every attempt fails:
+&quot;max-retries&quot; (default) returns &quot;MAX_RETRIES_EXCEEDED&quot;; &quot;last-error&quot;
+returns the final error unchanged and keeps the error type as <code>TError</code></p>
+</div></li></ul>
+<ul class="tsd-parameters">
+<li class="tsd-parameter">
+<h5><code class="tsd-tag">Optional</code><span class="tsd-kind-property">onExhausted</span><span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">&quot;max-retries&quot;</span></h5>
+<div class="tsd-comment tsd-typography"><p>What to return when every attempt fails:
+&quot;max-retries&quot; (default) returns &quot;MAX_RETRIES_EXCEEDED&quot;; &quot;last-error&quot;
+returns the final error unchanged and keeps the error type as <code>TError</code></p>
+</div></li></ul></li></ul></div>
+<h4 class="tsd-returns-title">Returns <a href="../types/Rule.html" class="tsd-signature-type tsd-kind-type-alias">Rule</a><span class="tsd-signature-symbol">&lt;</span><a class="tsd-signature-type tsd-kind-type-parameter" href="#withretrytinput-1">TInput</a><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#withretryterror-1">TError</a> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;MAX_RETRIES_EXCEEDED&quot;</span><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#withretrytcontext-1">TContext</a><span class="tsd-signature-symbol">&gt;</span></h4><p>A new rule with retry capability</p>
+
+<div class="tsd-comment tsd-typography">
+<div class="tsd-tag-example">
+<h4 class="tsd-anchor-link" id="example-1">Example<a href="#example-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><pre><code class="ts"><span class="hl-1">const</span><span class="hl-2"> </span><span class="hl-3">rule</span><span class="hl-2"> = </span><span class="hl-4">withRetry</span><span class="hl-2">(</span><span class="hl-5">apiCheckRule</span><span class="hl-2">, {</span><br/><span class="hl-2">  </span><span class="hl-5">attempts:</span><span class="hl-2"> </span><span class="hl-7">5</span><span class="hl-2">,</span><br/><span class="hl-2">  </span><span class="hl-5">delayMs:</span><span class="hl-2"> </span><span class="hl-7">500</span><span class="hl-2">,</span><br/><span class="hl-2">  </span><span class="hl-4">shouldRetry</span><span class="hl-5">:</span><span class="hl-2"> (</span><span class="hl-5">error</span><span class="hl-2">) </span><span class="hl-1">=&gt;</span><span class="hl-2"> </span><span class="hl-5">error</span><span class="hl-2">.</span><span class="hl-5">statusCode</span><span class="hl-2"> === </span><span class="hl-7">503</span><span class="hl-2">,</span><br/><span class="hl-2">  </span><span class="hl-5">onExhausted:</span><span class="hl-2"> </span><span class="hl-6">&quot;last-error&quot;</span><br/><span class="hl-2">});</span>
+</code><button type="button">Copy</button></pre>
+
+</div>
+<div class="tsd-tag-caveats">
+<h4 class="tsd-anchor-link" id="caveats-1">Caveats<a href="#caveats-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><ul>
+<li>Retries both failed RuleResults and thrown exceptions by default</li>
+<li>A failed result is a deliberate decision, not a transient fault: do not retry
+policy decisions. Use <code>retryOn: &quot;thrown&quot;</code> for guardrails and other rules
+where a &quot;no&quot; must stay a &quot;no&quot;</li>
+<li>A failure excluded by <code>retryOn</code> is returned immediately (a thrown exception
+becomes a failed result carrying the thrown value)</li>
+<li><code>retryOn</code> and <code>shouldRetry</code> compose: an attempt is retried only if both allow it</li>
+<li>By default the final error is &quot;MAX_RETRIES_EXCEEDED&quot; if all attempts fail,
+which hides why the rule failed; use <code>onExhausted: &quot;last-error&quot;</code> to keep it</li>
+<li>With &quot;last-error&quot; the final error may be a thrown value, as with <code>shouldRetry</code></li>
+</ul>
+</div></div><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/Brenopms/ts-rules-composer/blob/2861585daaa4cb89e801037203a146303110d00e/src/lib/combinators/utility/with-retry.ts#L58">combinators/utility/with-retry.ts:58</a></li></ul></aside></div></li>
+<li class="">
+<div class="tsd-signature tsd-anchor-link" id="withretry-2"><span class="tsd-kind-call-signature">withRetry</span><span class="tsd-signature-symbol">&lt;</span><a class="tsd-signature-type tsd-kind-type-parameter" href="#withretrytinput-2">TInput</a><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#withretryterror-2">TError</a> <span class="tsd-signature-symbol">=</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#withretrytcontext-2">TContext</a> <span class="tsd-signature-symbol">=</span> <span class="tsd-signature-type">unknown</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">(</span><br/>    <span class="tsd-kind-parameter">rule</span><span class="tsd-signature-symbol">:</span> <a href="../types/Rule.html" class="tsd-signature-type tsd-kind-type-alias">Rule</a><span class="tsd-signature-symbol">&lt;</span><a class="tsd-signature-type tsd-kind-type-parameter" href="#withretrytinput-2">TInput</a><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#withretryterror-2">TError</a><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#withretrytcontext-2">TContext</a><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">options</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">WithRetryOptions</span><span class="tsd-signature-symbol">&lt;</span><a class="tsd-signature-type tsd-kind-type-parameter" href="#withretryterror-2">TError</a><span class="tsd-signature-symbol">&gt;</span> <span class="tsd-signature-symbol">&amp;</span> <span class="tsd-signature-symbol">{</span><br/>        <span class="tsd-kind-property">onExhausted</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">&quot;last-error&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;max-retries&quot;</span><span class="tsd-signature-symbol">;</span><br/>    <span class="tsd-signature-symbol">}</span><span class="tsd-signature-symbol">,</span><br/><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <a href="../types/Rule.html" class="tsd-signature-type tsd-kind-type-alias">Rule</a><span class="tsd-signature-symbol">&lt;</span><a class="tsd-signature-type tsd-kind-type-parameter" href="#withretrytinput-2">TInput</a><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#withretryterror-2">TError</a> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;MAX_RETRIES_EXCEEDED&quot;</span><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#withretrytcontext-2">TContext</a><span class="tsd-signature-symbol">&gt;</span><a href="#withretry-2" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Wraps a rule with retry logic for handling transient failures.</p>
+</div>
+<section class="tsd-panel">
+<h4>Type Parameters</h4>
+<ul class="tsd-type-parameter-list">
+<li><span id="withretrytinput-2"><span class="tsd-kind-type-parameter">TInput</span></span>
+<div class="tsd-comment tsd-typography"><p>The type of the input to validate</p>
+</div></li>
+<li><span id="withretryterror-2"><span class="tsd-kind-type-parameter">TError</span> = <span class="tsd-signature-type">string</span></span>
+<div class="tsd-comment tsd-typography"><p>The type of the error (defaults to string)</p>
+</div></li>
+<li><span id="withretrytcontext-2"><span class="tsd-kind-type-parameter">TContext</span> = <span class="tsd-signature-type">unknown</span></span>
+<div class="tsd-comment tsd-typography"><p>The type of the context object (optional)</p>
+</div></li></ul></section>
+<div class="tsd-parameters">
+<h4 class="tsd-parameters-title">Parameters</h4>
+<ul class="tsd-parameter-list">
+<li><span><span class="tsd-kind-parameter">rule</span>: <a href="../types/Rule.html" class="tsd-signature-type tsd-kind-type-alias">Rule</a><span class="tsd-signature-symbol">&lt;</span><a class="tsd-signature-type tsd-kind-type-parameter" href="#withretrytinput-2">TInput</a><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#withretryterror-2">TError</a><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#withretrytcontext-2">TContext</a><span class="tsd-signature-symbol">&gt;</span></span>
+<div class="tsd-comment tsd-typography"><p>The rule to wrap with retry logic</p>
+</div></li>
+<li><span><code class="tsd-tag">Optional</code><span class="tsd-kind-parameter">options</span>: <span class="tsd-signature-type">WithRetryOptions</span><span class="tsd-signature-symbol">&lt;</span><a class="tsd-signature-type tsd-kind-type-parameter" href="#withretryterror-2">TError</a><span class="tsd-signature-symbol">&gt;</span> <span class="tsd-signature-symbol">&amp;</span> <span class="tsd-signature-symbol">{</span> <span class="tsd-kind-property">onExhausted</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">&quot;last-error&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;max-retries&quot;</span> <span class="tsd-signature-symbol">}</span></span>
+<div class="tsd-comment tsd-typography"><p>Retry configuration</p>
+</div>
+<ul class="tsd-parameters">
+<li class="tsd-parameter">
+<h5><span>attempts</span></h5>
+<div class="tsd-comment tsd-typography"><p>Maximum number of attempts (default: 3)</p>
+</div></li>
+<li class="tsd-parameter">
+<h5><span>delayMs</span></h5>
+<div class="tsd-comment tsd-typography"><p>Delay between attempts in milliseconds (default: 100)</p>
+</div></li>
+<li class="tsd-parameter">
+<h5><span>shouldRetry</span></h5>
+<div class="tsd-comment tsd-typography"><p>Function to determine if a failure should be retried</p>
+</div></li>
+<li class="tsd-parameter">
+<h5><span>retryOn</span></h5>
+<div class="tsd-comment tsd-typography"><p>What to retry: &quot;failed&quot; results, &quot;thrown&quot; exceptions, or &quot;both&quot; (default)</p>
+</div></li>
+<li class="tsd-parameter">
+<h5><span>onExhausted</span></h5>
+<div class="tsd-comment tsd-typography"><p>What to return when every attempt fails:
+&quot;max-retries&quot; (default) returns &quot;MAX_RETRIES_EXCEEDED&quot;; &quot;last-error&quot;
+returns the final error unchanged and keeps the error type as <code>TError</code></p>
+</div></li></ul>
+<ul class="tsd-parameters">
+<li class="tsd-parameter">
+<h5><code class="tsd-tag">Optional</code><span class="tsd-kind-property">onExhausted</span><span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">&quot;last-error&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;max-retries&quot;</span></h5>
+<div class="tsd-comment tsd-typography"><p>What to return when every attempt fails:
+&quot;max-retries&quot; (default) returns &quot;MAX_RETRIES_EXCEEDED&quot;; &quot;last-error&quot;
+returns the final error unchanged and keeps the error type as <code>TError</code></p>
+</div></li></ul></li></ul></div>
+<h4 class="tsd-returns-title">Returns <a href="../types/Rule.html" class="tsd-signature-type tsd-kind-type-alias">Rule</a><span class="tsd-signature-symbol">&lt;</span><a class="tsd-signature-type tsd-kind-type-parameter" href="#withretrytinput-2">TInput</a><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#withretryterror-2">TError</a> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;MAX_RETRIES_EXCEEDED&quot;</span><span class="tsd-signature-symbol">,</span> <a class="tsd-signature-type tsd-kind-type-parameter" href="#withretrytcontext-2">TContext</a><span class="tsd-signature-symbol">&gt;</span></h4><p>A new rule with retry capability</p>
+
+<div class="tsd-comment tsd-typography">
+<div class="tsd-tag-example">
+<h4 class="tsd-anchor-link" id="example-2">Example<a href="#example-2" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><pre><code class="ts"><span class="hl-1">const</span><span class="hl-2"> </span><span class="hl-3">rule</span><span class="hl-2"> = </span><span class="hl-4">withRetry</span><span class="hl-2">(</span><span class="hl-5">apiCheckRule</span><span class="hl-2">, {</span><br/><span class="hl-2">  </span><span class="hl-5">attempts:</span><span class="hl-2"> </span><span class="hl-7">5</span><span class="hl-2">,</span><br/><span class="hl-2">  </span><span class="hl-5">delayMs:</span><span class="hl-2"> </span><span class="hl-7">500</span><span class="hl-2">,</span><br/><span class="hl-2">  </span><span class="hl-4">shouldRetry</span><span class="hl-5">:</span><span class="hl-2"> (</span><span class="hl-5">error</span><span class="hl-2">) </span><span class="hl-1">=&gt;</span><span class="hl-2"> </span><span class="hl-5">error</span><span class="hl-2">.</span><span class="hl-5">statusCode</span><span class="hl-2"> === </span><span class="hl-7">503</span><span class="hl-2">,</span><br/><span class="hl-2">  </span><span class="hl-5">onExhausted:</span><span class="hl-2"> </span><span class="hl-6">&quot;last-error&quot;</span><br/><span class="hl-2">});</span>
+</code><button type="button">Copy</button></pre>
+
+</div>
+<div class="tsd-tag-caveats">
+<h4 class="tsd-anchor-link" id="caveats-2">Caveats<a href="#caveats-2" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><ul>
+<li>Retries both failed RuleResults and thrown exceptions by default</li>
+<li>A failed result is a deliberate decision, not a transient fault: do not retry
+policy decisions. Use <code>retryOn: &quot;thrown&quot;</code> for guardrails and other rules
+where a &quot;no&quot; must stay a &quot;no&quot;</li>
+<li>A failure excluded by <code>retryOn</code> is returned immediately (a thrown exception
+becomes a failed result carrying the thrown value)</li>
+<li><code>retryOn</code> and <code>shouldRetry</code> compose: an attempt is retried only if both allow it</li>
+<li>By default the final error is &quot;MAX_RETRIES_EXCEEDED&quot; if all attempts fail,
+which hides why the rule failed; use <code>onExhausted: &quot;last-error&quot;</code> to keep it</li>
+<li>With &quot;last-error&quot; the final error may be a thrown value, as with <code>shouldRetry</code></li>
+</ul>
+</div></div><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/Brenopms/ts-rules-composer/blob/2861585daaa4cb89e801037203a146303110d00e/src/lib/combinators/utility/with-retry.ts#L62">combinators/utility/with-retry.ts:62</a></li></ul></aside></div></li></ul></section></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
