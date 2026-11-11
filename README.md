@@ -1,36 +1,32 @@
-# TS Rules Composer 🎼
+# TS Rules Composer
 
 [![npm version](https://img.shields.io/npm/v/ts-rules-composer)](https://npmjs.com/package/ts-rules-composer)
 [![bundle size](https://img.shields.io/bundlephobia/minzip/ts-rules-composer)](https://bundlephobia.com/package/ts-rules-composer)
 [![license](https://img.shields.io/npm/l/ts-rules-composer)](LICENSE)
 
-A **dependency-free**, type-safe validation engine for composing complex business rules with elegant pipelines.
+A **dependency-free**, type-safe engine for composing business rules and policy checks into pipelines.
 
-```typescript
-// Example: E-commerce checkout
-const validateCheckout = pipeRules([
-  validateCart,
-  match((order) => order.paymentMethod, {
-    'credit_card': validateCreditCard,
-    'paypal': validatePaypal
-  }),
-  withRetry(validateInventory, { attempts: 3 })
-]);
+## Why
 
-const result = await validateCheckout(order);
-```
+Schema validators answer "is this data shaped correctly?". Business rules ask more: does this user have permission, is this order within their limit, did the fraud service say yes before the timeout? Those checks need shared context, async calls, branching, retries and timeouts.
 
-## Features ✨
+`ts-rules-composer` treats each check as a small function (a **rule**) and gives you combinators to wire rules together, with the input, context and error types inferred end to end. It complements schema validators such as `zod`; it does not replace them.
 
-- 🧩 **Composable** - Build pipelines with 25+ combinators (`when`, `unless`, `mapError`, etc.)
-- 🚀 **Zero Dependencies** - Lightweight (~2.3KB gzipped)
-- 🦾 **TypeScript First** - Full inference for inputs, contexts, and errors
-- ⏱ **Async Ready** - Mix sync/async rules seamlessly
-- 🛡 **Context-Aware** - Shared validation state
-- 🔌 **Extensible** - Easily create custom combinators that integrate seamlessly
-- 📊 **Instrumentation** - Debugging & metrics out-of-the-box
-- 🧪 **Rigorously Tested** - 95+% test coverage with 300+ test cases covering all edge cases
-- 🌐 **Node.js + Browser Compatible** – Works in modern browsers and Node.js 22+
+## Contents
+
+- [Installation](#installation)
+- [Quick start](#quick-start)
+- [Features](#features)
+- [Core concepts](#core-concepts)
+- [Usage examples](#usage-examples)
+- [Error handling](#error-handling-standardization)
+- [Guardrails and policy checks](#guardrails-and-policy-checks)
+- [Context cloning](#context-cloning-options)
+- [Best practices](#best-practices)
+- [Comparison to other libraries](#comparison-to-other-libraries)
+- [API reference](#api-reference)
+- [Cheat sheet](#cheat-sheet)
+- [Contributing](#contributing)
 
 ## Installation
 
@@ -42,9 +38,64 @@ yarn add ts-rules-composer
 pnpm add ts-rules-composer
 ```
 
+Requires Node.js 22 or later, or a modern browser.
+
+## Quick start
+
+```typescript
+import { fail, match, pass, pipeRules } from "ts-rules-composer";
+
+type Order = { items: number; total: number; payment: "card" | "paypal" };
+type Ctx = { limit: number };
+
+// A rule is a function: (input, context?) => pass() | fail(error)
+const hasItems = (order: Order) =>
+  order.items > 0 ? pass() : fail("Cart is empty");
+
+const withinLimit = (order: Order, ctx?: Ctx) =>
+  order.total <= (ctx?.limit ?? 1000) ? pass() : fail("Over the spending limit");
+
+const validateCard = (order: Order) =>
+  order.total > 0 ? pass() : fail("Invalid amount");
+const validatePaypal = (_order: Order) => pass();
+
+// Combinators wire rules together; context reaches every rule
+const validateCheckout = pipeRules<Order, string, Ctx>([
+  hasItems,
+  withinLimit,
+  match((order: Order) => order.payment, {
+    card: validateCard,
+    paypal: validatePaypal,
+  }),
+]);
+
+await validateCheckout({ items: 2, total: 40, payment: "card" }, { limit: 500 });
+// → { status: "passed" }
+
+await validateCheckout({ items: 0, total: 40, payment: "card" });
+// → { status: "failed", error: "Cart is empty" }
+
+await validateCheckout({ items: 1, total: 900, payment: "paypal" }, { limit: 500 });
+// → { status: "failed", error: "Over the spending limit" }
+```
+
+`pipeRules` runs rules in order and stops at the first failure. See [Core concepts](#core-concepts) for the model and the [API reference](#api-reference) for every combinator.
+
+## Features
+
+- **Composable**: build pipelines from combinators such as `when`, `unless`, `match`, `every` and `mapError`
+- **Zero dependencies**: small and tree-shakeable (`sideEffects: false`)
+- **TypeScript first**: inference for inputs, contexts and errors
+- **Async ready**: mix sync and async rules
+- **Context-aware**: share state, services and configuration across rules
+- **Resilient**: retries, timeouts, memoization and fallbacks built in
+- **Extensible**: write your own combinators with the same `Rule` type
+- **Instrumented**: `withDebug` and `withTap` for logging and metrics
+- **Portable**: Node.js 22+ and modern browsers
+
 ## Core Concepts
 
-### ⚛️ The Atomic Validation Unit
+### The Rule
 
 At the heart of `ts-rules-composer` lies the **Rule** — a function that performs a single validation step.
 
@@ -56,7 +107,7 @@ Rules are:
 - **Async-compatible**: all rules can be sync or async, and combinators handle both transparently.
 - **Context-aware**: optional `context` can be passed to any rule for dependency injection, configuration, or shared state.
 
-#### 🧩 Rule Signature
+#### Rule signature
 
 ```ts
 type Rule<TInput, TError = string, TContext = unknown> =
@@ -68,7 +119,7 @@ type Rule<TInput, TError = string, TContext = unknown> =
 - `TContext` – optional shared context object passed to the rule
 - `Result` – your rule can return synchronously or asynchronously
 
-#### 🧪 Rule Result
+#### Rule result
 
 Rules must return one of two outcomes:
 
@@ -77,6 +128,8 @@ type RuleResult<TError = string> =
   | { status: "passed" }
   | { status: "failed"; error: TError };
 ```
+
+Aggregating combinators change the error type: `every` and `oneOf` return a rule whose error is `TError[]` (one entry per failed rule), while `pipeRules`, `composeRules` and the rest keep a single `TError`.
 
 Use the utility functions `pass()` and `fail(error)` to return results:
 
@@ -87,7 +140,7 @@ const isEven = (n: number) =>
   n % 2 === 0 ? pass() : fail("Must be even");
 ```
 
-#### 🧠 Context Example
+#### Context example
 
 Context is optional but powerful. It lets rules access external services, user configuration, or metadata.
 
@@ -100,7 +153,7 @@ const isAboveThreshold = (n: number, ctx?: Ctx) =>
 
 When composing rules, context will be passed automatically to all child rules.
 
-#### 🔗 Composing Rules
+#### Composing rules
 
 Rules are designed to be combined using **combinators** like `pipeRules`, `every`, `oneOf`, `when`, and `match`.
 
@@ -121,7 +174,7 @@ const result2 = await validate(3, { threshold: 2 });
 
 ---
 
-#### 🧰 Summary
+#### Summary
 
 | Feature           | Supported |
 | ----------------- | --------- |
@@ -137,9 +190,9 @@ Each rule is a **unit of validation** that plugs into powerful composition pipel
 
 Complete examples can be found here:
 
-- 🧑‍💻 [User Registration](./examples/user-registration.example.ts)
-- 💳 [Financial Transaction Validation](./examples/financial-transaction.example.ts)
-- 🚀 [Model Deployment Validator](./examples/model-deployment.example.ts)
+- [User Registration](./examples/user-registration.example.ts)
+- [Financial Transaction Validation](./examples/financial-transaction.example.ts)
+- [Model Deployment Validator](./examples/model-deployment.example.ts)
 
 ### Example 1: Financial Transaction Validation
 
@@ -390,7 +443,7 @@ graph TD
     E --> F[Return Failed Result]
 ```
 
-### Best Practices
+### Error Handling Recipes
 
 1. **For validation logic**:
 
@@ -423,7 +476,7 @@ graph TD
 Enable debug mode to get enhanced error information:
 
 ```typescript
-import { withDebug } from './combinators';
+import { withDebug } from 'ts-rules-composer';
 
 const debugRule = withDebug(myRule, {
   onError: (error) => console.error('Rule failed:', error)
@@ -446,7 +499,7 @@ graph TD
 1. **Composition-Level Setting** (Highest priority)
    - `pipeRules/composeRules/every/oneOf` configurations
 2. **Rule-Level Configuration** (Only applies if composition allows)
-   - `withSafeError` or `getNormalizedRule` settings
+   - `getNormalizedRule` settings
 3. **Global Default** (`safe` mode)
 
 #### Behavior Matrix
@@ -487,7 +540,7 @@ graph TD
 // All rules will use safe mode regardless of their own config
 const pipeline = pipeRules([
   unsafeRule,                // Will be forced to safe mode
-  withSafeError(rule, {      // Configuration ignored
+  getNormalizedRule(rule, {  // Configuration ignored
     errorHandlingMode: 'unsafe' 
   })
 ], {
@@ -501,13 +554,24 @@ const pipeline = pipeRules([
 // Rules can specify their own mode since composition allows it
 const pipeline = pipeRules([
   unsafeRule,                // Runs in unsafe mode
-  withSafeError(rule, {      // Runs in safe mode
+  getNormalizedRule(rule, {  // Runs in safe mode
     errorHandlingMode: 'safe' 
   })
 ], {
   errorHandlingMode: 'unsafe' // ← Allows rule-level configs
 })
 ```
+
+## Guardrails and policy checks
+
+When a rule decides whether something is allowed (a permission check, a safety policy, an LLM or fraud judge), a wrong "pass" costs more than a wrong "fail". These defaults and habits keep the failure side safe.
+
+- **Fail closed on errors.** In the default `safe` mode a thrown exception becomes a failed result, so a crashing check never passes. Do not use `errorHandlingMode: "unsafe"` on policy rules unless the caller handles exceptions. See [Error handling modes](#error-handling-modes).
+- **Never retry a decision.** `withRetry` retries failed results by default, so a "no" can be retried into a "yes". For policy checks use `retryOn: "thrown"`, which retries only transient exceptions. See [`withRetry`](#withretryrule-options).
+- **Keep the reason when retries run out.** `onExhausted: "last-error"` returns the final error instead of `"MAX_RETRIES_EXCEEDED"`.
+- **Key caches by identity.** `withMemoize` shares entries between callers with the same key, so include everything the verdict depends on (user, tenant, input id), build keys with `JSON.stringify([...])` rather than joining strings, and key by context when the result depends on who is asking. See [`withMemoize`](#withmemoizerule-keyfn-options).
+- **Time out as a failure.** `withTimeout` returns your `timeoutError` as a failed result, so a slow dependency blocks the action instead of letting it through.
+- **Test the failure paths.** Assert that thrown errors, timeouts and exhausted retries all produce `status: "failed"`.
 
 ## Context Cloning Options
 
@@ -519,10 +583,10 @@ made by one child Rule are visible to the others; the original Context is left
 unchanged.
 
 ```typescript
-interface CompositionOptions {
+type CompositionOptions = {
   cloneContext?: boolean;      // Enable/disable cloning
   cloneStrategy?: "shallow" | "json" | "structured"; // Defaults to "json"
-}
+} & RuleSafetyOptions;         // errorHandlingMode, errorTransform (see Error Handling)
 ```
 
 ### Cloning Strategies
@@ -532,7 +596,7 @@ The clone method is chosen by `cloneStrategy`. Without it, the JSON clone is use
 | `cloneStrategy`   | Speed  | Depth | Special Types* | Circular Refs | Node.js | Browser |
 |-------------------|--------|-------|----------------|---------------|---------|---------|
 | `"shallow"`       | 🚀 Fast | Shallow | ❌ No         | ✅ Yes        | ✅      | ✅      |
-| `"structured"`    | 🐢 Slow | Deep  | ✅ Yes         | ✅ Yes        | 17+     | Modern  |
+| `"structured"`    | 🐢 Slow | Deep  | ✅ Yes         | ✅ Yes        | ✅      | Modern  |
 | `"json"` (default) | 🏎 Fast | Deep  | ❌ No          | ❌ No         | ✅      | ✅      |
 
 *Special Types: Date, Map, Set, RegExp, etc.
@@ -569,7 +633,7 @@ pipeRules(rules, { cloneContext: true, cloneStrategy: "structured" })
 4. **Type Narrowing** - Use `requireContextRule` for safety
 5. **Instrument** - Add metrics in production
 
-## 🔍 Comparison to Other Libraries
+## Comparison to Other Libraries
 
 While many libraries focus on schema validation or static rules, `ts-rules-composer` is designed specifically for **composable business logic**, dynamic workflows, and contextual validation pipelines.
 
@@ -585,7 +649,7 @@ Here’s how it compares to popular alternatives:
 
 ---
 
-### 🧠 When to Use `ts-rules-composer`
+### When to use `ts-rules-composer`
 
 Choose `ts-rules-composer` when your validation or rule logic:
 
@@ -937,7 +1001,9 @@ const createDbRule = (db: Database) => (input: string) =>
 const dbRule = inject(database, createDbRule)
 ```
 
-### Core Functions
+## Cheat Sheet
+
+### Core
 
 | Function | Description | Example |
 |----------|-------------|---------|
@@ -947,17 +1013,17 @@ const dbRule = inject(database, createDbRule)
 | `match` | Pattern matching routing | `match(getUserType, { admin: ruleA, user: ruleB })` |
 | `ifElse` | Conditional routing | `ifElse(isUnderAge, validateMinorAccount, validateAdultAccount)` |
 
-### Combinators
+### Combinators (summary)
 
 | Combinator | Purpose | Example |
 |------------|---------|---------|
 | `when` | Conditional execution | `when(isAdmin, validateAdmin)` |
 | `unless` | Negative condition | `unless(isGuest, validateAccount)` |
 | `not` | Invert rule logic | `not(isBanned, "Must not be banned")` |
-| `oneOf` | First-successful validation | `oneOf(validateV1, validateV2)` |
+| `oneOf` | First-successful validation | `oneOf([validateV1, validateV2])` |
 | `withFallback` | Fallback rule | `withFallback(primary, backup)` |
 
-### Performance
+### Performance (summary)
 
 | Utility | Use Case | Example |
 |---------|----------|---------|
@@ -965,12 +1031,12 @@ const dbRule = inject(database, createDbRule)
 | `withTimeout` | Add time limit | `withTimeout(networkCall, 3000, "Timeout")` |
 | `withRetry` | Automatic retries | `withRetry(unstableAPI, { attempts: 3 })` |
 
-### Instrumentation
+### Instrumentation (summary)
 
 | Tool | Purpose | Example |
 |------|---------|---------|
 | `withDebug` | Debug logging | `withDebug(rule, { name: "Validation" })` |
-| `tap` | Side effects | `tap((input, result) => log(result))` |
+| `tap` | Side effects | `tap((input, context) => log(input))` |
 
 ## Contributing
 
