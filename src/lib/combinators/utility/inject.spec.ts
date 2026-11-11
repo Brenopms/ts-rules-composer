@@ -1,5 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { fail, pass } from "../../helpers";
+import type { Rule } from "../../types";
 import { inject } from "./inject";
 
 describe("inject (basic)", () => {
@@ -37,6 +38,23 @@ describe("inject (basic)", () => {
     expect(validResult.status).toBe("passed");
     expect(invalidResult).toEqual(fail("Invalid input"));
     expect(mockRule).toHaveBeenCalledTimes(2);
+  });
+
+  it("forwards context to the configured rule and keeps its type", async () => {
+    type Ctx = { userId: number };
+    const factory =
+      (_dep: { name: string }): Rule<string, string, Ctx> =>
+      (_input, ctx) =>
+        ctx?.userId === 1 ? pass() : fail("wrong user");
+
+    const rule = inject({ name: "dep" }, factory);
+
+    expectTypeOf(rule).toEqualTypeOf<Rule<string, string, Ctx>>();
+    // @ts-expect-error context must match Ctx, not unknown
+    rule("x", { userId: "not a number" });
+
+    expect(await rule("x", { userId: 1 })).toEqual(pass());
+    expect(await rule("x", { userId: 2 })).toEqual(fail("wrong user"));
   });
 
   it("works with async dependencies", async () => {
