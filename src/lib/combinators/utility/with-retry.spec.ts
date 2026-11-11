@@ -204,6 +204,101 @@ describe("withRetry combinator", () => {
     expect((result as any).error.message).toBe("Fatal");
   });
 
+  describe("retryOn", () => {
+    it('"thrown" returns a failed result immediately without retrying', async () => {
+      const denies = vi.fn(() => fail("denied"));
+      const rule = withRetry(denies, { attempts: 3, retryOn: "thrown" });
+
+      const result = await rule({});
+
+      expect(result).toEqual(fail("denied"));
+      expect(denies).toHaveBeenCalledTimes(1);
+    });
+
+    it('"thrown" still retries thrown exceptions', async () => {
+      const flaky = vi
+        .fn()
+        .mockRejectedValueOnce(new Error("boom"))
+        .mockResolvedValueOnce(pass());
+      const rule = withRetry(flaky, {
+        attempts: 3,
+        delayMs: 0,
+        retryOn: "thrown",
+      });
+
+      expect(await rule({})).toEqual(pass());
+      expect(flaky).toHaveBeenCalledTimes(2);
+    });
+
+    it('"thrown" does not let a deny-then-pass rule pass', async () => {
+      const noThenYes = vi
+        .fn()
+        .mockImplementationOnce(() => fail("no"))
+        .mockImplementationOnce(() => pass());
+      const rule = withRetry(noThenYes, { retryOn: "thrown" });
+
+      expect((await rule({})).status).toBe("failed");
+      expect(noThenYes).toHaveBeenCalledTimes(1);
+    });
+
+    it('"failed" retries failed results', async () => {
+      const eventually = vi
+        .fn()
+        .mockImplementationOnce(() => fail("a"))
+        .mockImplementationOnce(() => fail("b"))
+        .mockImplementationOnce(() => pass());
+      const rule = withRetry(eventually, {
+        attempts: 3,
+        delayMs: 0,
+        retryOn: "failed",
+      });
+
+      expect(await rule({})).toEqual(pass());
+      expect(eventually).toHaveBeenCalledTimes(3);
+    });
+
+    it('"failed" does not retry thrown exceptions', async () => {
+      const error = new Error("boom");
+      const throws = vi.fn().mockRejectedValue(error);
+      const rule = withRetry(throws, {
+        attempts: 3,
+        delayMs: 0,
+        retryOn: "failed",
+      });
+
+      const result = await rule({});
+
+      expect(throws).toHaveBeenCalledTimes(1);
+      expect(result).toEqual(fail(error));
+    });
+
+    it("composes with shouldRetry: both must allow the retry", async () => {
+      const throws = vi.fn().mockRejectedValue(new Error("boom"));
+      const rule = withRetry(throws, {
+        attempts: 3,
+        delayMs: 0,
+        retryOn: "thrown",
+        shouldRetry: () => false,
+      });
+
+      await rule({});
+
+      expect(throws).toHaveBeenCalledTimes(1);
+    });
+
+    it('defaults to "both"', async () => {
+      const mixed = vi
+        .fn()
+        .mockImplementationOnce(() => fail("x"))
+        .mockRejectedValueOnce(new Error("y"))
+        .mockResolvedValueOnce(pass());
+      const rule = withRetry(mixed, { attempts: 3, delayMs: 0 });
+
+      expect(await rule({})).toEqual(pass());
+      expect(mixed).toHaveBeenCalledTimes(3);
+    });
+  });
+
   // Type safety tests
   it("should preserve input types", () => {
     type StrictInput = { id: string };
