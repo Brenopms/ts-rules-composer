@@ -28,12 +28,14 @@ import type { Rule, RuleResult, RuleSafetyOptions } from "../../types";
  * // verdict depends on who is asking: key by context too
  * const perUser = withMemoize(
  *   permissionRule,
- *   (input, context) => `${context?.userId}:${input.id}`
+ *   (input, context) => JSON.stringify([context?.userId, input.id])
  * );
  * @caveats
  * - The cache key is exactly what `keyFn` returns: a key that ignores context
  *   shares entries across contexts, so a result cached for one user can be served
  *   to another. Key by context whenever the result depends on it
+ * - Build keys unambiguously: joining values with a separator (`${a}:${b}`) can make
+ *   different callers produce the same key; serialize them (`JSON.stringify([a, b])`)
  * - Cache cleanup happens during rule execution
  * - Rejected promises are automatically evicted from cache
  * - Successful results obey TTL rules

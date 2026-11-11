@@ -774,12 +774,14 @@ const cachedCheck = withMemoize(
 ```
 
 `keyFn` also receives the context. If the result depends on who is asking, key
-by context too, or one caller can be served another caller's cached result:
+by context too, or one caller can be served another caller's cached result.
+Build the key unambiguously: `JSON.stringify([...])`, not values joined with a
+separator, which can collide:
 
 ```typescript
 const perUser = withMemoize(
   permissionRule,
-  (input, context) => `${context?.userId}:${input.id}`
+  (input, context) => JSON.stringify([context?.userId, input.id])
 )
 ```
 

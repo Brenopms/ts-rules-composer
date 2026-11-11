@@ -158,6 +158,28 @@ describe("withMemoize", () => {
       expect(key).toHaveBeenCalledWith({ id: "doc" }, context);
     });
 
+    it("a serialized key keeps separator-ambiguous callers apart", async () => {
+      const rule = vi.fn(() => pass());
+      const serialized = (input: { id: string }, context?: Ctx) =>
+        JSON.stringify([context?.userId, input.id]);
+      const memoized = withMemoize(rule, serialized);
+
+      await memoized({ id: "c" }, { userId: "a:b" });
+      await memoized({ id: "b:c" }, { userId: "a" });
+
+      expect(rule).toHaveBeenCalledTimes(2);
+    });
+
+    it("a separator-joined key collides for those callers (documented hazard)", async () => {
+      const rule = vi.fn(() => pass());
+      const memoized = withMemoize(rule, ctxKey);
+
+      await memoized({ id: "c" }, { userId: "a:b" });
+      await memoized({ id: "b:c" }, { userId: "a" });
+
+      expect(rule).toHaveBeenCalledTimes(1);
+    });
+
     it("one-argument keys keep sharing entries across contexts", async () => {
       const rule = vi.fn(() => pass());
       const memoized = withMemoize(rule, keyFn);
