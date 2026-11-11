@@ -9,6 +9,14 @@ export type RetryStrategy =
   | "exponential"
   | ((attempt: number) => number);
 
+type WithRetryOptions<TError> = {
+  attempts?: number;
+  delayMs?: number;
+  retryStrategy?: RetryStrategy;
+  shouldRetry?: (error: TError | unknown, attempt: number) => boolean;
+  retryOn?: RetryOn;
+};
+
 /**
  * Wraps a rule with retry logic for handling transient failures.
  * @template TInput - The type of the input to validate
@@ -20,12 +28,16 @@ export type RetryStrategy =
  * @param options.delayMs - Delay between attempts in milliseconds (default: 100)
  * @param options.shouldRetry - Function to determine if a failure should be retried
  * @param options.retryOn - What to retry: "failed" results, "thrown" exceptions, or "both" (default)
+ * @param options.onExhausted - What to return when every attempt fails:
+ *   "max-retries" (default) returns "MAX_RETRIES_EXCEEDED"; "last-error"
+ *   returns the final error unchanged and keeps the error type as `TError`
  * @returns A new rule with retry capability
  * @example
  * const rule = withRetry(apiCheckRule, {
  *   attempts: 5,
  *   delayMs: 500,
- *   shouldRetry: (error) => error.statusCode === 503
+ *   shouldRetry: (error) => error.statusCode === 503,
+ *   onExhausted: "last-error"
  * });
  * @caveats
  * - Retries both failed RuleResults and thrown exceptions by default
@@ -35,23 +47,36 @@ export type RetryStrategy =
  * - A failure excluded by `retryOn` is returned immediately (a thrown exception
  *   becomes a failed result carrying the thrown value)
  * - `retryOn` and `shouldRetry` compose: an attempt is retried only if both allow it
- * - The final error will be "MAX_RETRIES_EXCEEDED" if all attempts fail
+ * - By default the final error is "MAX_RETRIES_EXCEEDED" if all attempts fail,
+ *   which hides why the rule failed; use `onExhausted: "last-error"` to keep it
+ * - With "last-error" the final error may be a thrown value, as with `shouldRetry`
  */
-export const withRetry = <TInput, TError = string, TContext = unknown>(
+export function withRetry<TInput, TError = string, TContext = unknown>(
   rule: Rule<TInput, TError, TContext>,
-  options: {
-    attempts?: number;
-    delayMs?: number;
-    retryStrategy?: RetryStrategy;
-    shouldRetry?: (error: TError | unknown, attempt: number) => boolean;
-    retryOn?: RetryOn;
+  options: WithRetryOptions<TError> & { onExhausted: "last-error" },
+): Rule<TInput, TError, TContext>;
+export function withRetry<TInput, TError = string, TContext = unknown>(
+  rule: Rule<TInput, TError, TContext>,
+  options?: WithRetryOptions<TError> & { onExhausted?: "max-retries" },
+): Rule<TInput, TError | "MAX_RETRIES_EXCEEDED", TContext>;
+export function withRetry<TInput, TError = string, TContext = unknown>(
+  rule: Rule<TInput, TError, TContext>,
+  options?: WithRetryOptions<TError> & {
+    onExhausted?: "max-retries" | "last-error";
+  },
+): Rule<TInput, TError | "MAX_RETRIES_EXCEEDED", TContext>;
+export function withRetry<TInput, TError = string, TContext = unknown>(
+  rule: Rule<TInput, TError, TContext>,
+  options: WithRetryOptions<TError> & {
+    onExhausted?: "max-retries" | "last-error";
   } = {},
-): Rule<TInput, TError | "MAX_RETRIES_EXCEEDED", TContext> => {
+): Rule<TInput, TError | "MAX_RETRIES_EXCEEDED", TContext> {
   const {
     attempts = 3,
     delayMs = 100,
     shouldRetry = () => true,
     retryOn = "both",
+    onExhausted = "max-retries",
   } = options;
 
   return async (input, context) => {
@@ -86,6 +111,8 @@ export const withRetry = <TInput, TError = string, TContext = unknown>(
       }
     }
 
-    return fail("MAX_RETRIES_EXCEEDED" as const);
+    return onExhausted === "last-error"
+      ? fail(lastError as TError)
+      : fail("MAX_RETRIES_EXCEEDED" as const);
   };
-};
+}
