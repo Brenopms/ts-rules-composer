@@ -1,4 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  expectTypeOf,
+  it,
+  vi,
+} from "vitest";
 import { fail, pass } from "../../helpers";
 import type { Rule } from "../../types";
 import { withRetry } from "./with-retry";
@@ -296,6 +304,84 @@ describe("withRetry combinator", () => {
 
       expect(await rule({})).toEqual(pass());
       expect(mixed).toHaveBeenCalledTimes(3);
+    });
+  });
+
+  describe("onExhausted", () => {
+    it('"last-error" returns the final error object after all attempts', async () => {
+      const errors = [{ code: 1 }, { code: 2 }, { code: 3 }];
+      const rule = vi
+        .fn()
+        .mockImplementationOnce(() => fail(errors[0]))
+        .mockImplementationOnce(() => fail(errors[1]))
+        .mockImplementationOnce(() => fail(errors[2]));
+
+      const result = await withRetry(rule, {
+        attempts: 3,
+        delayMs: 0,
+        onExhausted: "last-error",
+      })({});
+
+      expect(rule).toHaveBeenCalledTimes(3);
+      expect(result.status).toBe("failed");
+      expect((result as { error: unknown }).error).toBe(errors[2]);
+    });
+
+    it('"last-error" returns the final thrown value', async () => {
+      const boom = new Error("boom");
+      const rule = vi.fn().mockRejectedValue(boom);
+
+      const result = await withRetry(rule, {
+        attempts: 2,
+        delayMs: 0,
+        onExhausted: "last-error",
+      })({});
+
+      expect(result).toEqual(fail(boom));
+    });
+
+    it('"last-error" return type excludes "MAX_RETRIES_EXCEEDED"', () => {
+      const typed: Rule<{ id: string }, { code: number }> = () =>
+        fail({ code: 1 });
+
+      const lastError = withRetry(typed, { onExhausted: "last-error" });
+      expectTypeOf(lastError).toEqualTypeOf<
+        Rule<{ id: string }, { code: number }, unknown>
+      >();
+
+      const maxRetries = withRetry(typed, { onExhausted: "max-retries" });
+      expectTypeOf(maxRetries).toEqualTypeOf<
+        Rule<{ id: string }, { code: number } | "MAX_RETRIES_EXCEEDED", unknown>
+      >();
+    });
+
+    it('defaults to "max-retries" (literal error and type)', async () => {
+      const typed: Rule<{ id: string }, { code: number }> = () =>
+        fail({ code: 1 });
+      const rule = withRetry(typed, { attempts: 2, delayMs: 0 });
+
+      expectTypeOf(rule).toEqualTypeOf<
+        Rule<{ id: string }, { code: number } | "MAX_RETRIES_EXCEEDED", unknown>
+      >();
+      expect(await rule({ id: "a" })).toEqual(fail("MAX_RETRIES_EXCEEDED"));
+    });
+
+    it("accepts a union-typed mode and widens the error type", () => {
+      const typed: Rule<{ id: string }, { code: number }> = () =>
+        fail({ code: 1 });
+      const mode = "last-error" as "max-retries" | "last-error";
+
+      expectTypeOf(withRetry(typed, { onExhausted: mode })).toEqualTypeOf<
+        Rule<{ id: string }, { code: number } | "MAX_RETRIES_EXCEEDED", unknown>
+      >();
+    });
+
+    it("keeps the context type", () => {
+      const ctxRule: Rule<string, string, { userId: string }> = () => pass();
+
+      expectTypeOf(
+        withRetry(ctxRule, { onExhausted: "last-error" }),
+      ).toEqualTypeOf<Rule<string, string, { userId: string }>>();
     });
   });
 

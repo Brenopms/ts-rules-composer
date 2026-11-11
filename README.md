@@ -804,6 +804,17 @@ use `retryOn: "thrown"` so a "no" is never retried into a "yes".
 const policy = withRetry(judgeRule, { attempts: 3, retryOn: "thrown" })
 ```
 
+When every attempt fails the rule returns `"MAX_RETRIES_EXCEEDED"`, which hides
+why it failed. Pass `onExhausted: "last-error"` to return the final error
+unchanged; the error type then stays `TError`.
+
+```typescript
+const keepsReason = withRetry(flakyServiceCheck, {
+  attempts: 3,
+  onExhausted: "last-error"
+})
+```
+
 ### Context Management
 
 #### `requireContextRule(error, rule, typeGuard?)`  
