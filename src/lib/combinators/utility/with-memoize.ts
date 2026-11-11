@@ -7,7 +7,9 @@ import type { Rule, RuleResult, RuleSafetyOptions } from "../../types";
  * @template TError - The type of the error (defaults to string)
  * @template TContext - The type of the context object (optional)
  * @param rule - The rule to memoize
- * @param keyFn - Function that generates a cache key from the input
+ * @param keyFn - Function that generates a cache key from the input and, optionally,
+ *   the context. Include every piece of context the verdict depends on (user,
+ *   tenant, permissions); otherwise one caller can be served another caller's result
  * @param options - Memoization and safety options
  * @param options.ttl - Time-to-live for cache entries in milliseconds
  * @param options.maxSize - Maximum number of entries to keep in cache
@@ -22,8 +24,16 @@ import type { Rule, RuleResult, RuleSafetyOptions } from "../../types";
  *   (input) => input.id,
  *   { ttl: 60000, maxSize: 100 }
  * );
+ *
+ * // verdict depends on who is asking: key by context too
+ * const perUser = withMemoize(
+ *   permissionRule,
+ *   (input, context) => `${context?.userId}:${input.id}`
+ * );
  * @caveats
- * - Context changes don't invalidate cache by default
+ * - The cache key is exactly what `keyFn` returns: a key that ignores context
+ *   shares entries across contexts, so a result cached for one user can be served
+ *   to another. Key by context whenever the result depends on it
  * - Cache cleanup happens during rule execution
  * - Rejected promises are automatically evicted from cache
  * - Successful results obey TTL rules
@@ -32,7 +42,7 @@ import type { Rule, RuleResult, RuleSafetyOptions } from "../../types";
  */
 export const withMemoize = <TInput, TError = string, TContext = unknown>(
   rule: Rule<TInput, TError, TContext>,
-  keyFn: (input: TInput) => string,
+  keyFn: (input: TInput, context?: TContext) => string,
   options: {
     ttl?: number; // Milliseconds
     maxSize?: number;
@@ -47,7 +57,7 @@ export const withMemoize = <TInput, TError = string, TContext = unknown>(
   >();
 
   return async (input: TInput, context?: TContext) => {
-    const key = keyFn(input);
+    const key = keyFn(input, context);
     const now = Date.now();
 
     // Cache cleanup

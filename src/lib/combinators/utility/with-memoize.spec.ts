@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { pass } from "../../helpers";
 import type { Rule } from "../../types";
 import { withMemoize } from "./with-memoize";
@@ -116,6 +116,66 @@ describe("withMemoize", () => {
     await memoized({ id: "1" });
 
     expect(failing).toHaveBeenCalledTimes(2);
+  });
+
+  describe("context-aware key", () => {
+    type Ctx = { userId: string };
+    const ctxKey = (input: { id: string }, context?: Ctx) =>
+      `${context?.userId}:${input.id}`;
+
+    it("does not share entries between different contexts", async () => {
+      const rule = vi.fn(() => pass());
+      const memoized = withMemoize(rule, ctxKey);
+      const input = { id: "doc" };
+
+      await memoized(input, { userId: "alice" });
+      await memoized(input, { userId: "bob" });
+
+      expect(rule).toHaveBeenCalledTimes(2);
+    });
+
+    it("still caches for the same context", async () => {
+      const rule = vi.fn(() => pass());
+      const memoized = withMemoize(rule, ctxKey);
+      const input = { id: "doc" };
+
+      await memoized(input, { userId: "alice" });
+      await memoized(input, { userId: "alice" });
+
+      expect(rule).toHaveBeenCalledTimes(1);
+    });
+
+    it("passes the call's context to keyFn", async () => {
+      const key = vi.fn((input: { id: string }) => input.id);
+      const memoized = withMemoize(
+        (_: { id: string }, _ctx?: Ctx) => pass(),
+        key,
+      );
+      const context = { userId: "alice" };
+
+      await memoized({ id: "doc" }, context);
+
+      expect(key).toHaveBeenCalledWith({ id: "doc" }, context);
+    });
+
+    it("one-argument keys keep sharing entries across contexts", async () => {
+      const rule = vi.fn(() => pass());
+      const memoized = withMemoize(rule, keyFn);
+
+      await memoized({ id: "doc" }, { userId: "alice" });
+      await memoized({ id: "doc" }, { userId: "bob" });
+
+      expect(rule).toHaveBeenCalledTimes(1);
+    });
+
+    it("types the keyFn context as TContext | undefined", () => {
+      const ctxRule: Rule<{ id: string }, string, Ctx> = () => pass();
+
+      withMemoize(ctxRule, (input, context) => {
+        expectTypeOf(context).toEqualTypeOf<Ctx | undefined>();
+        return `${context?.userId}:${input.id}`;
+      });
+    });
   });
 
   it("should maintain type safety", () => {
