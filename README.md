@@ -23,7 +23,7 @@ const result = await validateCheckout(order);
 ## Features ✨
 
 - 🧩 **Composable** - Build pipelines with 25+ combinators (`when`, `unless`, `mapError`, etc.)
-- 🚀 **Zero Dependencies** - Lightweight (under 2KB gzipped)
+- 🚀 **Zero Dependencies** - Lightweight (~2.3KB gzipped)
 - 🦾 **TypeScript First** - Full inference for inputs, contexts, and errors
 - ⏱ **Async Ready** - Mix sync/async rules seamlessly
 - 🛡 **Context-Aware** - Shared validation state
@@ -75,7 +75,7 @@ Rules must return one of two outcomes:
 ```ts
 type RuleResult<TError = string> =
   | { status: "passed" }
-  | { status: "failed"; error: TError | TError[] };
+  | { status: "failed"; error: TError };
 ```
 
 Use the utility functions `pass()` and `fail(error)` to return results:
@@ -168,7 +168,7 @@ const checkFraudRisk = withMemoize(
     const risk = await fraudService.assess(tx);
     return risk.score < 5 ? pass() : fail("High fraud risk");
   },
-  tx => `${tx.userId}-${tx.amount}-${tx.recipient}`,
+  tx => JSON.stringify([tx.userId, tx.amount, tx.recipient]),
   { ttl: 300000 }
 );
 
@@ -221,7 +221,7 @@ import { pipeRules, every, match } from 'ts-rules-composer';
 const validateUser = pipeRules([
   // Sequential validation
   validateUsernameFormat,
-  withMemoize(checkUsernameAvailability, { ttl: 60000 }),
+  withMemoize(checkUsernameAvailability, username => username, { ttl: 60000 }),
   
   // Parallel validation
   every([
@@ -521,29 +521,28 @@ unchanged.
 ```typescript
 interface CompositionOptions {
   cloneContext?: boolean;      // Enable/disable cloning
-  shallowClone?: boolean;      // Use shallow clone when true
-  structuredClone?: boolean;   // Force structuredClone when true
+  cloneStrategy?: "shallow" | "json" | "structured"; // Defaults to "json"
 }
 ```
 
 ### Cloning Strategies
 
-The library automatically selects the best available cloning method based on your options and runtime environment:
+The clone method is chosen by `cloneStrategy`. Without it, the JSON clone is used (it is never auto-upgraded to `structuredClone`):
 
-| Option            | Priority | Speed  | Depth | Special Types* | Circular Refs | Node.js | Browser |
-|-------------------|----------|--------|-------|----------------|---------------|---------|---------|
-| `shallowClone`    | 1st      | 🚀 Fast | Shallow | ❌ No         | ✅ Yes        | ✅      | ✅      |
-| `structuredClone` | 2nd      | 🐢 Slow | Deep  | ✅ Yes         | ✅ Yes        | 17+     | Modern  |
-| JSON Clone        | Fallback | 🏎 Fast | Deep  | ❌ No          | ❌ No         | ✅      | ✅      |
+| `cloneStrategy`   | Speed  | Depth | Special Types* | Circular Refs | Node.js | Browser |
+|-------------------|--------|-------|----------------|---------------|---------|---------|
+| `"shallow"`       | 🚀 Fast | Shallow | ❌ No         | ✅ Yes        | ✅      | ✅      |
+| `"structured"`    | 🐢 Slow | Deep  | ✅ Yes         | ✅ Yes        | 17+     | Modern  |
+| `"json"` (default) | 🏎 Fast | Deep  | ❌ No          | ❌ No         | ✅      | ✅      |
 
 *Special Types: Date, Map, Set, RegExp, etc.
 
 ### Usage Examples
 
-**1. Default Behavior (Smart Auto-Detect)**
+**1. Default Behavior (JSON clone)**
 
 ```typescript
-// Automatically uses the best available clone method
+// Uses the JSON clone
 pipeRules(rules, { cloneContext: true })
 ```
 
@@ -551,15 +550,15 @@ pipeRules(rules, { cloneContext: true })
 
 ```typescript
 // Fastest option - only clones top-level properties
-pipeRules(rules, { cloneContext: true, shallowClone: true })
+pipeRules(rules, { cloneContext: true, cloneStrategy: "shallow" })
 ```
 
 **3. Force Structured Clone**
 
 ```typescript
 // Most accurate - preserves special object types
-pipeRules(rules, { cloneContext: true, structuredClone: true })
-// Falls back to JSON clone if structuredClone isn't available
+pipeRules(rules, { cloneContext: true, cloneStrategy: "structured" })
+// Falls back to the JSON clone if structuredClone isn't available
 ```
 
 ## Best Practices
@@ -578,7 +577,7 @@ Here’s how it compares to popular alternatives:
 
 | Library                                                                  | Type                    | Async | Context-Aware | Type Inference | Size (gzipped)          | Notes                                            |
 | ------------------------------------------------------------------------ | ----------------------- | ----- | ------------- | -------------- | ------------- | ------------------------------------------------ |
-| **`ts-rules-composer`**                                                  | Rule engine, functional | ✅     | ✅             | ✅              | \~4KB  | Built for composing complex, contextual rules    |
+| **`ts-rules-composer`**                                                  | Rule engine, functional | ✅     | ✅             | ✅              | \~2.3KB  | Built for composing complex, contextual rules    |
 | [`zod`](https://github.com/colinhacks/zod)                               | Schema validation       | ✅     | ❌             | ✅              | \~40KB        | Excellent for static object validation           |
 | [`io-ts`](https://github.com/gcanti/io-ts)                               | Runtime type validation | ✅     | ❌             | ✅              | \~5KB+       | Powerful but requires deep functional patterns   |
 | [`json-rules-engine`](https://github.com/CacheControl/json-rules-engine) | Declarative JSON rules  | ✅     | ❌             | ❌              | \~25KB        | Config-based rules, limited type safety          |
@@ -715,7 +714,7 @@ const validateWithFallback = withFallback(
 
 ### Error Handling
 
-#### `mapError(rule, transform, options?)`  
+#### `mapError(rule, transform)`  
 
 Transforms error output  
 
@@ -841,7 +840,7 @@ const authRule = requireContextRule(
 )
 ```
 
-#### `withLazyContext(loader, rule, options?)`  
+#### `withLazyContext(loader, rule)`  
 
 Lazy-loads context  
 
@@ -875,7 +874,7 @@ const debugRule = withDebug(validateOrder, {
 })
 ```
 
-#### `tap(effect, options?)`  
+#### `tap(effect)`  
 
 Creates a standalone tap effect for use in composition pipelines
 
@@ -914,16 +913,6 @@ Creates failure result
 
 ```typescript
 const failure = fail("Invalid input")
-```
-
-#### `getRuleError(result)`  
-
-Extracts error from failed result  
-
-```typescript
-if (result.status === "failed") {
-  const error = getRuleError(result)
-}
 ```
 
 #### `validateField(getter, rule, defaultValue?)`  
@@ -972,7 +961,7 @@ const dbRule = inject(database, createDbRule)
 
 | Utility | Use Case | Example |
 |---------|----------|---------|
-| `withMemoize` | Cache results | `withMemoize(expensiveCheck, { ttl: 30000 })` |
+| `withMemoize` | Cache results | `withMemoize(expensiveCheck, input => input.id, { ttl: 30000 })` |
 | `withTimeout` | Add time limit | `withTimeout(networkCall, 3000, "Timeout")` |
 | `withRetry` | Automatic retries | `withRetry(unstableAPI, { attempts: 3 })` |
 
