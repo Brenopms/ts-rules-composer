@@ -174,27 +174,19 @@ const result2 = await validate(3, { threshold: 2 });
 
 ---
 
-#### Summary
-
-| Feature           | Supported |
-| ----------------- | --------- |
-| Sync & Async      | ✅         |
-| Error Aggregation | ✅         |
-| Context Injection | ✅         |
-| Type Inference    | ✅         |
-| Composition       | ✅         |
-
 Each rule is a **unit of validation** that plugs into powerful composition pipelines. You write simple rules and then combine them into expressive, testable flows using composable logic.
 
 ## Usage Examples
 
-Complete examples can be found here:
+Complete, type-checked examples (they are compiled by `npm run typecheck`):
 
 - [User Registration](./examples/user-registration.example.ts)
 - [Financial Transaction Validation](./examples/financial-transaction.example.ts)
 - [Model Deployment Validator](./examples/model-deployment.example.ts)
 
-### Example 1: Financial Transaction Validation
+### Sketch: financial transaction pipeline
+
+A sketch of how the combinators compose. Helper rules and services (`fraudService`, `validateCardNumber`, `bankAuthCheck` and so on) are assumed; see the linked file above for the runnable version.
 
 ```typescript
 import {
@@ -264,137 +256,6 @@ const validateTransaction = pipeRules([
 
 // Usage
 const result = await validateTransaction(paymentRequest);
-```
-
-### Example 2: User Registration
-
-```typescript
-import { pipeRules, every, match } from 'ts-rules-composer';
-
-const validateUser = pipeRules([
-  // Sequential validation
-  validateUsernameFormat,
-  withMemoize(checkUsernameAvailability, username => username, { ttl: 60000 }),
-  
-  // Parallel validation
-  every([
-    validatePasswordStrength,
-    validateEmailFormat,
-    checkEmailUnique
-  ]),
-  
-  // pattern matching routing
-  match(
-    user => user.role,
-    {
-      'admin': validateAdminPrivileges,
-      'user': validateStandardUser
-    },
-    fail('Unknown role')
-  )
-]);
-```
-
-### Example 3: Healthcare Appointment System
-
-```typescript
-const bookAppointment = pipeRules([
-  // Context-aware validation
-  requireContextRule(
-    "Missing schedule data",
-    (appt, ctx: ScheduleContext) => validateDoctorAvailability(appt, ctx)
-  ),
-  
-  // Error transformation
-  mapError(
-    validateInsurance,
-    error => `Insurance error: ${error.code}`
-  ),
-  
-  // Time-sensitive check
-  withTimeout(
-    checkFacilityCapacity,
-    5000,
-    "System timeout"
-  )
-]);
-
-// Usage
-const result = await bookAppointment(newAppointment, clinicSchedule);
-```
-
-### Example 4: Content Moderation System
-
-```typescript
-import { 
-  pipeRules,
-  validateField,
-  requireContextRule,
-  inject,
-  tap
-} from 'ts-rules-composer';
-
-// 1. Strongly typed context
-type ModerationContext = {
-  moderatorId: string;
-  permissions: string[];
-  environment: 'staging' | 'production';
-};
-
-// 2. Rule factory with dependency injection
-const createModerationRules = (logger: LoggerService) => 
-  pipeRules([
-    // Enforce context requirements
-    requireContextRule(
-      "Moderator context required",
-      (post, ctx: ModerationContext) => pipeRules([
-        
-        // Core validations
-        validateField(post => post.content, content => 
-          content.length > 0 || fail("Empty content")
-        ),
-        
-        // Environment-specific rule
-        when(
-          (_, ctx) => ctx.environment === 'production',
-          validateField(post => post.tags, tags =>
-            tags.length <= 5 || fail("Too many tags")
-          )
-        ),
-
-        // Permission-based rule
-        when(
-          (_, ctx) => ctx.permissions.includes('FLAG_SENSITIVE'),
-          validateField(post => post.content, checkSensitiveContent)
-        ),
-
-        // Logging side effect
-        tap((post, ctx) => {
-          logger.log({
-            action: 'moderate',
-            moderator: ctx.moderatorId,
-            postId: post.id
-          });
-        })
-      ])
-    )
-  ]);
-
-// 3. Inject dependencies
-const moderatePost = inject(
-  { logger: new Logger() },
-  createModerationRules
-);
-
-// 4. Usage
-const postModerationResult = await moderatePost(
-  { id: "post123", content: "Hello", tags: ["a"] },
-  { 
-    moderatorId: "user456", 
-    permissions: ["FLAG_SENSITIVE"],
-    environment: "production"
-  }
-);
 ```
 
 ## Error Handling Standardization
@@ -601,7 +462,7 @@ The clone method is chosen by `cloneStrategy`. Without it, the JSON clone is use
 
 *Special Types: Date, Map, Set, RegExp, etc.
 
-### Usage Examples
+### Cloning examples
 
 **1. Default Behavior (JSON clone)**
 
