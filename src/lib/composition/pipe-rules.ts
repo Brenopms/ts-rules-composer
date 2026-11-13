@@ -1,3 +1,4 @@
+import { attachNode } from "../graph/node";
 import type { CompositionOptions, Rule } from "../types";
 
 import { prepareRuleExecution } from "./rule-execution";
@@ -36,5 +37,9 @@ export const pipeRules = <TInput, TError = string, TContext = unknown>(
   rules: Rule<TInput, TError, TContext>[],
   options: CompositionOptions<TError> = {},
 ): Rule<TInput, TError, TContext> => {
-  return prepareRuleExecution(rules, options, "forwardFailFast");
+  return attachNode(prepareRuleExecution(rules, options, "forwardFailFast"), {
+    kind: "sequence",
+    via: "pipeRules",
+    steps: [...rules],
+  });
 };

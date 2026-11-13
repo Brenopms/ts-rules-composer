@@ -15,6 +15,7 @@ const EXPORTS = [
   "inject",
   "mapError",
   "match",
+  "named",
   "not",
   "oneOf",
   "pass",
@@ -22,6 +23,7 @@ const EXPORTS = [
   "pipeRules",
   "requireContextRule",
   "tap",
+  "toGraph",
   "unless",
   "validateField",
   "when",
@@ -57,6 +59,39 @@ describe.each<Entry>(["esm", "cjs"])("installed package (%s)", (entry) => {
   });
 });
 
+describe.each<Entry>(["esm", "cjs"])(
+  "installed ts-rules-composer/mermaid (%s)",
+  (entry) => {
+    const run = <T>(body: string) =>
+      runInConsumer<T>(
+        inject("projectDir"),
+        entry,
+        body,
+        `${PACKAGE_NAME}/mermaid`,
+      );
+
+    it("exposes exactly toMermaid", () => {
+      expect(run<string[]>("return Object.keys(m).sort();")).toEqual([
+        "toMermaid",
+      ]);
+    });
+
+    it("renders a pipeline built by the main entry", () => {
+      const loadMain =
+        entry === "esm"
+          ? `await import("${PACKAGE_NAME}")`
+          : `require("${PACKAGE_NAME}")`;
+      const text = run<string>(
+        `const main = ${loadMain};
+         const a = () => main.pass();
+         return m.toMermaid(main.pipeRules([a]));`,
+      );
+      expect(text).toContain("flowchart TD");
+      expect(text).toContain('root_steps_0["a"]');
+    });
+  },
+);
+
 describe("installed package contents", () => {
   it("ships the built files and metadata, and nothing from src or tests", () => {
     const files = listFiles(installedDir());
@@ -67,6 +102,10 @@ describe("installed package contents", () => {
         "dist/index.cjs",
         "dist/index.d.ts",
         "dist/index.d.cts",
+        "dist/mermaid.js",
+        "dist/mermaid.cjs",
+        "dist/mermaid.d.ts",
+        "dist/mermaid.d.cts",
         "package.json",
         "README.md",
         "LICENSE",
