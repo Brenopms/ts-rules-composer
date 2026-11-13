@@ -9,3 +9,5 @@ yarn.lock
 junit.xml
 genDocs
 dist
+tasks/
+docs/ideas/
