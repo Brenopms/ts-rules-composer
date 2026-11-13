@@ -11,9 +11,17 @@ type Fragment = {
 
 const mermaidId = (id: string) => id.replace(/[^A-Za-z0-9_]/g, "_");
 
-// Skeleton escaping only; T12 replaces this with the full hardening.
-const box = (id: string, label: string) =>
-  `  ${id}["${label.replace(/"/g, "#quot;")}"]`;
+/**
+ * Labels come from function names and `named()` strings, so they are
+ * untrusted. Everything except letters, digits, spaces and a few plain
+ * punctuation marks becomes a numeric entity (`#40;`). That covers quotes,
+ * brackets, `%` (directives), `#`, `;` and every kind of line break, so a label
+ * can never leave its quoted string or start a statement of its own.
+ */
+const escapeLabel = (label: string) =>
+  label.replace(/[^\p{L}\p{N} _.,:/-]/gu, (char) => `#${char.codePointAt(0)};`);
+
+const box = (id: string, label: string) => `  ${id}["${escapeLabel(label)}"]`;
 
 const render = (node: GraphNode): Fragment => {
   const id = mermaidId(node.id);
