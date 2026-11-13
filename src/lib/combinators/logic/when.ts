@@ -30,27 +30,27 @@ import { withSafePredicate } from "../utility";
  * - If predicate returns false, the rule automatically passes
  */
 export const when = <TInput, TError = string, TContext = unknown>(
-	predicate: Predicate<TInput, TContext>,
-	rule: Rule<TInput, TError, TContext>,
-	options?: SafetyOptions<TError>,
+  predicate: Predicate<TInput, TContext>,
+  rule: Rule<TInput, TError, TContext>,
+  options?: SafetyOptions<TError>,
 ): Rule<TInput, TError, TContext> => {
-	return attachNode(
-		async (input: TInput, context?: TContext) => {
-			const normalizedRule = getNormalizedRule(rule, options);
-			const safePredicate = withSafePredicate<TInput, TError, TContext>(
-				predicate,
-				options?.predicateErrorTransform,
-			);
+  return attachNode(
+    async (input: TInput, context?: TContext) => {
+      const normalizedRule = getNormalizedRule(rule, options);
+      const safePredicate = withSafePredicate<TInput, TError, TContext>(
+        predicate,
+        options?.predicateErrorTransform,
+      );
 
-			const safePredicateResult = await safePredicate(input, context);
-			if (safePredicateResult.status === "failed") {
-				return fail(safePredicateResult.error);
-			}
+      const safePredicateResult = await safePredicate(input, context);
+      if (safePredicateResult.status === "failed") {
+        return fail(safePredicateResult.error);
+      }
 
-			return safePredicateResult.value
-				? normalizedRule(input, context)
-				: pass();
-		},
-		{ kind: "branch", test: predicate, ifTrue: rule },
-	);
+      return safePredicateResult.value
+        ? normalizedRule(input, context)
+        : pass();
+    },
+    { kind: "branch", test: predicate, ifTrue: rule },
+  );
 };
