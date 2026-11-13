@@ -25,6 +25,16 @@
         "types": "./dist/index.d.cts",
         "default": "./dist/index.cjs"
       }
+    },
+    "./mermaid": {
+      "import": {
+        "types": "./dist/mermaid.d.ts",
+        "default": "./dist/mermaid.js"
+      },
+      "require": {
+        "types": "./dist/mermaid.d.cts",
+        "default": "./dist/mermaid.cjs"
+      }
     }
   },
   "scripts": {
