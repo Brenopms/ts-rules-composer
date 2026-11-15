@@ -3,6 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import {
   fail,
   ifElse,
+  match,
+  named,
   pass,
   pipeRules,
   type Rule,
@@ -18,6 +20,7 @@ const hasItems: Rule<Order> = (order) =>
   order.items > 0 ? pass() : fail("Cart is empty");
 const withinLimit: Rule<Order> = (order) =>
   order.total <= 1000 ? pass() : fail("Over the limit");
+const anyOrder: Rule<Order> = () => pass();
 const isLarge = (order: Order) => order.total > 500;
 
 describe("toGraph", () => {
@@ -84,6 +87,109 @@ describe("toGraph", () => {
       kind: "branch",
       test: "isLarge",
       ifTrue: { id: "root.ifTrue", kind: "rule", label: "withinLimit" },
+    });
+  });
+
+  describe("match", () => {
+    const tier = (order: Order) => (order.total > 500 ? "large" : "small");
+
+    it("describes a switch with one node per case key and a default error", () => {
+      const rule = match(
+        tier,
+        { large: withinLimit, small: hasItems },
+        "Unknown tier",
+      );
+
+      expect(toGraph(rule).root).toEqual({
+        id: "root",
+        kind: "switch",
+        selector: "tier",
+        cases: [
+          {
+            key: "large",
+            node: { id: "root.cases.0", kind: "rule", label: "withinLimit" },
+          },
+          {
+            key: "small",
+            node: { id: "root.cases.1", kind: "rule", label: "hasItems" },
+          },
+        ],
+        defaultError: "Unknown tier",
+      });
+    });
+
+    it("describes a rule default as a default node", () => {
+      const rule = match(
+        tier,
+        { large: withinLimit, small: hasItems },
+        hasItems,
+      );
+
+      expect(toGraph(rule).root).toMatchObject({
+        default: { id: "root.default", kind: "rule", label: "hasItems" },
+      });
+      expect(toGraph(rule).root).not.toHaveProperty("defaultError");
+    });
+
+    it("marks a missing default by leaving both default fields out", () => {
+      const rule = match(tier, { large: withinLimit, small: hasItems });
+      const root = toGraph(rule).root;
+
+      expect(root).not.toHaveProperty("default");
+      expect(root).not.toHaveProperty("defaultError");
+    });
+
+    it("never exposes a non-string default error's contents", () => {
+      const coded: Rule<Order, { code: number }> = () => pass();
+      const rule = match<Order, { code: number }>(
+        tier,
+        { large: coded, small: coded },
+        { code: 400 },
+      );
+
+      expect(toGraph(rule).root).toMatchObject({
+        defaultError: "custom error",
+      });
+    });
+
+    it("labels the selector with named and numbers unlabelled ones", () => {
+      const labelled = match(named("order tier", tier), {
+        large: withinLimit,
+        small: hasItems,
+      });
+      const anonymous = match(
+        (order: Order) => (order.total > 500 ? "large" : "small"),
+        { large: withinLimit, small: hasItems },
+      );
+
+      expect(toGraph(labelled).root).toMatchObject({ selector: "order tier" });
+      expect(toGraph(anonymous).root).toMatchObject({ selector: "rule #1" });
+    });
+
+    it("keeps numeric and symbol case keys as strings", () => {
+      const tag = Symbol("tag");
+      const rule = match((order: Order) => order.items as 1 | 2, {
+        1: hasItems,
+        2: withinLimit,
+      });
+      const symbolic = match(() => tag, { [tag]: hasItems });
+
+      expect(toGraph(rule).root).toMatchObject({
+        cases: [{ key: "1" }, { key: "2" }],
+      });
+      expect(toGraph(symbolic).root).toMatchObject({
+        cases: [{ key: "Symbol(tag)" }],
+      });
+    });
+
+    it("never calls the selector or the case rules", () => {
+      const selector = vi.fn(() => "a" as const);
+      const rule = vi.fn(() => pass());
+
+      toGraph(match(selector, { a: rule }, rule));
+
+      expect(selector).not.toHaveBeenCalled();
+      expect(rule).not.toHaveBeenCalled();
     });
   });
 
@@ -178,6 +284,25 @@ describe("node capture keeps the original children", () => {
     expect(node?.kind === "branch" && node.test).toBe(isLarge);
     expect(node?.kind === "branch" && node.ifTrue).toBe(withinLimit);
     expect(node?.kind === "branch" && node.ifFalse).toBe(hasItems);
+  });
+
+  it.each([
+    ["default (safe) mode", undefined],
+    ["unsafe mode", { errorHandlingMode: "unsafe" as const }],
+  ])("match, %s", (_name, options) => {
+    const selector = (order: Order) => (order.total > 500 ? "large" : "small");
+    const rule = match(
+      selector,
+      { large: withinLimit, small: hasItems },
+      anyOrder,
+      options,
+    );
+    const node = readNode(rule);
+
+    expect(node?.kind === "switch" && node.selector).toBe(selector);
+    expect(node?.kind === "switch" && node.cases.large).toBe(withinLimit);
+    expect(node?.kind === "switch" && node.cases.small).toBe(hasItems);
+    expect(node?.kind === "switch" && node.default).toBe(anyOrder);
   });
 
   it("does not see later changes to the array passed to pipeRules", () => {

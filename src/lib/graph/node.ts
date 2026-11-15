@@ -36,6 +36,16 @@ export type RawNode =
       test: Fn;
       ifTrue?: Fn;
       ifFalse?: Fn;
+    }
+  | {
+      kind: "switch";
+      selector: Fn;
+      /** Copy of the cases object, keyed as `match` received it. */
+      cases: Record<PropertyKey, Fn>;
+      /** `match`'s default rule; at most one of `default`/`defaultError`. */
+      default?: Fn;
+      /** `match`'s default error value, kept raw (never stringified here). */
+      defaultError?: unknown;
     };
 
 /** Public, JSON-serializable graph. Built by `toGraph`. */
@@ -58,6 +68,16 @@ export type GraphNode =
       test: string;
       ifTrue?: GraphNode;
       ifFalse?: GraphNode;
+    }
+  | {
+      id: string;
+      kind: "switch";
+      selector: string;
+      /** In `Reflect.ownKeys` order; symbol keys appear as `Symbol(desc)`. */
+      cases: { key: string; node: GraphNode }[];
+      /** Absent `default` and `defaultError` mean "no match" fails. */
+      default?: GraphNode;
+      defaultError?: string;
     };
 
 export type RuleGraph = { version: 1; root: GraphNode };

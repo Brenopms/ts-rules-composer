@@ -1,3 +1,4 @@
+import { attachNode } from "../../graph/node";
 import { fail, getNormalizedRule } from "../../helpers";
 import type { Rule, RuleResult, RuleSafetyOptions } from "../../types";
 
@@ -76,7 +77,7 @@ export const match = <
   defaultCase?: Rule<TInput, TError, TContext> | TError,
   options?: RuleSafetyOptions<TError>,
 ): Rule<TInput, TError, TContext> => {
-  return async (
+  const rule = async (
     input: TInput,
     context?: TContext,
   ): Promise<RuleResult<TError>> => {
@@ -103,4 +104,15 @@ export const match = <
 
     return fail(`No matching rule for key: ${String(key)}` as TError);
   };
+
+  return attachNode(rule, {
+    kind: "switch",
+    selector: accessor,
+    cases: { ...cases },
+    ...(defaultCase === undefined
+      ? {}
+      : isRule(defaultCase)
+        ? { default: defaultCase }
+        : { defaultError: defaultCase }),
+  });
 };

@@ -47,11 +47,33 @@ const createBuilder = () => {
             : {}),
         };
       }
+      case "switch": {
+        const selector = labelOf(raw.selector, readLabel(raw.selector));
+        return {
+          id,
+          kind: "switch",
+          selector,
+          cases: Reflect.ownKeys(raw.cases).map((key, index) => ({
+            key: String(key),
+            node: build(raw.cases[key] as Fn, `${id}.cases.${index}`),
+          })),
+          ...(raw.default
+            ? { default: build(raw.default, `${id}.default`) }
+            : {}),
+          ...(raw.defaultError !== undefined
+            ? { defaultError: describeError(raw.defaultError) }
+            : {}),
+        };
+      }
     }
   };
 
   return build;
 };
+
+/** Strings are shown as-is; anything else is never stringified (it could run user code). */
+const describeError = (error: unknown) =>
+  typeof error === "string" ? error : "custom error";
 
 const readLabel = (fn: Fn) => {
   const raw = readNode(fn);
