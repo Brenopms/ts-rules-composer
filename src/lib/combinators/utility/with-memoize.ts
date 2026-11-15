@@ -1,3 +1,4 @@
+import { attachNode } from "../../graph/node";
 import { getNormalizedRule } from "../../helpers";
 import type { Rule, RuleResult, RuleSafetyOptions } from "../../types";
 
@@ -58,7 +59,10 @@ export const withMemoize = <TInput, TError = string, TContext = unknown>(
     }
   >();
 
-  return async (input: TInput, context?: TContext) => {
+  const memoized: Rule<TInput, TError, TContext> = async (
+    input: TInput,
+    context?: TContext,
+  ) => {
     const key = keyFn(input, context);
     const now = Date.now();
 
@@ -100,4 +104,11 @@ export const withMemoize = <TInput, TError = string, TContext = unknown>(
 
     return result;
   };
+
+  return attachNode(memoized, {
+    kind: "decorator",
+    decorator: "memoize",
+    rule,
+    params: {},
+  });
 };

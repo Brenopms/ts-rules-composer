@@ -8,6 +8,9 @@
 /** Any function a combinator may hold as a child (rule, predicate, accessor). */
 export type Fn = (...args: never[]) => unknown;
 
+/** Behavior a decorator adds around a rule without changing what it checks. */
+export type DecoratorName = "timeout" | "retry" | "memoize";
+
 /**
  * Structure recorded by a combinator at construction time. Children are the
  * original functions passed in (before any safety wrapping), so they can be
@@ -70,6 +73,14 @@ export type RawNode =
       kind: "effect";
       /** The side effect `tap` runs; the rule always passes. */
       effect: Fn;
+    }
+  | {
+      kind: "decorator";
+      decorator: DecoratorName;
+      /** The decorated rule, as passed in. */
+      rule: Fn;
+      /** Settings worth showing, as plain JSON values. */
+      params: Record<string, unknown>;
     };
 
 /** Public, JSON-serializable graph. Built by `toGraph`. */
@@ -117,7 +128,14 @@ export type GraphNode =
       guard?: string;
     }
   | { id: string; kind: "field"; getter: string; rule: GraphNode }
-  | { id: string; kind: "effect"; label: string };
+  | { id: string; kind: "effect"; label: string }
+  | {
+      id: string;
+      kind: "decorator";
+      decorator: DecoratorName;
+      params: Record<string, unknown>;
+      rule: GraphNode;
+    };
 
 export type RuleGraph = { version: 1; root: GraphNode };
 

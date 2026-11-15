@@ -85,6 +85,14 @@ const createBuilder = () => {
           kind: "effect",
           label: labelOf(raw.effect, readLabel(raw.effect)),
         };
+      case "decorator":
+        return {
+          id,
+          kind: "decorator",
+          decorator: raw.decorator,
+          params: raw.params,
+          rule: build(raw.rule, `${id}.rule`),
+        };
       case "switch": {
         const selector = labelOf(raw.selector, readLabel(raw.selector));
         return {

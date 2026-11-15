@@ -1,3 +1,4 @@
+import { attachNode } from "../../graph/node";
 import { fail, getNormalizedRule } from "../../helpers";
 import type { Rule, RuleResult, RuleSafetyOptions } from "../../types";
 
@@ -31,11 +32,18 @@ export const withTimeout = <TInput, TError, TContext>(
   timeoutError: TError,
   options?: RuleSafetyOptions<TError>,
 ): Rule<TInput, TError, TContext> => {
-  return async (input, context) => {
+  const timed: Rule<TInput, TError, TContext> = async (input, context) => {
     const safeRule = getNormalizedRule(rule, options);
     const timeout = new Promise<RuleResult<TError>>((resolve) =>
       setTimeout(() => resolve(fail(timeoutError)), timeoutMs),
     );
     return Promise.race([safeRule(input, context), timeout]);
   };
+
+  return attachNode(timed, {
+    kind: "decorator",
+    decorator: "timeout",
+    rule,
+    params: { ms: timeoutMs },
+  });
 };

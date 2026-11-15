@@ -18,6 +18,9 @@ import {
   validateField,
   when,
   withFallback,
+  withMemoize,
+  withRetry,
+  withTimeout,
 } from "../index";
 import { readNode } from "./node";
 
@@ -304,6 +307,106 @@ describe("toGraph", () => {
     });
   });
 
+  describe("withTimeout, withRetry and withMemoize", () => {
+    const byItems = (order: Order) => String(order.items);
+
+    it("describes withTimeout as a decorator with its limit", () => {
+      expect(toGraph(withTimeout(hasItems, 500, "Timed out")).root).toEqual({
+        id: "root",
+        kind: "decorator",
+        decorator: "timeout",
+        params: { ms: 500 },
+        rule: { id: "root.rule", kind: "rule", label: "hasItems" },
+      });
+    });
+
+    it("describes withRetry with its attempts and retryOn", () => {
+      const rule = withRetry(hasItems, { attempts: 5, retryOn: "failed" });
+
+      expect(toGraph(rule).root).toEqual({
+        id: "root",
+        kind: "decorator",
+        decorator: "retry",
+        params: { attempts: 5, retryOn: "failed" },
+        rule: { id: "root.rule", kind: "rule", label: "hasItems" },
+      });
+    });
+
+    it("shows withRetry's effective defaults", () => {
+      expect(toGraph(withRetry(hasItems)).root).toMatchObject({
+        params: { attempts: 3, retryOn: "both" },
+      });
+    });
+
+    it("describes withMemoize with no params", () => {
+      expect(toGraph(withMemoize(hasItems, byItems)).root).toEqual({
+        id: "root",
+        kind: "decorator",
+        decorator: "memoize",
+        params: {},
+        rule: { id: "root.rule", kind: "rule", label: "hasItems" },
+      });
+    });
+
+    it("keeps the whole tree of a decorated pipeline", () => {
+      const rule = withTimeout(
+        pipeRules<Order>([hasItems, withinLimit]),
+        200,
+        "Timed out",
+      );
+
+      expect(toGraph(rule).root).toMatchObject({
+        kind: "decorator",
+        rule: {
+          id: "root.rule",
+          kind: "sequence",
+          steps: [{ id: "root.rule.steps.0" }, { id: "root.rule.steps.1" }],
+        },
+      });
+    });
+
+    it("nests decorators in application order", () => {
+      const rule = withTimeout(
+        withRetry(hasItems, { attempts: 2 }),
+        200,
+        "Timed out",
+      );
+
+      expect(toGraph(rule).root).toMatchObject({
+        decorator: "timeout",
+        rule: {
+          id: "root.rule",
+          decorator: "retry",
+          rule: { id: "root.rule.rule" },
+        },
+      });
+    });
+
+    it("never calls the rule or the cache key function", () => {
+      const rule = vi.fn(() => pass());
+      const keyFn = vi.fn(() => "key");
+
+      toGraph(withTimeout(rule, 1, "Timed out"));
+      toGraph(withRetry(rule));
+      toGraph(withMemoize(rule, keyFn));
+
+      expect(rule).not.toHaveBeenCalled();
+      expect(keyFn).not.toHaveBeenCalled();
+    });
+
+    it("starts no timers while describing", () => {
+      vi.useFakeTimers();
+      try {
+        toGraph(withTimeout(hasItems, 500, "Timed out"));
+        toGraph(withRetry(hasItems));
+
+        expect(vi.getTimerCount()).toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
   describe("match", () => {
     const tier = (order: Order) => (order.total > 500 ? "large" : "small");
 
@@ -575,6 +678,21 @@ describe("node capture keeps the original children", () => {
     expect(fieldNode?.kind === "field" && fieldNode.getter).toBe(getTotal);
     expect(fieldNode?.kind === "field" && fieldNode.rule).toBe(positive);
     expect(effectNode?.kind === "effect" && effectNode.effect).toBe(logOrder);
+  });
+
+  it.each([
+    ["default (safe) mode", undefined],
+    ["unsafe mode", { errorHandlingMode: "unsafe" as const }],
+  ])("withTimeout, withRetry and withMemoize, %s", (_name, options) => {
+    const nodes = [
+      readNode(withTimeout(hasItems, 100, "Timed out", options)),
+      readNode(withRetry(hasItems)),
+      readNode(withMemoize(hasItems, () => "key", options)),
+    ];
+
+    for (const node of nodes) {
+      expect(node?.kind === "decorator" && node.rule).toBe(hasItems);
+    }
   });
 
   it("does not see later changes to the arrays passed to every, oneOf or composeRules", () => {

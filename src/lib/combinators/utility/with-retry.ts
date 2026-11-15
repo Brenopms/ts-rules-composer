@@ -1,3 +1,4 @@
+import { attachNode } from "../../graph/node";
 import { calculateDelay, fail } from "../../helpers";
 import type { Rule } from "../../types";
 
@@ -79,7 +80,11 @@ export function withRetry<TInput, TError = string, TContext = unknown>(
     onExhausted = "max-retries",
   } = options;
 
-  return async (input, context) => {
+  const retried: Rule<
+    TInput,
+    TError | "MAX_RETRIES_EXCEEDED",
+    TContext
+  > = async (input, context) => {
     let lastError: TError | unknown;
     let wasThrown: boolean;
 
@@ -115,4 +120,11 @@ export function withRetry<TInput, TError = string, TContext = unknown>(
       ? fail(lastError as TError)
       : fail("MAX_RETRIES_EXCEEDED" as const);
   };
+
+  return attachNode(retried, {
+    kind: "decorator",
+    decorator: "retry",
+    rule,
+    params: { attempts, retryOn },
+  });
 }
