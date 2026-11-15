@@ -1,6 +1,19 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 
-import { attachNode, type Fn, NODE_KEY, type RawNode, readNode } from "./node";
+import {
+  attachNode,
+  type Fn,
+  type GraphNode,
+  NODE_KEY,
+  type RawNode,
+  readNode,
+} from "./node";
+
+describe("node kinds", () => {
+  it("has a public GraphNode for every internal RawNode kind", () => {
+    expectTypeOf<RawNode["kind"]>().toEqualTypeOf<GraphNode["kind"]>();
+  });
+});
 
 const sequenceNode = (steps: Fn[] = []): RawNode => ({
   kind: "sequence",

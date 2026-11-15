@@ -1,3 +1,4 @@
+import { attachNode } from "../../graph/node";
 import { fail, getNormalizedRule, pass } from "../../helpers";
 import type { Predicate, Rule } from "../../types";
 import type { SafetyOptions } from "../../types/safety-options";
@@ -31,20 +32,25 @@ export const unless = <TInput, TError = string, TContext = unknown>(
   rule: Rule<TInput, TError, TContext>,
   options?: SafetyOptions<TError>,
 ): Rule<TInput, TError, TContext> => {
-  return async (input: TInput, context?: TContext) => {
-    const normalizedRule = getNormalizedRule(rule, options);
-    const safePredicate = withSafePredicate<TInput, TError, TContext>(
-      predicate,
-      options?.predicateErrorTransform,
-    );
+  return attachNode(
+    async (input: TInput, context?: TContext) => {
+      const normalizedRule = getNormalizedRule(rule, options);
+      const safePredicate = withSafePredicate<TInput, TError, TContext>(
+        predicate,
+        options?.predicateErrorTransform,
+      );
 
-    const safePredicateResult = await safePredicate(input, context);
+      const safePredicateResult = await safePredicate(input, context);
 
-    // Predicate fail to run or returned invalid result
-    if (safePredicateResult.status === "failed") {
-      return fail(safePredicateResult.error);
-    }
+      // Predicate fail to run or returned invalid result
+      if (safePredicateResult.status === "failed") {
+        return fail(safePredicateResult.error);
+      }
 
-    return safePredicateResult.value ? pass() : normalizedRule(input, context);
-  };
+      return safePredicateResult.value
+        ? pass()
+        : normalizedRule(input, context);
+    },
+    { kind: "branch", test: predicate, ifFalse: rule },
+  );
 };

@@ -1,6 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { fail, pass, pipeRules, type Rule, toGraph, when } from "../index";
+import {
+  fail,
+  ifElse,
+  pass,
+  pipeRules,
+  type Rule,
+  toGraph,
+  unless,
+  when,
+} from "../index";
 import { readNode } from "./node";
 
 type Order = { items: number; total: number };
@@ -35,6 +44,40 @@ describe("toGraph", () => {
 
   it("describes when as a branch with only a true side", () => {
     const rule = when<Order>(isLarge, withinLimit);
+
+    expect(toGraph(rule).root).toEqual({
+      id: "root",
+      kind: "branch",
+      test: "isLarge",
+      ifTrue: { id: "root.ifTrue", kind: "rule", label: "withinLimit" },
+    });
+  });
+
+  it("describes unless as a branch with only a false side", () => {
+    const rule = unless<Order>(isLarge, withinLimit);
+
+    expect(toGraph(rule).root).toEqual({
+      id: "root",
+      kind: "branch",
+      test: "isLarge",
+      ifFalse: { id: "root.ifFalse", kind: "rule", label: "withinLimit" },
+    });
+  });
+
+  it("describes ifElse as a branch with both sides", () => {
+    const rule = ifElse<Order>(isLarge, withinLimit, hasItems);
+
+    expect(toGraph(rule).root).toEqual({
+      id: "root",
+      kind: "branch",
+      test: "isLarge",
+      ifTrue: { id: "root.ifTrue", kind: "rule", label: "withinLimit" },
+      ifFalse: { id: "root.ifFalse", kind: "rule", label: "hasItems" },
+    });
+  });
+
+  it("describes ifElse without an else rule as a branch with only a true side", () => {
+    const rule = ifElse<Order>(isLarge, withinLimit);
 
     expect(toGraph(rule).root).toEqual({
       id: "root",
@@ -111,6 +154,30 @@ describe("node capture keeps the original children", () => {
 
     expect(node?.kind === "branch" && node.test).toBe(isLarge);
     expect(node?.kind === "branch" && node.ifTrue).toBe(withinLimit);
+  });
+
+  it.each([
+    ["default (safe) mode", undefined],
+    ["unsafe mode", { errorHandlingMode: "unsafe" as const }],
+  ])("unless, %s", (_name, options) => {
+    const rule = unless<Order>(isLarge, withinLimit, options);
+    const node = readNode(rule);
+
+    expect(node?.kind === "branch" && node.test).toBe(isLarge);
+    expect(node?.kind === "branch" && node.ifFalse).toBe(withinLimit);
+    expect(node?.kind === "branch" && node.ifTrue).toBeUndefined();
+  });
+
+  it.each([
+    ["default (safe) mode", undefined],
+    ["unsafe mode", { errorHandlingMode: "unsafe" as const }],
+  ])("ifElse, %s", (_name, options) => {
+    const rule = ifElse<Order>(isLarge, withinLimit, hasItems, options);
+    const node = readNode(rule);
+
+    expect(node?.kind === "branch" && node.test).toBe(isLarge);
+    expect(node?.kind === "branch" && node.ifTrue).toBe(withinLimit);
+    expect(node?.kind === "branch" && node.ifFalse).toBe(hasItems);
   });
 
   it("does not see later changes to the array passed to pipeRules", () => {
