@@ -47,6 +47,15 @@ const createBuilder = () => {
             : {}),
         };
       }
+      case "all":
+      case "any":
+        return {
+          id,
+          kind: raw.kind,
+          rules: raw.rules.map((rule, index) =>
+            build(rule, `${id}.rules.${index}`),
+          ),
+        };
       case "switch": {
         const selector = labelOf(raw.selector, readLabel(raw.selector));
         return {

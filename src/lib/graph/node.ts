@@ -46,6 +46,11 @@ export type RawNode =
       default?: Fn;
       /** `match`'s default error value, kept raw (never stringified here). */
       defaultError?: unknown;
+    }
+  | {
+      /** `every` is `all` (every rule must pass), `oneOf` is `any`. */
+      kind: "all" | "any";
+      rules: Fn[];
     };
 
 /** Public, JSON-serializable graph. Built by `toGraph`. */
@@ -78,6 +83,11 @@ export type GraphNode =
       /** Absent `default` and `defaultError` mean "no match" fails. */
       default?: GraphNode;
       defaultError?: string;
+    }
+  | {
+      id: string;
+      kind: "all" | "any";
+      rules: GraphNode[];
     };
 
 export type RuleGraph = { version: 1; root: GraphNode };

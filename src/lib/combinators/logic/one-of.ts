@@ -1,3 +1,4 @@
+import { attachNode } from "../../graph/node";
 import { fail, getNormalizedRules, pass } from "../../helpers";
 import type { Rule, RuleSafetyOptions } from "../../types";
 
@@ -27,7 +28,10 @@ export const oneOf = <TInput, TError = string, TContext = unknown>(
   rules: Rule<TInput, TError, TContext>[],
   options?: RuleSafetyOptions<TError>,
 ): Rule<TInput, TError[], TContext> => {
-  return async (input: TInput, context?: TContext) => {
+  const rule: Rule<TInput, TError[], TContext> = async (
+    input: TInput,
+    context?: TContext,
+  ) => {
     const normalizedRules = getNormalizedRules(rules, options);
     const errors: TError[] = [];
 
@@ -45,4 +49,10 @@ export const oneOf = <TInput, TError = string, TContext = unknown>(
 
     return fail(errors);
   };
+
+  // Construction must not throw for a missing array (it never did).
+  return attachNode(rule, {
+    kind: "any",
+    rules: Array.isArray(rules) ? [...rules] : [],
+  });
 };

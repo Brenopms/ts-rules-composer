@@ -1,10 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  composeRules,
+  every,
   fail,
   ifElse,
   match,
   named,
+  oneOf,
   pass,
   pipeRules,
   type Rule,
@@ -87,6 +90,84 @@ describe("toGraph", () => {
       kind: "branch",
       test: "isLarge",
       ifTrue: { id: "root.ifTrue", kind: "rule", label: "withinLimit" },
+    });
+  });
+
+  describe("every, oneOf and composeRules", () => {
+    it("describes every as an all node", () => {
+      expect(toGraph(every<Order>([hasItems, withinLimit])).root).toEqual({
+        id: "root",
+        kind: "all",
+        rules: [
+          { id: "root.rules.0", kind: "rule", label: "hasItems" },
+          { id: "root.rules.1", kind: "rule", label: "withinLimit" },
+        ],
+      });
+    });
+
+    it("describes oneOf as an any node", () => {
+      expect(toGraph(oneOf<Order>([hasItems, withinLimit])).root).toEqual({
+        id: "root",
+        kind: "any",
+        rules: [
+          { id: "root.rules.0", kind: "rule", label: "hasItems" },
+          { id: "root.rules.1", kind: "rule", label: "withinLimit" },
+        ],
+      });
+    });
+
+    it("describes composeRules as a sequence in execution order", () => {
+      expect(
+        toGraph(composeRules<Order>([hasItems, withinLimit])).root,
+      ).toEqual({
+        id: "root",
+        kind: "sequence",
+        via: "composeRules",
+        steps: [
+          { id: "root.steps.0", kind: "rule", label: "withinLimit" },
+          { id: "root.steps.1", kind: "rule", label: "hasItems" },
+        ],
+      });
+    });
+
+    it("records the order composeRules really runs in", async () => {
+      const ran: string[] = [];
+      const first: Rule<Order> = () => {
+        ran.push("first");
+        return pass();
+      };
+      const second: Rule<Order> = () => {
+        ran.push("second");
+        return pass();
+      };
+      const rule = composeRules<Order>([first, second]);
+
+      await rule({ items: 1, total: 1 });
+
+      const steps = (toGraph(rule).root as { steps: { label: string }[] })
+        .steps;
+      expect(steps.map((step) => step.label)).toEqual(["second", "first"]);
+      expect(ran).toEqual(["second", "first"]);
+    });
+
+    it("nests inside other combinators", () => {
+      const rule = pipeRules<Order>([
+        composeRules<Order>([hasItems, withinLimit]),
+      ]);
+
+      expect(toGraph(rule).root).toMatchObject({
+        steps: [{ id: "root.steps.0", kind: "sequence", via: "composeRules" }],
+      });
+    });
+
+    it("never calls the rules", () => {
+      const rule = vi.fn(() => pass());
+
+      toGraph(every([rule]));
+      toGraph(oneOf([rule]));
+      toGraph(composeRules([rule]));
+
+      expect(rule).not.toHaveBeenCalled();
     });
   });
 
@@ -303,6 +384,47 @@ describe("node capture keeps the original children", () => {
     expect(node?.kind === "switch" && node.cases.large).toBe(withinLimit);
     expect(node?.kind === "switch" && node.cases.small).toBe(hasItems);
     expect(node?.kind === "switch" && node.default).toBe(anyOrder);
+  });
+
+  it.each([
+    ["default (safe) mode", undefined],
+    ["unsafe mode", { errorHandlingMode: "unsafe" as const }],
+  ])("every, oneOf and composeRules, %s", (_name, options) => {
+    const allNode = readNode(every<Order>([hasItems, withinLimit], options));
+    const anyNode = readNode(oneOf<Order>([hasItems, withinLimit], options));
+    const composed = readNode(
+      composeRules<Order>([hasItems, withinLimit], options),
+    );
+
+    expect(allNode?.kind === "all" && allNode.rules).toEqual([
+      hasItems,
+      withinLimit,
+    ]);
+    expect(anyNode?.kind === "any" && anyNode.rules).toEqual([
+      hasItems,
+      withinLimit,
+    ]);
+    expect(composed?.kind === "sequence" && composed.steps).toEqual([
+      withinLimit,
+      hasItems,
+    ]);
+    expect(composed?.kind === "sequence" && composed.steps[0]).toBe(
+      withinLimit,
+    );
+  });
+
+  it("does not see later changes to the arrays passed to every, oneOf or composeRules", () => {
+    const rules: Rule<Order>[] = [hasItems];
+    const all = every<Order>(rules);
+    const any = oneOf<Order>(rules);
+    const composed = composeRules<Order>(rules);
+
+    rules.push(withinLimit);
+
+    const labelled = [expect.objectContaining({ label: "hasItems" })];
+    expect(toGraph(all).root).toHaveProperty("rules", labelled);
+    expect(toGraph(any).root).toHaveProperty("rules", labelled);
+    expect(toGraph(composed).root).toHaveProperty("steps", labelled);
   });
 
   it("does not see later changes to the array passed to pipeRules", () => {

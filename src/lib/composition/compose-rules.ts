@@ -1,3 +1,4 @@
+import { attachNode } from "../graph/node";
 import type { CompositionOptions, Rule } from "../types";
 
 import { prepareRuleExecution } from "./rule-execution";
@@ -39,5 +40,10 @@ export const composeRules = <TInput, TError = string, TContext = unknown>(
   rules: Rule<TInput, TError, TContext>[],
   options: CompositionOptions<TError> = {},
 ): Rule<TInput, TError, TContext> => {
-  return prepareRuleExecution(rules, options, "reverseFailFast");
+  return attachNode(prepareRuleExecution(rules, options, "reverseFailFast"), {
+    kind: "sequence",
+    via: "composeRules",
+    // Recorded in execution order: composeRules runs its array reversed.
+    steps: [...rules].reverse(),
+  });
 };
