@@ -8,6 +8,10 @@
 /** Any function a combinator may hold as a child (rule, predicate, accessor). */
 export type Fn = (...args: never[]) => unknown;
 
+/** A number as a JSON-safe param: `Infinity` and `NaN` would become `null`. */
+export const jsonNumber = (value: number): number | string =>
+  Number.isFinite(value) ? value : String(value);
+
 /** Behavior a decorator adds around a rule without changing what it checks. */
 export type DecoratorName =
   | "timeout"

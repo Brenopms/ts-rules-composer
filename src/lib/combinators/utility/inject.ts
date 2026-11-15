@@ -27,9 +27,10 @@ export const inject = <TInput, TError, TDep, TContext = unknown>(
   const configuredRule = rule(dependency);
   // Transparent in a graph: describe the configured rule, not this wrapper.
   const label = usableName(configuredRule);
-  const node = readNode(configuredRule) ?? (label && { kind: "rule", label });
+  const node: RawNode | undefined =
+    readNode(configuredRule) ?? (label ? { kind: "rule", label } : undefined);
   // An arrow returned from a function stays anonymous, as before.
   const bridge = (): Rule<TInput, TError, TContext> => (input, context) =>
     configuredRule(input, context);
-  return node ? attachNode(bridge(), node as RawNode) : bridge();
+  return node ? attachNode(bridge(), node) : bridge();
 };

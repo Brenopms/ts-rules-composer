@@ -25,7 +25,7 @@ const createBuilder = () => {
         id,
         kind: "rule",
         label: labelOf(fn, raw?.label ?? hint),
-        ...(raw?.params ? { params: raw.params } : {}),
+        ...(raw?.params ? { params: { ...raw.params } } : {}),
       };
     }
 
@@ -96,7 +96,7 @@ const createBuilder = () => {
           id,
           kind: "decorator",
           decorator: raw.decorator,
-          params: raw.params,
+          params: { ...raw.params },
           rule: build(
             raw.rule,
             `${id}.rule`,

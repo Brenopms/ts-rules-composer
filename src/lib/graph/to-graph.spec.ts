@@ -314,6 +314,24 @@ describe("toGraph", () => {
   describe("withTimeout, withRetry and withMemoize", () => {
     const byItems = (order: Order) => String(order.items);
 
+    it("does not let a caller edit the rule's recorded params", () => {
+      const rule = withRetry(hasItems, { attempts: 5 });
+      const graph = toGraph(rule);
+      (graph.root as { params: Record<string, unknown> }).params.attempts = 99;
+
+      expect(toGraph(rule).root).toMatchObject({ params: { attempts: 5 } });
+    });
+
+    it("keeps a non-finite limit JSON-safe", () => {
+      const graph = toGraph(withTimeout(hasItems, Infinity, "Timed out"));
+
+      expect(graph.root).toMatchObject({ params: { ms: "Infinity" } });
+      expect(JSON.parse(JSON.stringify(graph))).toStrictEqual(graph);
+      expect(
+        toGraph(withRetry(hasItems, { attempts: Infinity })).root,
+      ).toMatchObject({ params: { attempts: "Infinity" } });
+    });
+
     it("describes withTimeout as a decorator with its limit", () => {
       expect(toGraph(withTimeout(hasItems, 500, "Timed out")).root).toEqual({
         id: "root",
@@ -549,6 +567,21 @@ describe("toGraph", () => {
   describe("match", () => {
     const tier = (order: Order) => (order.total > 500 ? "large" : "small");
 
+    it("leaves out a case that is not a rule, as match skips it at runtime", async () => {
+      const cases = { large: undefined, small: hasItems } as unknown as Record<
+        "large" | "small",
+        Rule<Order>
+      >;
+      const rule = match(tier, cases, "Unknown tier");
+
+      expect(toGraph(rule).root).toMatchObject({
+        cases: [{ key: "small", node: { label: "hasItems" } }],
+      });
+      expect(await rule({ items: 1, total: 900 })).toEqual(
+        fail("Unknown tier"),
+      );
+    });
+
     it("describes a switch with one node per case key and a default error", () => {
       const rule = match(
         tier,
@@ -677,7 +710,7 @@ describe("toGraph", () => {
       pipeRules<Order>([hasItems, when<Order>(isLarge, withinLimit)]),
     );
 
-    expect(JSON.parse(JSON.stringify(graph))).toEqual(graph);
+    expect(JSON.parse(JSON.stringify(graph))).toStrictEqual(graph);
   });
 
   it("never invokes rules or predicates", () => {
@@ -928,5 +961,104 @@ describe("runtime behavior is unchanged", () => {
       fail("Over the limit"),
     );
     expect(await pipeline({ items: 1, total: 100 })).toEqual(pass());
+  });
+});
+
+describe("toGraph on a pipeline using every combinator", () => {
+  const spies = () => ({
+    rule: vi.fn<Rule<Order>>(() => pass()),
+    positive: vi.fn<Rule<number>>(() => pass()),
+    test: vi.fn((_order: Order) => true),
+    selector: vi.fn((_order: Order) => "large" as "large" | "small"),
+    guard: vi.fn((_error: string) => true),
+    getter: vi.fn((order: Order) => order.total),
+    effect: vi.fn((_order: Order) => {}),
+    keyFn: vi.fn((_order: Order) => "key"),
+    transform: vi.fn((error: string) => error),
+  });
+
+  const build = (s: ReturnType<typeof spies>) =>
+    pipeRules<Order, string | string[]>([
+      composeRules<Order>([s.rule, s.rule]),
+      when<Order>(s.test, s.rule),
+      unless<Order>(s.test, s.rule),
+      ifElse<Order>(s.test, s.rule, s.rule),
+      match(s.selector, { large: s.rule, small: s.rule }, "Unknown tier"),
+      every<Order>([s.rule, s.rule]),
+      oneOf<Order>([s.rule, s.rule]),
+      not<Order>(s.rule, "Must fail"),
+      withFallback<Order, string, unknown>(s.rule, s.rule, {
+        onlyFallbackOn: s.guard,
+      }),
+      validateField<Order, number>(s.getter, s.positive),
+      tap<Order>(s.effect),
+      withTimeout(s.rule, 100, "Timed out"),
+      withRetry(s.rule, { attempts: 2 }),
+      withMemoize(s.rule, s.keyFn),
+      withDebug(s.rule, "audit"),
+      withTap<Order>(s.effect)(s.rule),
+      mapError(s.rule, s.transform),
+      inject({ limit: 1 }, () => s.rule),
+    ]);
+
+  type Json = { id?: string; kind?: string } & Record<string, unknown>;
+  const walk = (value: unknown, visit: (node: Json) => void): void => {
+    if (Array.isArray(value)) {
+      for (const item of value) walk(item, visit);
+    } else if (value && typeof value === "object") {
+      const node = value as Json;
+      if (typeof node.id === "string") visit(node);
+      for (const child of Object.values(node)) walk(child, visit);
+    }
+  };
+
+  it("uses every node kind", () => {
+    const kinds = new Set<string>();
+    walk(toGraph(build(spies())).root, (node) => kinds.add(String(node.kind)));
+
+    expect([...kinds].sort()).toEqual(
+      [
+        "all",
+        "any",
+        "branch",
+        "decorator",
+        "effect",
+        "fallback",
+        "field",
+        "not",
+        "rule",
+        "sequence",
+        "switch",
+      ].sort(),
+    );
+  });
+
+  it("survives a JSON round-trip unchanged", () => {
+    const graph = toGraph(build(spies()));
+
+    expect(JSON.parse(JSON.stringify(graph))).toStrictEqual(graph);
+  });
+
+  it("has unique node ids", () => {
+    const ids: string[] = [];
+    walk(toGraph(build(spies())).root, (node) => ids.push(String(node.id)));
+
+    expect(ids.length).toBeGreaterThan(40);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("is deterministic across calls and across equal builds", () => {
+    const s = spies();
+    const pipeline = build(s);
+
+    expect(toGraph(pipeline)).toEqual(toGraph(pipeline));
+    expect(toGraph(build(spies()))).toEqual(toGraph(pipeline));
+  });
+
+  it("never invokes any rule, predicate, selector, getter or effect", () => {
+    const s = spies();
+    toGraph(build(s));
+
+    for (const spy of Object.values(s)) expect(spy).not.toHaveBeenCalled();
   });
 });

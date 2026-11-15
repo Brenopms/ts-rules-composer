@@ -1,4 +1,4 @@
-import { attachNode } from "../../graph/node";
+import { attachNode, jsonNumber } from "../../graph/node";
 import { calculateDelay, fail } from "../../helpers";
 import type { Rule } from "../../types";
 
@@ -125,7 +125,7 @@ export function withRetry<TInput, TError = string, TContext = unknown>(
       kind: "decorator",
       decorator: "retry",
       rule,
-      params: { attempts, retryOn },
+      params: { attempts: jsonNumber(attempts), retryOn },
     },
   );
 }

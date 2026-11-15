@@ -1,4 +1,4 @@
-import { attachNode } from "../../graph/node";
+import { attachNode, jsonNumber } from "../../graph/node";
 import { fail, getNormalizedRule } from "../../helpers";
 import type { Rule, RuleResult, RuleSafetyOptions } from "../../types";
 
@@ -44,7 +44,7 @@ export const withTimeout = <TInput, TError, TContext>(
       kind: "decorator",
       decorator: "timeout",
       rule,
-      params: { ms: timeoutMs },
+      params: { ms: jsonNumber(timeoutMs) },
     },
   );
 };

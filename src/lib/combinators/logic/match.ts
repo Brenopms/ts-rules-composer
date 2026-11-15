@@ -105,7 +105,14 @@ export const match = <
     {
       kind: "switch",
       selector: accessor,
-      cases: { ...cases },
+      // Only callable cases: `match` skips any other value at runtime.
+      cases: Object.fromEntries(
+        Reflect.ownKeys(cases)
+          .filter(
+            (key) => typeof cases[key as keyof typeof cases] === "function",
+          )
+          .map((key) => [key, cases[key as keyof typeof cases]]),
+      ),
       ...(defaultCase === undefined
         ? {}
         : isRule(defaultCase)
