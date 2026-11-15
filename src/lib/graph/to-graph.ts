@@ -56,6 +56,35 @@ const createBuilder = () => {
             build(rule, `${id}.rules.${index}`),
           ),
         };
+      case "not":
+        return { id, kind: "not", rule: build(raw.rule, `${id}.rule`) };
+      case "fallback": {
+        // Numbered in execution order: main, then the guard, then the fallback.
+        const main = build(raw.main, `${id}.main`);
+        const guard = raw.guard && labelOf(raw.guard, readLabel(raw.guard));
+        return {
+          id,
+          kind: "fallback",
+          main,
+          ...(guard ? { guard } : {}),
+          fallback: build(raw.fallback, `${id}.fallback`),
+        };
+      }
+      case "field": {
+        const getter = labelOf(raw.getter, readLabel(raw.getter));
+        return {
+          id,
+          kind: "field",
+          getter,
+          rule: build(raw.rule, `${id}.rule`),
+        };
+      }
+      case "effect":
+        return {
+          id,
+          kind: "effect",
+          label: labelOf(raw.effect, readLabel(raw.effect)),
+        };
       case "switch": {
         const selector = labelOf(raw.selector, readLabel(raw.selector));
         return {

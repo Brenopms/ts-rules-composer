@@ -1,3 +1,4 @@
+import { attachNode } from "../../graph/node";
 import { pass } from "../../helpers";
 import type { Rule } from "../../types";
 
@@ -17,7 +18,7 @@ import type { Rule } from "../../types";
 export const tap = <TInput, TError = string, TContext = unknown>(
   effect: (input: TInput, context?: TContext) => Promise<void> | void,
 ): Rule<TInput, TError, TContext> => {
-  return async (input, context) => {
+  const tapped: Rule<TInput, TError, TContext> = async (input, context) => {
     try {
       await effect(input, context);
     } catch (error) {
@@ -25,4 +26,6 @@ export const tap = <TInput, TError = string, TContext = unknown>(
     }
     return pass();
   };
+
+  return attachNode(tapped, { kind: "effect", effect });
 };

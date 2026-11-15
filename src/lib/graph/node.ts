@@ -51,6 +51,25 @@ export type RawNode =
       /** `every` is `all` (every rule must pass), `oneOf` is `any`. */
       kind: "all" | "any";
       rules: Fn[];
+    }
+  | { kind: "not"; rule: Fn }
+  | {
+      kind: "fallback";
+      main: Fn;
+      fallback: Fn;
+      /** `onlyFallbackOn`: when set, the fallback runs only if it accepts the error. */
+      guard?: Fn;
+    }
+  | {
+      kind: "field";
+      /** Reads the value the rule is applied to. */
+      getter: Fn;
+      rule: Fn;
+    }
+  | {
+      kind: "effect";
+      /** The side effect `tap` runs; the rule always passes. */
+      effect: Fn;
     };
 
 /** Public, JSON-serializable graph. Built by `toGraph`. */
@@ -88,7 +107,17 @@ export type GraphNode =
       id: string;
       kind: "all" | "any";
       rules: GraphNode[];
-    };
+    }
+  | { id: string; kind: "not"; rule: GraphNode }
+  | {
+      id: string;
+      kind: "fallback";
+      main: GraphNode;
+      fallback: GraphNode;
+      guard?: string;
+    }
+  | { id: string; kind: "field"; getter: string; rule: GraphNode }
+  | { id: string; kind: "effect"; label: string };
 
 export type RuleGraph = { version: 1; root: GraphNode };
 

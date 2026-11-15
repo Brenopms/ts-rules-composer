@@ -1,3 +1,4 @@
+import { attachNode } from "../../graph/node";
 import { fail, getNormalizedRule, pass } from "../../helpers";
 import type { RuleSafetyOptions } from "../../types";
 import type { Rule } from "../../types/rule";
@@ -26,10 +27,15 @@ export const not = <TInput, TError = string, TContext = unknown>(
   error: TError,
   options?: RuleSafetyOptions<TError>,
 ): Rule<TInput, TError, TContext> => {
-  return async (input: TInput, context?: TContext) => {
+  const negated: Rule<TInput, TError, TContext> = async (
+    input: TInput,
+    context?: TContext,
+  ) => {
     const normalizedRule = getNormalizedRule(rule, options);
 
     const result = await normalizedRule(input, context);
     return result.status === "passed" ? fail(error) : pass();
   };
+
+  return attachNode(negated, { kind: "not", rule });
 };

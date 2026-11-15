@@ -7,13 +7,17 @@ import {
   ifElse,
   match,
   named,
+  not,
   oneOf,
   pass,
   pipeRules,
   type Rule,
+  tap,
   toGraph,
   unless,
+  validateField,
   when,
+  withFallback,
 } from "../index";
 import { readNode } from "./node";
 
@@ -23,6 +27,10 @@ const hasItems: Rule<Order> = (order) =>
   order.items > 0 ? pass() : fail("Cart is empty");
 const withinLimit: Rule<Order> = (order) =>
   order.total <= 1000 ? pass() : fail("Over the limit");
+const positive: Rule<number> = (n) => (n > 0 ? pass() : fail("Not positive"));
+const getTotal = (order: Order) => order.total;
+const isRetryable = (error: string) => error === "Over the limit";
+const logOrder = (_order: Order) => {};
 const anyOrder: Rule<Order> = () => pass();
 const isLarge = (order: Order) => order.total > 500;
 
@@ -168,6 +176,131 @@ describe("toGraph", () => {
       toGraph(composeRules([rule]));
 
       expect(rule).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("not, withFallback, validateField and tap", () => {
+    it("describes not as a node wrapping its rule", () => {
+      expect(toGraph(not<Order>(hasItems, "Must be empty")).root).toEqual({
+        id: "root",
+        kind: "not",
+        rule: { id: "root.rule", kind: "rule", label: "hasItems" },
+      });
+    });
+
+    it("describes withFallback with main and fallback children", () => {
+      expect(
+        toGraph(withFallback<Order, string, unknown>(hasItems, withinLimit))
+          .root,
+      ).toEqual({
+        id: "root",
+        kind: "fallback",
+        main: { id: "root.main", kind: "rule", label: "hasItems" },
+        fallback: { id: "root.fallback", kind: "rule", label: "withinLimit" },
+      });
+    });
+
+    it("labels the onlyFallbackOn guard, between main and fallback", () => {
+      const rule = withFallback<Order, string, unknown>(
+        (order) => hasItems(order),
+        (order) => withinLimit(order),
+        { onlyFallbackOn: isRetryable },
+      );
+
+      expect(toGraph(rule).root).toMatchObject({
+        guard: "isRetryable",
+        main: { label: "rule #1" },
+        fallback: { label: "rule #2" },
+      });
+    });
+
+    it("labels an inline guard with its option name", () => {
+      const rule = withFallback<Order, string, unknown>(
+        (order) => hasItems(order),
+        (order) => withinLimit(order),
+        { onlyFallbackOn: (error) => error.length > 0 },
+      );
+
+      expect(toGraph(rule).root).toMatchObject({
+        main: { label: "rule #1" },
+        guard: "onlyFallbackOn",
+        fallback: { label: "rule #2" },
+      });
+    });
+
+    it("numbers a guard that has no name in execution order", () => {
+      // An array element gets no inferred name, unlike an object property.
+      const [guard] = [(error: string) => error.length > 0];
+      const rule = withFallback<Order, string, unknown>(
+        (order) => hasItems(order),
+        (order) => withinLimit(order),
+        { onlyFallbackOn: guard },
+      );
+
+      expect(toGraph(rule).root).toMatchObject({
+        main: { label: "rule #1" },
+        guard: "rule #2",
+        fallback: { label: "rule #3" },
+      });
+    });
+
+    it("describes validateField with the getter label and the field rule", () => {
+      expect(
+        toGraph(validateField<Order, number>(getTotal, positive)).root,
+      ).toEqual({
+        id: "root",
+        kind: "field",
+        getter: "getTotal",
+        rule: { id: "root.rule", kind: "rule", label: "positive" },
+      });
+    });
+
+    it("describes tap as an effect with a label", () => {
+      expect(toGraph(tap<Order>(logOrder)).root).toEqual({
+        id: "root",
+        kind: "effect",
+        label: "logOrder",
+      });
+    });
+
+    it("labels an effect with named", () => {
+      const rule = tap<Order>(named("audit log", logOrder));
+
+      expect(toGraph(rule).root).toMatchObject({ label: "audit log" });
+    });
+
+    it("nests inside other combinators", () => {
+      const rule = pipeRules<Order>([
+        tap<Order>(logOrder),
+        not<Order>(hasItems, "Must be empty"),
+      ]);
+
+      expect(toGraph(rule).root).toMatchObject({
+        steps: [
+          { id: "root.steps.0", kind: "effect" },
+          {
+            id: "root.steps.1",
+            kind: "not",
+            rule: { id: "root.steps.1.rule" },
+          },
+        ],
+      });
+    });
+
+    it("never calls any rule, guard, getter or effect", () => {
+      const rule = vi.fn(() => pass());
+      const guard = vi.fn(() => true);
+      const getter = vi.fn(() => 1);
+      const effect = vi.fn();
+
+      toGraph(not(rule, "no"));
+      toGraph(withFallback(rule, rule, { onlyFallbackOn: guard }));
+      toGraph(validateField(getter, rule));
+      toGraph(tap(effect));
+
+      for (const spy of [rule, guard, getter, effect]) {
+        expect(spy).not.toHaveBeenCalled();
+      }
     });
   });
 
@@ -411,6 +544,37 @@ describe("node capture keeps the original children", () => {
     expect(composed?.kind === "sequence" && composed.steps[0]).toBe(
       withinLimit,
     );
+  });
+
+  it.each([
+    ["default (safe) mode", undefined],
+    ["unsafe mode", { errorHandlingMode: "unsafe" as const }],
+  ])("not, withFallback, validateField and tap, %s", (_name, options) => {
+    const notNode = readNode(not<Order>(hasItems, "no", options));
+    const fallbackNode = readNode(
+      withFallback<Order, string, unknown>(hasItems, withinLimit, {
+        ...options,
+        onlyFallbackOn: isRetryable,
+      }),
+    );
+    const fieldNode = readNode(
+      validateField<Order, number>(getTotal, positive, undefined, options),
+    );
+    const effectNode = readNode(tap<Order>(logOrder));
+
+    expect(notNode?.kind === "not" && notNode.rule).toBe(hasItems);
+    expect(fallbackNode?.kind === "fallback" && fallbackNode.main).toBe(
+      hasItems,
+    );
+    expect(fallbackNode?.kind === "fallback" && fallbackNode.fallback).toBe(
+      withinLimit,
+    );
+    expect(fallbackNode?.kind === "fallback" && fallbackNode.guard).toBe(
+      isRetryable,
+    );
+    expect(fieldNode?.kind === "field" && fieldNode.getter).toBe(getTotal);
+    expect(fieldNode?.kind === "field" && fieldNode.rule).toBe(positive);
+    expect(effectNode?.kind === "effect" && effectNode.effect).toBe(logOrder);
   });
 
   it("does not see later changes to the arrays passed to every, oneOf or composeRules", () => {

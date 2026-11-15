@@ -1,3 +1,4 @@
+import { attachNode } from "../../graph/node";
 import { getNormalizedRules } from "../../helpers";
 import type { Rule, RuleSafetyOptions } from "../../types";
 
@@ -29,7 +30,10 @@ export const withFallback = <TInput, TError, TContext>(
     onlyFallbackOn?: (error: TError) => boolean;
   } = {},
 ): Rule<TInput, TError, TContext> => {
-  return async (input: TInput, context?: TContext) => {
+  const withFallbackRule: Rule<TInput, TError, TContext> = async (
+    input: TInput,
+    context?: TContext,
+  ) => {
     const [mainSafeRule, fallbackSafeRule] = getNormalizedRules(
       [mainRule, fallbackRule],
       options,
@@ -43,4 +47,11 @@ export const withFallback = <TInput, TError, TContext>(
     }
     return result;
   };
+
+  return attachNode(withFallbackRule, {
+    kind: "fallback",
+    main: mainRule,
+    fallback: fallbackRule,
+    ...(options.onlyFallbackOn ? { guard: options.onlyFallbackOn } : {}),
+  });
 };
