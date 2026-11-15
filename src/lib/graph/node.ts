@@ -9,7 +9,13 @@
 export type Fn = (...args: never[]) => unknown;
 
 /** Behavior a decorator adds around a rule without changing what it checks. */
-export type DecoratorName = "timeout" | "retry" | "memoize";
+export type DecoratorName =
+  | "timeout"
+  | "retry"
+  | "memoize"
+  | "debug"
+  | "tap"
+  | "mapError";
 
 /**
  * Structure recorded by a combinator at construction time. Children are the

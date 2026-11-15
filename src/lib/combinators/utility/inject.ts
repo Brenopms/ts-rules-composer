@@ -1,3 +1,5 @@
+import { usableName } from "../../graph/labels";
+import { attachNode, type RawNode, readNode } from "../../graph/node";
 import type { Rule } from "../../types";
 
 /**
@@ -23,5 +25,11 @@ export const inject = <TInput, TError, TDep, TContext = unknown>(
   rule: (dep: TDep) => Rule<TInput, TError, TContext>,
 ): Rule<TInput, TError, TContext> => {
   const configuredRule = rule(dependency);
-  return (input, context) => configuredRule(input, context);
+  // Transparent in a graph: describe the configured rule, not this wrapper.
+  const label = usableName(configuredRule);
+  const node = readNode(configuredRule) ?? (label && { kind: "rule", label });
+  // An arrow returned from a function stays anonymous, as before.
+  const bridge = (): Rule<TInput, TError, TContext> => (input, context) =>
+    configuredRule(input, context);
+  return node ? attachNode(bridge(), node as RawNode) : bridge();
 };

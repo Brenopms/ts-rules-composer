@@ -77,42 +77,40 @@ export const match = <
   defaultCase?: Rule<TInput, TError, TContext> | TError,
   options?: RuleSafetyOptions<TError>,
 ): Rule<TInput, TError, TContext> => {
-  const rule = async (
-    input: TInput,
-    context?: TContext,
-  ): Promise<RuleResult<TError>> => {
-    const key = await accessor(input, context);
-    const matchedRule = cases[key];
+  return attachNode(
+    async (input: TInput, context?: TContext): Promise<RuleResult<TError>> => {
+      const key = await accessor(input, context);
+      const matchedRule = cases[key];
 
-    if (matchedRule) {
-      const safeMatchedRule = getNormalizedRule(matchedRule, options);
-      return safeMatchedRule(input, context);
-    }
-
-    if (defaultCase !== undefined) {
-      // if default case is not a rule, fail the error/messae directly
-      if (!isRule<TInput, TError, TContext>(defaultCase)) {
-        return fail(defaultCase);
+      if (matchedRule) {
+        const safeMatchedRule = getNormalizedRule(matchedRule, options);
+        return safeMatchedRule(input, context);
       }
 
-      const safeDefaultCase = getNormalizedRule(
-        defaultCase as Rule<TInput, TError, TContext>,
-        options,
-      );
-      return safeDefaultCase(input, context);
-    }
+      if (defaultCase !== undefined) {
+        // if default case is not a rule, fail the error/messae directly
+        if (!isRule<TInput, TError, TContext>(defaultCase)) {
+          return fail(defaultCase);
+        }
 
-    return fail(`No matching rule for key: ${String(key)}` as TError);
-  };
+        const safeDefaultCase = getNormalizedRule(
+          defaultCase as Rule<TInput, TError, TContext>,
+          options,
+        );
+        return safeDefaultCase(input, context);
+      }
 
-  return attachNode(rule, {
-    kind: "switch",
-    selector: accessor,
-    cases: { ...cases },
-    ...(defaultCase === undefined
-      ? {}
-      : isRule(defaultCase)
-        ? { default: defaultCase }
-        : { defaultError: defaultCase }),
-  });
+      return fail(`No matching rule for key: ${String(key)}` as TError);
+    },
+    {
+      kind: "switch",
+      selector: accessor,
+      cases: { ...cases },
+      ...(defaultCase === undefined
+        ? {}
+        : isRule(defaultCase)
+          ? { default: defaultCase }
+          : { defaultError: defaultCase }),
+    },
+  );
 };

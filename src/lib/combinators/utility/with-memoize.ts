@@ -59,56 +59,54 @@ export const withMemoize = <TInput, TError = string, TContext = unknown>(
     }
   >();
 
-  const memoized: Rule<TInput, TError, TContext> = async (
-    input: TInput,
-    context?: TContext,
-  ) => {
-    const key = keyFn(input, context);
-    const now = Date.now();
+  return attachNode<Rule<TInput, TError, TContext>>(
+    async (input: TInput, context?: TContext) => {
+      const key = keyFn(input, context);
+      const now = Date.now();
 
-    // Cache cleanup
-    if (options.ttl) {
-      for (const [key, entry] of cache) {
-        if (now - entry.timestamp > options.ttl) {
-          cache.delete(key);
+      // Cache cleanup
+      if (options.ttl) {
+        for (const [key, entry] of cache) {
+          if (now - entry.timestamp > options.ttl) {
+            cache.delete(key);
+          }
         }
       }
-    }
 
-    // Cache hit
-    const cached = cache.get(key);
-    if (cached) {
-      return cached.result;
-    }
-
-    // Size management (FIFO): only a miss adds an entry, so only a miss evicts
-    if (options.maxSize && cache.size >= options.maxSize) {
-      const oldestKey = cache.keys().next().value;
-      if (oldestKey !== undefined) {
-        cache.delete(oldestKey);
+      // Cache hit
+      const cached = cache.get(key);
+      if (cached) {
+        return cached.result;
       }
-    }
 
-    // Cache miss
-    const normalizedRule = getNormalizedRule(rule, options);
-    const result = normalizedRule(input, context);
-    cache.set(key, {
-      result,
-      timestamp: now,
-    });
+      // Size management (FIFO): only a miss adds an entry, so only a miss evicts
+      if (options.maxSize && cache.size >= options.maxSize) {
+        const oldestKey = cache.keys().next().value;
+        if (oldestKey !== undefined) {
+          cache.delete(oldestKey);
+        }
+      }
 
-    // Handle Promise cleanup if rejected
-    if (result instanceof Promise) {
-      result.catch(() => cache.delete(key));
-    }
+      // Cache miss
+      const normalizedRule = getNormalizedRule(rule, options);
+      const result = normalizedRule(input, context);
+      cache.set(key, {
+        result,
+        timestamp: now,
+      });
 
-    return result;
-  };
+      // Handle Promise cleanup if rejected
+      if (result instanceof Promise) {
+        result.catch(() => cache.delete(key));
+      }
 
-  return attachNode(memoized, {
-    kind: "decorator",
-    decorator: "memoize",
-    rule,
-    params: {},
-  });
+      return result;
+    },
+    {
+      kind: "decorator",
+      decorator: "memoize",
+      rule,
+      params: {},
+    },
+  );
 };

@@ -5,6 +5,8 @@ import {
   every,
   fail,
   ifElse,
+  inject,
+  mapError,
   match,
   named,
   not,
@@ -17,9 +19,11 @@ import {
   unless,
   validateField,
   when,
+  withDebug,
   withFallback,
   withMemoize,
   withRetry,
+  withTap,
   withTimeout,
 } from "../index";
 import { readNode } from "./node";
@@ -407,6 +411,141 @@ describe("toGraph", () => {
     });
   });
 
+  describe("withDebug, withTap, mapError and inject", () => {
+    it("describes withDebug with its name, which also labels the rule", () => {
+      expect(toGraph(withDebug(hasItems, "audit")).root).toEqual({
+        id: "root",
+        kind: "decorator",
+        decorator: "debug",
+        params: { name: "audit" },
+        rule: { id: "root.rule", kind: "rule", label: "audit" },
+      });
+    });
+
+    it("reads the name from the options object too", () => {
+      expect(
+        toGraph(withDebug(hasItems, { name: "audit" })).root,
+      ).toMatchObject({ params: { name: "audit" }, rule: { label: "audit" } });
+    });
+
+    it("lets named win over the withDebug name", () => {
+      const rule = withDebug(named("explicit", hasItems), "audit");
+
+      expect(toGraph(rule).root).toMatchObject({
+        params: { name: "audit" },
+        rule: { label: "explicit" },
+      });
+    });
+
+    it("falls back to the function name when withDebug has no name", () => {
+      expect(toGraph(withDebug(hasItems, {})).root).toMatchObject({
+        params: {},
+        rule: { label: "hasItems" },
+      });
+    });
+
+    it("does not number a rule that the withDebug name labels", () => {
+      const rule = pipeRules<Order>([
+        withDebug((order) => hasItems(order), "audit"),
+        (order) => withinLimit(order),
+      ]);
+
+      expect(toGraph(rule).root).toMatchObject({
+        steps: [{ rule: { label: "audit" } }, { label: "rule #1" }],
+      });
+    });
+
+    it("passes the withDebug name through other decorators to the rule", () => {
+      const rule = withDebug(
+        withTimeout((order: Order) => hasItems(order), 100, "Timed out"),
+        "audit",
+      );
+
+      expect(toGraph(rule).root).toMatchObject({
+        decorator: "debug",
+        rule: { decorator: "timeout", rule: { label: "audit" } },
+      });
+    });
+
+    it("keeps a decorated pipeline's own labels", () => {
+      const rule = withDebug(pipeRules<Order>([hasItems, withinLimit]), "all");
+
+      expect(toGraph(rule).root).toMatchObject({
+        params: { name: "all" },
+        rule: {
+          kind: "sequence",
+          steps: [{ label: "hasItems" }, { label: "withinLimit" }],
+        },
+      });
+    });
+
+    it("describes withTap by decorating the rule it is applied to", () => {
+      const effect = () => {};
+
+      expect(toGraph(withTap<Order>(effect)(hasItems)).root).toEqual({
+        id: "root",
+        kind: "decorator",
+        decorator: "tap",
+        params: {},
+        rule: { id: "root.rule", kind: "rule", label: "hasItems" },
+      });
+    });
+
+    it("describes mapError as a decorator", () => {
+      const rule = mapError(hasItems, (error: string) => error.length);
+
+      expect(toGraph(rule).root).toEqual({
+        id: "root",
+        kind: "decorator",
+        decorator: "mapError",
+        params: {},
+        rule: { id: "root.rule", kind: "rule", label: "hasItems" },
+      });
+    });
+
+    it("describes inject as the rule it configures", () => {
+      const pipeline = pipeRules<Order>([hasItems, withinLimit]);
+      const injected = inject({ limit: 1 }, () => pipeline);
+
+      expect(toGraph(injected)).toEqual(toGraph(pipeline));
+    });
+
+    it("labels an injected plain rule by its own name", () => {
+      const injected = inject({ limit: 1 }, () => hasItems);
+
+      expect(toGraph(injected).root).toEqual({
+        id: "root",
+        kind: "rule",
+        label: "hasItems",
+      });
+    });
+
+    it("numbers an injected anonymous rule like any other", () => {
+      const injected = inject(
+        { limit: 1 },
+        () => (order: Order) => hasItems(order),
+      );
+
+      expect(toGraph(injected).root).toMatchObject({ label: "rule #1" });
+    });
+
+    it("never calls the effect, transform, debug hooks or injected rule", () => {
+      const effect = vi.fn();
+      const transform = vi.fn((error: string) => error);
+      const onStart = vi.fn();
+      const rule = vi.fn(() => pass());
+
+      toGraph(withTap(effect)(rule));
+      toGraph(mapError(rule, transform));
+      toGraph(withDebug(rule, { name: "audit", onStart }));
+      toGraph(inject(1, () => rule));
+
+      for (const spy of [effect, transform, onStart, rule]) {
+        expect(spy).not.toHaveBeenCalled();
+      }
+    });
+  });
+
   describe("match", () => {
     const tier = (order: Order) => (order.total > 500 ? "large" : "small");
 
@@ -695,6 +834,24 @@ describe("node capture keeps the original children", () => {
     }
   });
 
+  it("withDebug, withTap and mapError keep the original rule", () => {
+    const nodes = [
+      readNode(withDebug(hasItems, "audit")),
+      readNode(withTap<Order>(() => {})(hasItems)),
+      readNode(mapError(hasItems, (error: string) => error)),
+    ];
+
+    for (const node of nodes) {
+      expect(node?.kind === "decorator" && node.rule).toBe(hasItems);
+    }
+  });
+
+  it("inject carries the configured rule's node, not a copy", () => {
+    const pipeline = pipeRules<Order>([hasItems]);
+
+    expect(readNode(inject(1, () => pipeline))).toBe(readNode(pipeline));
+  });
+
   it("does not see later changes to the arrays passed to every, oneOf or composeRules", () => {
     const rules: Rule<Order>[] = [hasItems];
     const all = every<Order>(rules);
@@ -722,6 +879,35 @@ describe("node capture keeps the original children", () => {
 });
 
 describe("runtime behavior is unchanged", () => {
+  // Combinators used to return anonymous closures. A named one would leak into
+  // `withDebug`'s ruleName and into labels, so attaching a node must not name them.
+  it.each([
+    ["pipeRules", () => pipeRules<Order>([hasItems])],
+    ["composeRules", () => composeRules<Order>([hasItems])],
+    ["every", () => every<Order>([hasItems])],
+    ["oneOf", () => oneOf<Order>([hasItems])],
+    ["when", () => when<Order>(isLarge, hasItems)],
+    ["unless", () => unless<Order>(isLarge, hasItems)],
+    ["ifElse", () => ifElse<Order>(isLarge, hasItems)],
+    ["match", () => match(() => "a" as const, { a: hasItems })],
+    ["not", () => not<Order>(hasItems, "no")],
+    [
+      "withFallback",
+      () => withFallback<Order, string, unknown>(hasItems, hasItems),
+    ],
+    ["validateField", () => validateField<Order, number>(getTotal, positive)],
+    ["tap", () => tap<Order>(logOrder)],
+    ["withTimeout", () => withTimeout(hasItems, 1, "Timed out")],
+    ["withRetry", () => withRetry(hasItems)],
+    ["withMemoize", () => withMemoize(hasItems, () => "key")],
+    ["withDebug", () => withDebug(hasItems, "audit")],
+    ["withTap", () => withTap<Order>(() => {})(hasItems)],
+    ["mapError", () => mapError(hasItems, (error: string) => error)],
+    ["inject", () => inject(1, () => (order: Order) => hasItems(order))],
+  ])("%s returns an anonymous function", (_name, build) => {
+    expect(build().name).toBe("");
+  });
+
   const pipeline = pipeRules<Order>([
     hasItems,
     when<Order>(isLarge, withinLimit),

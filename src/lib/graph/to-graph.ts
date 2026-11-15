@@ -12,7 +12,11 @@ const createBuilder = () => {
   const labelOf = (fn: Fn, explicit?: string) =>
     explicit ?? usableName(fn) ?? `rule #${++unlabelled}`;
 
-  const build = (fn: Fn, id: string): GraphNode => {
+  /**
+   * `hint` is a label offered by an enclosing `withDebug`: it names a leaf
+   * rule that has no explicit label, ahead of the function's own name.
+   */
+  const build = (fn: Fn, id: string, hint?: string): GraphNode => {
     const raw = readNode(fn);
 
     // Any function without a recorded structure is a leaf rule.
@@ -20,7 +24,7 @@ const createBuilder = () => {
       return {
         id,
         kind: "rule",
-        label: labelOf(fn, raw?.label),
+        label: labelOf(fn, raw?.label ?? hint),
         ...(raw?.params ? { params: raw.params } : {}),
       };
     }
@@ -85,14 +89,21 @@ const createBuilder = () => {
           kind: "effect",
           label: labelOf(raw.effect, readLabel(raw.effect)),
         };
-      case "decorator":
+      case "decorator": {
+        const debugName =
+          raw.decorator === "debug" ? raw.params.name : undefined;
         return {
           id,
           kind: "decorator",
           decorator: raw.decorator,
           params: raw.params,
-          rule: build(raw.rule, `${id}.rule`),
+          rule: build(
+            raw.rule,
+            `${id}.rule`,
+            typeof debugName === "string" ? debugName : hint,
+          ),
         };
+      }
       case "switch": {
         const selector = labelOf(raw.selector, readLabel(raw.selector));
         return {

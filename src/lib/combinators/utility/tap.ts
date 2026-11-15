@@ -18,14 +18,15 @@ import type { Rule } from "../../types";
 export const tap = <TInput, TError = string, TContext = unknown>(
   effect: (input: TInput, context?: TContext) => Promise<void> | void,
 ): Rule<TInput, TError, TContext> => {
-  const tapped: Rule<TInput, TError, TContext> = async (input, context) => {
-    try {
-      await effect(input, context);
-    } catch (error) {
-      console.error("Tap effect failed: ", error);
-    }
-    return pass();
-  };
-
-  return attachNode(tapped, { kind: "effect", effect });
+  return attachNode<Rule<TInput, TError, TContext>>(
+    async (input, context) => {
+      try {
+        await effect(input, context);
+      } catch (error) {
+        console.error("Tap effect failed: ", error);
+      }
+      return pass();
+    },
+    { kind: "effect", effect },
+  );
 };

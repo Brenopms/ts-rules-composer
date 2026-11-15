@@ -32,18 +32,19 @@ export const withTimeout = <TInput, TError, TContext>(
   timeoutError: TError,
   options?: RuleSafetyOptions<TError>,
 ): Rule<TInput, TError, TContext> => {
-  const timed: Rule<TInput, TError, TContext> = async (input, context) => {
-    const safeRule = getNormalizedRule(rule, options);
-    const timeout = new Promise<RuleResult<TError>>((resolve) =>
-      setTimeout(() => resolve(fail(timeoutError)), timeoutMs),
-    );
-    return Promise.race([safeRule(input, context), timeout]);
-  };
-
-  return attachNode(timed, {
-    kind: "decorator",
-    decorator: "timeout",
-    rule,
-    params: { ms: timeoutMs },
-  });
+  return attachNode<Rule<TInput, TError, TContext>>(
+    async (input, context) => {
+      const safeRule = getNormalizedRule(rule, options);
+      const timeout = new Promise<RuleResult<TError>>((resolve) =>
+        setTimeout(() => resolve(fail(timeoutError)), timeoutMs),
+      );
+      return Promise.race([safeRule(input, context), timeout]);
+    },
+    {
+      kind: "decorator",
+      decorator: "timeout",
+      rule,
+      params: { ms: timeoutMs },
+    },
+  );
 };

@@ -30,28 +30,26 @@ export const withFallback = <TInput, TError, TContext>(
     onlyFallbackOn?: (error: TError) => boolean;
   } = {},
 ): Rule<TInput, TError, TContext> => {
-  const withFallbackRule: Rule<TInput, TError, TContext> = async (
-    input: TInput,
-    context?: TContext,
-  ) => {
-    const [mainSafeRule, fallbackSafeRule] = getNormalizedRules(
-      [mainRule, fallbackRule],
-      options,
-    );
-    const result = await mainSafeRule(input, context);
-    if (
-      result.status === "failed" &&
-      (!options.onlyFallbackOn || options.onlyFallbackOn(result.error))
-    ) {
-      return fallbackSafeRule(input, context);
-    }
-    return result;
-  };
-
-  return attachNode(withFallbackRule, {
-    kind: "fallback",
-    main: mainRule,
-    fallback: fallbackRule,
-    ...(options.onlyFallbackOn ? { guard: options.onlyFallbackOn } : {}),
-  });
+  return attachNode<Rule<TInput, TError, TContext>>(
+    async (input: TInput, context?: TContext) => {
+      const [mainSafeRule, fallbackSafeRule] = getNormalizedRules(
+        [mainRule, fallbackRule],
+        options,
+      );
+      const result = await mainSafeRule(input, context);
+      if (
+        result.status === "failed" &&
+        (!options.onlyFallbackOn || options.onlyFallbackOn(result.error))
+      ) {
+        return fallbackSafeRule(input, context);
+      }
+      return result;
+    },
+    {
+      kind: "fallback",
+      main: mainRule,
+      fallback: fallbackRule,
+      ...(options.onlyFallbackOn ? { guard: options.onlyFallbackOn } : {}),
+    },
+  );
 };

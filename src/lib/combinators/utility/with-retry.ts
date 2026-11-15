@@ -80,51 +80,52 @@ export function withRetry<TInput, TError = string, TContext = unknown>(
     onExhausted = "max-retries",
   } = options;
 
-  const retried: Rule<
-    TInput,
-    TError | "MAX_RETRIES_EXCEEDED",
-    TContext
-  > = async (input, context) => {
-    let lastError: TError | unknown;
-    let wasThrown: boolean;
+  return attachNode<Rule<TInput, TError | "MAX_RETRIES_EXCEEDED", TContext>>(
+    async (input, context) => {
+      let lastError: TError | unknown;
+      let wasThrown: boolean;
 
-    for (let attempt = 1; attempt <= attempts; attempt++) {
-      try {
-        const result = await rule(input, context);
-        if (result.status === "passed") {
-          return result;
+      for (let attempt = 1; attempt <= attempts; attempt++) {
+        try {
+          const result = await rule(input, context);
+          if (result.status === "passed") {
+            return result;
+          }
+          lastError = result.error;
+          wasThrown = false;
+        } catch (error) {
+          lastError = error;
+          wasThrown = true;
         }
-        lastError = result.error;
-        wasThrown = false;
-      } catch (error) {
-        lastError = error;
-        wasThrown = true;
+
+        const kindAllowed =
+          retryOn === "both" || retryOn === (wasThrown ? "thrown" : "failed");
+
+        // Check if we should retry the last error
+        if (!kindAllowed || !shouldRetry(lastError as TError, attempt)) {
+          return fail(lastError as TError);
+        }
+
+        // Delay if not the last attempt
+        if (attempt < attempts && delayMs > 0) {
+          const delay = calculateDelay(
+            options?.retryStrategy,
+            attempt,
+            delayMs,
+          );
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
       }
 
-      const kindAllowed =
-        retryOn === "both" || retryOn === (wasThrown ? "thrown" : "failed");
-
-      // Check if we should retry the last error
-      if (!kindAllowed || !shouldRetry(lastError as TError, attempt)) {
-        return fail(lastError as TError);
-      }
-
-      // Delay if not the last attempt
-      if (attempt < attempts && delayMs > 0) {
-        const delay = calculateDelay(options?.retryStrategy, attempt, delayMs);
-        await new Promise((resolve) => setTimeout(resolve, delay));
-      }
-    }
-
-    return onExhausted === "last-error"
-      ? fail(lastError as TError)
-      : fail("MAX_RETRIES_EXCEEDED" as const);
-  };
-
-  return attachNode(retried, {
-    kind: "decorator",
-    decorator: "retry",
-    rule,
-    params: { attempts, retryOn },
-  });
+      return onExhausted === "last-error"
+        ? fail(lastError as TError)
+        : fail("MAX_RETRIES_EXCEEDED" as const);
+    },
+    {
+      kind: "decorator",
+      decorator: "retry",
+      rule,
+      params: { attempts, retryOn },
+    },
+  );
 }

@@ -28,31 +28,29 @@ export const oneOf = <TInput, TError = string, TContext = unknown>(
   rules: Rule<TInput, TError, TContext>[],
   options?: RuleSafetyOptions<TError>,
 ): Rule<TInput, TError[], TContext> => {
-  const rule: Rule<TInput, TError[], TContext> = async (
-    input: TInput,
-    context?: TContext,
-  ) => {
-    const normalizedRules = getNormalizedRules(rules, options);
-    const errors: TError[] = [];
+  return attachNode<Rule<TInput, TError[], TContext>>(
+    async (input: TInput, context?: TContext) => {
+      const normalizedRules = getNormalizedRules(rules, options);
+      const errors: TError[] = [];
 
-    if (!rules || rules.length === 0) {
-      return pass();
-    }
-
-    for (const rule of normalizedRules) {
-      const result = await rule(input, context);
-      if (result.status === "passed") {
+      if (!rules || rules.length === 0) {
         return pass();
       }
-      errors.push(result.error);
-    }
 
-    return fail(errors);
-  };
+      for (const rule of normalizedRules) {
+        const result = await rule(input, context);
+        if (result.status === "passed") {
+          return pass();
+        }
+        errors.push(result.error);
+      }
 
-  // Construction must not throw for a missing array (it never did).
-  return attachNode(rule, {
-    kind: "any",
-    rules: Array.isArray(rules) ? [...rules] : [],
-  });
+      return fail(errors);
+    },
+    {
+      kind: "any",
+      // Construction must not throw for a missing array (it never did).
+      rules: Array.isArray(rules) ? [...rules] : [],
+    },
+  );
 };
