@@ -1,3 +1,4 @@
+import { attachNode } from "../../graph/node";
 import { fail, getNormalizedRules, pass } from "../../helpers";
 import type { Predicate, Rule } from "../../types";
 import type { SafetyOptions } from "../../types/safety-options";
@@ -37,28 +38,36 @@ export const ifElse = <TInput, TError = string, TContext = unknown>(
   elseRule?: Rule<TInput, TError, TContext>,
   options?: SafetyOptions<TError>,
 ): Rule<TInput, TError, TContext> => {
-  return async (input: TInput, context?: TContext) => {
-    const safePredicate = withSafePredicate<TInput, TError, TContext>(
-      predicate,
-      options?.predicateErrorTransform,
-    );
-    const safePredicateResult = await safePredicate(input, context);
+  return attachNode(
+    async (input: TInput, context?: TContext) => {
+      const safePredicate = withSafePredicate<TInput, TError, TContext>(
+        predicate,
+        options?.predicateErrorTransform,
+      );
+      const safePredicateResult = await safePredicate(input, context);
 
-    // Predicate fail to run or returned invalid result
-    if (safePredicateResult.status === "failed") {
-      return fail(safePredicateResult.error);
-    }
+      // Predicate fail to run or returned invalid result
+      if (safePredicateResult.status === "failed") {
+        return fail(safePredicateResult.error);
+      }
 
-    const [normalizedIfRule, normalizedElseRule] = getNormalizedRules(
-      [ifRule, elseRule!],
-      options,
-    );
+      const [normalizedIfRule, normalizedElseRule] = getNormalizedRules(
+        [ifRule, elseRule!],
+        options,
+      );
 
-    const shouldBranch = safePredicateResult.value;
-    return shouldBranch
-      ? normalizedIfRule(input, context)
-      : elseRule
-        ? normalizedElseRule(input, context)
-        : pass();
-  };
+      const shouldBranch = safePredicateResult.value;
+      return shouldBranch
+        ? normalizedIfRule(input, context)
+        : elseRule
+          ? normalizedElseRule(input, context)
+          : pass();
+    },
+    {
+      kind: "branch",
+      test: predicate,
+      ifTrue: ifRule,
+      ...(elseRule ? { ifFalse: elseRule } : {}),
+    },
+  );
 };

@@ -1,3 +1,4 @@
+import { attachNode } from "../../graph/node";
 import { fail, getNormalizedRule } from "../../helpers";
 import type { Rule, RuleSafetyOptions } from "../../types";
 
@@ -52,15 +53,18 @@ export function validateField<
   defaultValue?: TValue,
   options?: RuleSafetyOptions<TError>,
 ): Rule<TInput, TError, TContext> {
-  return async (input: TInput, context?: TContext) => {
-    const value = getter(input);
-    const finalValue = value !== undefined ? value : defaultValue;
-    const safeRule = getNormalizedRule(rule, options);
+  return attachNode<Rule<TInput, TError, TContext>>(
+    async (input: TInput, context?: TContext) => {
+      const value = getter(input);
+      const finalValue = value !== undefined ? value : defaultValue;
+      const safeRule = getNormalizedRule(rule, options);
 
-    if (finalValue === undefined) {
-      return fail("Missing required value" as unknown as TError);
-    }
+      if (finalValue === undefined) {
+        return fail("Missing required value" as unknown as TError);
+      }
 
-    return safeRule(finalValue, context);
-  };
+      return safeRule(finalValue, context);
+    },
+    { kind: "field", getter, rule },
+  );
 }

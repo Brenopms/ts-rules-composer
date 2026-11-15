@@ -1,4 +1,5 @@
 import { prepareRuleExecution } from "../../composition/rule-execution";
+import { attachNode } from "../../graph/node";
 import type { CompositionOptions, Rule } from "../../types";
 
 /**
@@ -38,5 +39,8 @@ export const every = <TInput, TError = string, TContext = unknown>(
   rules: Rule<TInput, TError, TContext>[],
   options: CompositionOptions<TError> = {},
 ): Rule<TInput, TError[], TContext> => {
-  return prepareRuleExecution(rules, options, "parallelCollect");
+  return attachNode(prepareRuleExecution(rules, options, "parallelCollect"), {
+    kind: "all",
+    rules: [...rules],
+  });
 };

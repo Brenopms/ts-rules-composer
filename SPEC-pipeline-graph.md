@@ -115,7 +115,7 @@ Decorators: `withTimeout` (`⏱ 500ms`), `withRetry` (`↻ 3x`), `withMemoize` (
 ### Labels and ids
 Label resolution, first match wins: explicit `named` name → `withDebug` name → `fn.name` (ignoring `""`, `"anonymous"`, `"bound ..."`) → `rule #n` (n = traversal order among unlabelled nodes, deterministic). Const-assigned arrows (`const hasItems = (o) => ...`) are labelled free; inline lambdas and parameterized factory results (`minAge(18)`) need `named`. Raw identifier text in v1 (no humanizing).
 
-Node ids derive from tree position (e.g. `root.steps.2.cases.card`), so the same pipeline always yields the same ids and the same Mermaid text. Mermaid ids are a sanitized form of these.
+Node ids derive from tree position (e.g. `root.steps.2.cases.0`; `match` cases use their position, not their key, so keys cannot collide), so the same pipeline always yields the same ids and the same Mermaid text. Mermaid ids are a sanitized form of these.
 
 ### Mermaid rendering
 - Starts with `flowchart TD`, an `input` start node, and `passed` / `failed` terminal nodes.

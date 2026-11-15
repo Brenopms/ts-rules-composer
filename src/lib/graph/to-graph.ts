@@ -12,7 +12,11 @@ const createBuilder = () => {
   const labelOf = (fn: Fn, explicit?: string) =>
     explicit ?? usableName(fn) ?? `rule #${++unlabelled}`;
 
-  const build = (fn: Fn, id: string): GraphNode => {
+  /**
+   * `hint` is a label offered by an enclosing `withDebug`: it names a leaf
+   * rule that has no explicit label, ahead of the function's own name.
+   */
+  const build = (fn: Fn, id: string, hint?: string): GraphNode => {
     const raw = readNode(fn);
 
     // Any function without a recorded structure is a leaf rule.
@@ -20,8 +24,8 @@ const createBuilder = () => {
       return {
         id,
         kind: "rule",
-        label: labelOf(fn, raw?.label),
-        ...(raw?.params ? { params: raw.params } : {}),
+        label: labelOf(fn, raw?.label ?? hint),
+        ...(raw?.params ? { params: { ...raw.params } } : {}),
       };
     }
 
@@ -47,11 +51,86 @@ const createBuilder = () => {
             : {}),
         };
       }
+      case "all":
+      case "any":
+        return {
+          id,
+          kind: raw.kind,
+          rules: raw.rules.map((rule, index) =>
+            build(rule, `${id}.rules.${index}`),
+          ),
+        };
+      case "not":
+        return { id, kind: "not", rule: build(raw.rule, `${id}.rule`) };
+      case "fallback": {
+        // Numbered in execution order: main, then the guard, then the fallback.
+        const main = build(raw.main, `${id}.main`);
+        const guard = raw.guard && labelOf(raw.guard, readLabel(raw.guard));
+        return {
+          id,
+          kind: "fallback",
+          main,
+          ...(guard ? { guard } : {}),
+          fallback: build(raw.fallback, `${id}.fallback`),
+        };
+      }
+      case "field": {
+        const getter = labelOf(raw.getter, readLabel(raw.getter));
+        return {
+          id,
+          kind: "field",
+          getter,
+          rule: build(raw.rule, `${id}.rule`),
+        };
+      }
+      case "effect":
+        return {
+          id,
+          kind: "effect",
+          label: labelOf(raw.effect, readLabel(raw.effect)),
+        };
+      case "decorator": {
+        const debugName =
+          raw.decorator === "debug" ? raw.params.name : undefined;
+        return {
+          id,
+          kind: "decorator",
+          decorator: raw.decorator,
+          params: { ...raw.params },
+          rule: build(
+            raw.rule,
+            `${id}.rule`,
+            typeof debugName === "string" ? debugName : hint,
+          ),
+        };
+      }
+      case "switch": {
+        const selector = labelOf(raw.selector, readLabel(raw.selector));
+        return {
+          id,
+          kind: "switch",
+          selector,
+          cases: Reflect.ownKeys(raw.cases).map((key, index) => ({
+            key: String(key),
+            node: build(raw.cases[key] as Fn, `${id}.cases.${index}`),
+          })),
+          ...(raw.default
+            ? { default: build(raw.default, `${id}.default`) }
+            : {}),
+          ...(raw.defaultError !== undefined
+            ? { defaultError: describeError(raw.defaultError) }
+            : {}),
+        };
+      }
     }
   };
 
   return build;
 };
+
+/** Strings are shown as-is; anything else is never stringified (it could run user code). */
+const describeError = (error: unknown) =>
+  typeof error === "string" ? error : "custom error";
 
 const readLabel = (fn: Fn) => {
   const raw = readNode(fn);

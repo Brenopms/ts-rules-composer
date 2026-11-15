@@ -1,3 +1,4 @@
+import { attachNode } from "../../graph/node";
 import { fail, pass } from "../../helpers";
 import type { Rule } from "../../types";
 
@@ -30,8 +31,18 @@ export const mapError = <TInput, TError, TNewError, TContext = unknown>(
   rule: Rule<TInput, TError, TContext>,
   transform: (error: TError) => TNewError,
 ): Rule<TInput, TNewError, TContext> => {
-  return async (input: TInput, context?: TContext) => {
-    const result = await rule(input, context);
-    return result.status === "failed" ? fail(transform(result.error)) : pass();
-  };
+  return attachNode<Rule<TInput, TNewError, TContext>>(
+    async (input: TInput, context?: TContext) => {
+      const result = await rule(input, context);
+      return result.status === "failed"
+        ? fail(transform(result.error))
+        : pass();
+    },
+    {
+      kind: "decorator",
+      decorator: "mapError",
+      rule,
+      params: {},
+    },
+  );
 };

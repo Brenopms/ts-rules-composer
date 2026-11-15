@@ -1,3 +1,4 @@
+import { attachNode } from "../../graph/node";
 import type { DebugOptions, Rule } from "../../types";
 
 /**
@@ -30,26 +31,34 @@ export const withDebug = <TInput, TError, TContext>(
 ): Rule<TInput, TError, TContext> => {
   const config = typeof options === "string" ? { name: options } : options;
 
-  return async (input, context) => {
-    const startTime = performance.now();
-    const ruleName = config.name || rule.name || "anonymous_rule";
+  return attachNode<Rule<TInput, TError, TContext>>(
+    async (input, context) => {
+      const startTime = performance.now();
+      const ruleName = config.name || rule.name || "anonymous_rule";
 
-    try {
-      config.onStart?.(input, context);
-      const result = await rule(input, context);
-      const duration = performance.now() - startTime;
+      try {
+        config.onStart?.(input, context);
+        const result = await rule(input, context);
+        const duration = performance.now() - startTime;
 
-      config.onEnd?.(input, result, context, {
-        ruleName,
-        duration,
-        startTime,
-      });
+        config.onEnd?.(input, result, context, {
+          ruleName,
+          duration,
+          startTime,
+        });
 
-      return result;
-    } catch (error) {
-      const duration = performance.now() - startTime;
-      config.onError?.(error, input, context, duration);
-      throw error; // Preserve original error throwing behavior
-    }
-  };
+        return result;
+      } catch (error) {
+        const duration = performance.now() - startTime;
+        config.onError?.(error, input, context, duration);
+        throw error; // Preserve original error throwing behavior
+      }
+    },
+    {
+      kind: "decorator",
+      decorator: "debug",
+      rule,
+      params: config.name ? { name: config.name } : {},
+    },
+  );
 };

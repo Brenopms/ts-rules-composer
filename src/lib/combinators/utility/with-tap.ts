@@ -1,3 +1,4 @@
+import { attachNode } from "../../graph/node";
 import { getNormalizedRule } from "../../helpers";
 import type { Rule, RuleResult, RuleSafetyOptions } from "../../types";
 
@@ -33,14 +34,24 @@ export const withTap = <TInput, TError = string, TContext = unknown>(
 ): ((
   rule: Rule<TInput, TError, TContext>,
 ) => Rule<TInput, TError, TContext>) => {
-  return (rule) => async (input, context) => {
-    const safeRule = getNormalizedRule(rule, options);
-    const result = await safeRule(input, context);
-    try {
-      await effect(input, result, context);
-    } catch (error) {
-      console.error("Tap effect failed:", error);
-    }
-    return result;
+  return (rule) => {
+    return attachNode<Rule<TInput, TError, TContext>>(
+      async (input, context) => {
+        const safeRule = getNormalizedRule(rule, options);
+        const result = await safeRule(input, context);
+        try {
+          await effect(input, result, context);
+        } catch (error) {
+          console.error("Tap effect failed:", error);
+        }
+        return result;
+      },
+      {
+        kind: "decorator",
+        decorator: "tap",
+        rule,
+        params: {},
+      },
+    );
   };
 };

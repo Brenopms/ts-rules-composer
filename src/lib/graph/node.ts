@@ -8,6 +8,19 @@
 /** Any function a combinator may hold as a child (rule, predicate, accessor). */
 export type Fn = (...args: never[]) => unknown;
 
+/** A number as a JSON-safe param: `Infinity` and `NaN` would become `null`. */
+export const jsonNumber = (value: number): number | string =>
+  Number.isFinite(value) ? value : String(value);
+
+/** Behavior a decorator adds around a rule without changing what it checks. */
+export type DecoratorName =
+  | "timeout"
+  | "retry"
+  | "memoize"
+  | "debug"
+  | "tap"
+  | "mapError";
+
 /**
  * Structure recorded by a combinator at construction time. Children are the
  * original functions passed in (before any safety wrapping), so they can be
@@ -36,6 +49,48 @@ export type RawNode =
       test: Fn;
       ifTrue?: Fn;
       ifFalse?: Fn;
+    }
+  | {
+      kind: "switch";
+      selector: Fn;
+      /** Copy of the cases object, keyed as `match` received it. */
+      cases: Record<PropertyKey, Fn>;
+      /** `match`'s default rule; at most one of `default`/`defaultError`. */
+      default?: Fn;
+      /** `match`'s default error value, kept raw (never stringified here). */
+      defaultError?: unknown;
+    }
+  | {
+      /** `every` is `all` (every rule must pass), `oneOf` is `any`. */
+      kind: "all" | "any";
+      rules: Fn[];
+    }
+  | { kind: "not"; rule: Fn }
+  | {
+      kind: "fallback";
+      main: Fn;
+      fallback: Fn;
+      /** `onlyFallbackOn`: when set, the fallback runs only if it accepts the error. */
+      guard?: Fn;
+    }
+  | {
+      kind: "field";
+      /** Reads the value the rule is applied to. */
+      getter: Fn;
+      rule: Fn;
+    }
+  | {
+      kind: "effect";
+      /** The side effect `tap` runs; the rule always passes. */
+      effect: Fn;
+    }
+  | {
+      kind: "decorator";
+      decorator: DecoratorName;
+      /** The decorated rule, as passed in. */
+      rule: Fn;
+      /** Settings worth showing, as plain JSON values. */
+      params: Record<string, unknown>;
     };
 
 /** Public, JSON-serializable graph. Built by `toGraph`. */
@@ -58,6 +113,38 @@ export type GraphNode =
       test: string;
       ifTrue?: GraphNode;
       ifFalse?: GraphNode;
+    }
+  | {
+      id: string;
+      kind: "switch";
+      selector: string;
+      /** In `Reflect.ownKeys` order; symbol keys appear as `Symbol(desc)`. */
+      cases: { key: string; node: GraphNode }[];
+      /** Absent `default` and `defaultError` mean "no match" fails. */
+      default?: GraphNode;
+      defaultError?: string;
+    }
+  | {
+      id: string;
+      kind: "all" | "any";
+      rules: GraphNode[];
+    }
+  | { id: string; kind: "not"; rule: GraphNode }
+  | {
+      id: string;
+      kind: "fallback";
+      main: GraphNode;
+      fallback: GraphNode;
+      guard?: string;
+    }
+  | { id: string; kind: "field"; getter: string; rule: GraphNode }
+  | { id: string; kind: "effect"; label: string }
+  | {
+      id: string;
+      kind: "decorator";
+      decorator: DecoratorName;
+      params: Record<string, unknown>;
+      rule: GraphNode;
     };
 
 export type RuleGraph = { version: 1; root: GraphNode };
