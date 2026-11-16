@@ -26,7 +26,7 @@ import {
   withTap,
   withTimeout,
 } from "../index";
-import { readNode } from "./node";
+import { attachNode, readNode } from "./node";
 
 type Order = { items: number; total: number };
 
@@ -907,6 +907,28 @@ describe("node capture keeps the original children", () => {
 
     expect(toGraph(pipeline).root).toMatchObject({
       steps: [{ label: "hasItems" }],
+    });
+  });
+});
+
+describe("toGraph with a node it does not know", () => {
+  it("describes it as a leaf rule instead of dropping it", () => {
+    // The node key is a shared symbol, so another version or package could
+    // attach a kind this one has never heard of.
+    const unknown = attachNode(
+      function futureRule() {
+        return pass();
+      },
+      { kind: "mystery" } as never,
+    );
+
+    expect(toGraph(unknown).root).toEqual({
+      id: "root",
+      kind: "rule",
+      label: "futureRule",
+    });
+    expect(toGraph(pipeRules<Order>([unknown, hasItems])).root).toMatchObject({
+      steps: [{ kind: "rule", label: "futureRule" }, { label: "hasItems" }],
     });
   });
 });

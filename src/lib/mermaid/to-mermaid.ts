@@ -67,7 +67,13 @@ const render = (node: GraphNode): Fragment => {
 
   switch (node.kind) {
     case "sequence": {
-      if (node.steps.length === 0) break;
+      if (node.steps.length === 0) {
+        return fragment({
+          nodes: [`  ${id}("no rules")`],
+          entry: id,
+          exits: [{ id }],
+        });
+      }
       const parts = node.steps.map(render);
       return fragment({
         nodes: parts.flatMap((part) => part.nodes),
@@ -164,7 +170,7 @@ const render = (node: GraphNode): Fragment => {
         ],
         entry: fork,
         exits: [{ id: join }],
-        fails: [{ id: join }],
+        fails: parts.length === 0 ? [] : [{ id: join }],
       });
     }
     case "not": {
@@ -213,10 +219,9 @@ const render = (node: GraphNode): Fragment => {
       return render(node.rule);
   }
 
-  // Leaves, and anything without a shape of its own, are a single box.
-  const label = node.kind === "rule" ? node.label : node.kind;
+  // Every other kind was drawn above, so this is a leaf rule.
   return fragment({
-    nodes: [box(id, label)],
+    nodes: [box(id, node.label)],
     entry: id,
     exits: [{ id }],
     fails: [{ id }],

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { named } from "../graph/named";
+import { attachNode } from "../graph/node";
 import {
   every,
   ifElse,
@@ -367,5 +368,88 @@ describe("toMermaid node shapes", () => {
     );
 
     for (const fn of [spy, selector, test]) expect(fn).not.toHaveBeenCalled();
+  });
+});
+
+describe("toMermaid edge cases", () => {
+  it("draws an empty pipeline as a rounded node that cannot fail", () => {
+    expect(toMermaid(pipeRules([]))).toBe(
+      lines(
+        "  input([input])",
+        '  root("no rules")',
+        "  passed([passed])",
+        "  input --> root",
+        "  root --> passed",
+      ),
+    );
+  });
+
+  it.each([
+    ["every", () => every([])],
+    ["oneOf", () => oneOf([])],
+  ])("draws an empty %s as a fork joined straight through", (_name, build) => {
+    const text = toMermaid(build());
+
+    expect(text).toContain("root_in --> root_out");
+    expect(text).toContain("root_out --> passed");
+    expect(text).not.toContain("failed");
+  });
+
+  it("draws a node kind it does not know as a leaf", () => {
+    const unknown = attachNode(
+      function futureRule() {
+        return pass();
+      },
+      { kind: "mystery" } as never,
+    );
+
+    expect(toMermaid(pipeRules([unknown, hasItems]))).toContain(
+      'root_steps_0["futureRule"]',
+    );
+  });
+
+  describe("a pipeline using every shape at once", () => {
+    const build = () =>
+      pipeRules<unknown, string | string[]>([
+        when(isLarge, ifElse(isLarge, withinLimit, hasItems)),
+        match(
+          tier,
+          {
+            large: every([withinLimit, not(hasItems, "no")]) as never,
+            small: oneOf([withFallback(hasItems, withinLimit)]) as never,
+          },
+          validateField(getTotal, positive) as never,
+        ),
+        tap(logOrder),
+        withTimeout(unless(isLarge, hasItems), 5, "Timed out"),
+      ]);
+
+    const declared = (text: string) =>
+      [...text.matchAll(/^ {2}(\w+)(?:\(|\[|\{)/gm)].map((m) => m[1]);
+    const referenced = (text: string) =>
+      [
+        ...text.matchAll(/^ {2}(\w+) -[.-]?->(?:\|"[^"]*"\|)? (\w+)$/gm),
+      ].flatMap((m) => [m[1], m[2]]);
+
+    it("is deterministic", () => {
+      expect(toMermaid(build())).toBe(toMermaid(build()));
+    });
+
+    it("declares each node once and every edge ends on a declared node", () => {
+      const text = toMermaid(build());
+      const nodes = declared(text);
+
+      expect(new Set(nodes).size).toBe(nodes.length);
+      for (const id of referenced(text)) expect(nodes).toContain(id);
+    });
+
+    it("closes every group it opens", () => {
+      const lines = toMermaid(build()).split("\n");
+      const opened = lines.filter((line) => /^ {2}subgraph /.test(line));
+      const closed = lines.filter((line) => line === "  end");
+
+      expect(opened.length).toBeGreaterThan(2);
+      expect(closed).toHaveLength(opened.length);
+    });
   });
 });

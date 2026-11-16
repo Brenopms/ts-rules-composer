@@ -122,6 +122,10 @@ const createBuilder = () => {
             : {}),
         };
       }
+      // The node key is shared, so another version of this package could have
+      // attached a kind this one does not know: describe it as a leaf.
+      default:
+        return { id, kind: "rule", label: labelOf(fn, hint) };
     }
   };
 
