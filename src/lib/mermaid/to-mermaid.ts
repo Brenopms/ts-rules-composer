@@ -18,6 +18,46 @@ type Fragment = {
   fails: Port[];
 };
 
+export type MermaidOptions = {
+  /** Flow direction. Default `"TD"`. */
+  direction?: "TD" | "LR";
+  /** Draw dotted edges from steps that can fail to `failed`. Default `true`. */
+  failEdges?: boolean;
+  /** Also show `withDebug`, `withTap` and `mapError` decorators. Default `false`. */
+  verbose?: boolean;
+  /** Longest label text, cut with `…`. Default `40`. Badges are never cut. */
+  maxLabelLength?: number;
+};
+
+type Settings = { verbose: boolean; max: number };
+
+const clip = (max: number, text: string) => {
+  const chars = [...text];
+  return chars.length > max
+    ? `${chars.slice(0, Math.max(1, max - 1)).join("")}…`
+    : text;
+};
+
+/** Short text for a decorator, or `undefined` when it stays hidden. */
+const badge = (
+  node: Extract<GraphNode, { kind: "decorator" }>,
+  verbose: boolean,
+) => {
+  switch (node.decorator) {
+    case "timeout":
+      return `⏱ ${node.params.ms}ms`;
+    case "retry":
+      return `↻ ${node.params.attempts}x`;
+    case "memoize":
+      return "⚡ cached";
+    default:
+      return verbose ? node.decorator : undefined;
+  }
+};
+
+const withBadges = (label: string, badges: string[]) =>
+  [label, ...badges].join(" ");
+
 const mermaidId = (id: string) => id.replace(/[^A-Za-z0-9_]/g, "_");
 
 /**
@@ -62,8 +102,50 @@ const fragment = (parts: Partial<Fragment> & { entry: string }): Fragment => ({
 });
 
 /** Draws the rule at `id` plus whichever children it has, in order. */
-const render = (node: GraphNode): Fragment => {
+const render = (
+  node: GraphNode,
+  cfg: Settings,
+  badges: string[] = [],
+): Fragment => {
+  if (node.kind === "decorator") {
+    const own = badge(node, cfg.verbose);
+    return render(node.rule, cfg, own ? [...badges, own] : badges);
+  }
+  const part = draw(node, cfg, badges);
+  return badges.length > 0 && !isLeaf(node)
+    ? {
+        ...part,
+        nodes: group(
+          `${mermaidId(node.id)}_badge`,
+          badges.join(" "),
+          part.nodes,
+        ),
+      }
+    : part;
+};
+
+const isLeaf = (node: GraphNode) =>
+  node.kind === "rule" || node.kind === "effect" || !composite.has(node.kind);
+
+const composite = new Set<string>([
+  "sequence",
+  "branch",
+  "switch",
+  "all",
+  "any",
+  "not",
+  "fallback",
+  "field",
+]);
+
+const draw = (
+  node: Exclude<GraphNode, { kind: "decorator" }>,
+  cfg: Settings,
+  badges: string[],
+): Fragment => {
   const id = mermaidId(node.id);
+  const text = (value: string) => clip(cfg.max, value);
+  const sub = (child: GraphNode) => render(child, cfg);
 
   switch (node.kind) {
     case "sequence": {
@@ -74,7 +156,7 @@ const render = (node: GraphNode): Fragment => {
           exits: [{ id }],
         });
       }
-      const parts = node.steps.map(render);
+      const parts = node.steps.map(sub);
       return fragment({
         nodes: parts.flatMap((part) => part.nodes),
         edges: [
@@ -94,11 +176,11 @@ const render = (node: GraphNode): Fragment => {
         { child: node.ifFalse, label: "no" },
       ].map(({ child, label }) => ({
         label,
-        part: child && render(child),
+        part: child && sub(child),
       }));
       return fragment({
         nodes: [
-          `  ${id}{"${escapeLabel(node.test)}"}`,
+          `  ${id}{"${escapeLabel(text(node.test))}"}`,
           ...sides.flatMap(({ part }) => part?.nodes ?? []),
         ],
         edges: sides.flatMap(({ part, label }) => [
@@ -114,17 +196,17 @@ const render = (node: GraphNode): Fragment => {
     }
     case "switch": {
       const cases = node.cases.map(({ key, node: child }) => ({
-        label: key,
-        part: render(child),
+        label: text(key),
+        part: sub(child),
       }));
       const fallback = node.default && {
         label: "default",
-        part: render(node.default),
+        part: sub(node.default),
       };
       const routed = fallback ? [...cases, fallback] : cases;
       return fragment({
         nodes: [
-          `  ${id}{"${escapeLabel(node.selector)}"}`,
+          `  ${id}{"${escapeLabel(text(node.selector))}"}`,
           ...routed.flatMap(({ part }) => part.nodes),
         ],
         edges: routed.flatMap(({ part, label }) => [
@@ -149,7 +231,7 @@ const render = (node: GraphNode): Fragment => {
     }
     case "all":
     case "any": {
-      const parts = node.rules.map(render);
+      const parts = node.rules.map(sub);
       const fork = `${id}_in`;
       const join = `${id}_out`;
       const title =
@@ -174,7 +256,7 @@ const render = (node: GraphNode): Fragment => {
       });
     }
     case "not": {
-      const part = render(node.rule);
+      const part = sub(node.rule);
       const gate = `${id}_gate`;
       return fragment({
         nodes: [...group(id, "not", part.nodes), `  ${gate}{"inner passed?"}`],
@@ -185,9 +267,9 @@ const render = (node: GraphNode): Fragment => {
       });
     }
     case "fallback": {
-      const main = render(node.main);
-      const fallback = render(node.fallback);
-      const onFail = node.guard ? `on fail if ${node.guard}` : "on fail";
+      const main = sub(node.main);
+      const fallback = sub(node.fallback);
+      const onFail = node.guard ? `on fail if ${text(node.guard)}` : "on fail";
       return fragment({
         nodes: [...main.nodes, ...fallback.nodes],
         edges: [
@@ -202,26 +284,25 @@ const render = (node: GraphNode): Fragment => {
       });
     }
     case "field": {
-      const part = render(node.rule);
+      const part = sub(node.rule);
       return fragment({
         ...part,
-        nodes: group(id, `field: ${node.getter}`, part.nodes),
+        nodes: group(id, `field: ${text(node.getter)}`, part.nodes),
       });
     }
     case "effect":
       return fragment({
-        nodes: [`  ${id}("${escapeLabel(node.label)}")`],
+        nodes: [
+          `  ${id}("${escapeLabel(withBadges(text(node.label), badges))}")`,
+        ],
         entry: id,
         exits: [{ id }],
       });
-    case "decorator":
-      // Badges come later; until then a decorator is drawn as the rule it wraps.
-      return render(node.rule);
   }
 
   // Every other kind was drawn above, so this is a leaf rule.
   return fragment({
-    nodes: [box(id, node.label)],
+    nodes: [box(id, withBadges(text(node.label), badges))],
     entry: id,
     exits: [{ id }],
     fails: [{ id }],
@@ -231,24 +312,33 @@ const render = (node: GraphNode): Fragment => {
 /**
  * Renders a rule as Mermaid flowchart source, without running it.
  *
- * Draws every node kind; decorators are drawn as the rule they wrap for now.
+ * Draws every node kind. Timeout, retry and memoize show as badges on the
+ * wrapped rule; debug, tap and mapError only with `verbose`.
  *
  * @example
  * const text = toMermaid(pipeRules([hasItems, withinLimit]));
  */
 export const toMermaid = <TInput, TError, TContext>(
   rule: Rule<TInput, TError, TContext>,
+  options: MermaidOptions = {},
 ): string => {
-  const body = render(toGraph(rule).root);
+  const {
+    direction = "TD",
+    failEdges = true,
+    verbose = false,
+    maxLabelLength = 40,
+  } = options;
+  const body = render(toGraph(rule).root, { verbose, max: maxLabelLength });
+  const fails = failEdges ? body.fails : [];
   return [
-    "flowchart TD",
+    `flowchart ${direction}`,
     "  input([input])",
     ...body.nodes,
     "  passed([passed])",
-    ...(body.fails.length > 0 ? ["  failed([failed])"] : []),
+    ...(fails.length > 0 ? ["  failed([failed])"] : []),
     `  input --> ${body.entry}`,
     ...body.edges,
     ...linkAll(body.exits, "passed"),
-    ...linkAll(body.fails, "failed", "-.->", "fail"),
+    ...linkAll(fails, "failed", "-.->", "fail"),
   ].join("\n");
 };

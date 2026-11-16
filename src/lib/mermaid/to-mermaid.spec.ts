@@ -4,6 +4,7 @@ import { attachNode } from "../graph/node";
 import {
   every,
   ifElse,
+  mapError,
   match,
   not,
   oneOf,
@@ -13,7 +14,11 @@ import {
   unless,
   validateField,
   when,
+  withDebug,
   withFallback,
+  withMemoize,
+  withRetry,
+  withTap,
   withTimeout,
 } from "../index";
 import { toMermaid } from "./to-mermaid";
@@ -329,13 +334,6 @@ describe("toMermaid node shapes", () => {
     );
   });
 
-  it("looks through a decorator until badges are drawn", () => {
-    const text = toMermaid(withTimeout(hasItems, 5, "Timed out"));
-
-    expect(text).toContain('root_rule["hasItems"]');
-    expect(text).not.toContain("decorator");
-  });
-
   it("composes shapes: a branch inside a sequence continues from both sides", () => {
     const text = toMermaid(pipeRules([when(isLarge, withinLimit), hasItems]));
 
@@ -450,6 +448,109 @@ describe("toMermaid edge cases", () => {
 
       expect(opened.length).toBeGreaterThan(2);
       expect(closed).toHaveLength(opened.length);
+    });
+  });
+  describe("decorator badges", () => {
+    const byItems = () => "k";
+
+    it("shows timeout, retry and memoize as badges on the wrapped rule", () => {
+      expect(toMermaid(withTimeout(hasItems, 500, "late"))).toContain(
+        'root_rule["hasItems #9201; 500ms"]',
+      );
+      expect(toMermaid(withRetry(hasItems, { attempts: 3 }))).toContain(
+        'root_rule["hasItems #8635; 3x"]',
+      );
+      expect(toMermaid(withMemoize(hasItems, byItems))).toContain(
+        'root_rule["hasItems #9889; cached"]',
+      );
+    });
+
+    it("stacks badges from nested decorators", () => {
+      const text = toMermaid(
+        withTimeout(withRetry(hasItems, { attempts: 2 }), 5, "late"),
+      );
+
+      expect(text).toContain('["hasItems #9201; 5ms #8635; 2x"]');
+    });
+
+    it("titles a group with the badges when the decorated rule is composite", () => {
+      const text = toMermaid(
+        withTimeout(pipeRules([hasItems, withinLimit]), 5, "late"),
+      );
+
+      expect(text).toContain('subgraph root_rule_badge_sg["#9201; 5ms"]');
+      expect(text.match(/^ {2}end$/gm)).toHaveLength(1);
+    });
+
+    it("hides debug, tap and mapError plumbing unless verbose", () => {
+      const rules = [
+        withDebug(hasItems, "audit"),
+        withTap(() => undefined)(hasItems),
+        mapError(hasItems, (e: string) => e),
+      ];
+      const words = ["debug", "tap", "mapError"];
+      rules.forEach((rule, i) => {
+        expect(toMermaid(rule)).not.toContain("#");
+        expect(toMermaid(rule, { verbose: true })).toMatch(
+          new RegExp(`\\["\\w+ ${words[i]}"\\]`),
+        );
+      });
+    });
+
+    it("keeps real badges when verbose is off even under plumbing", () => {
+      const text = toMermaid(withDebug(withTimeout(hasItems, 5, "x"), "a"));
+
+      expect(text).toContain('["a #9201; 5ms"]');
+    });
+  });
+
+  describe("options", () => {
+    const rule = pipeRules([hasItems, withinLimit]);
+
+    it("direction switches the flowchart header", () => {
+      expect(toMermaid(rule, { direction: "LR" }).split("\n")[0]).toBe(
+        "flowchart LR",
+      );
+    });
+
+    it("failEdges: false drops the failed terminal and its edges", () => {
+      const text = toMermaid(rule, { failEdges: false });
+
+      expect(text).not.toContain("failed");
+      expect(text).not.toContain("-.->");
+      expect(text).toContain("root_steps_1 --> passed");
+    });
+
+    it("failEdges: false keeps fallback routing", () => {
+      const text = toMermaid(withFallback(hasItems, withinLimit), {
+        failEdges: false,
+      });
+
+      expect(text).toContain('-.->|"on fail"|');
+    });
+
+    it("maxLabelLength truncates long labels with an ellipsis", () => {
+      const longName = named("a_very_long_rule_name_indeed", hasItems);
+      const text = toMermaid(longName, { maxLabelLength: 10 });
+
+      expect(text).toContain('["a_very_lo#8230;"]');
+    });
+
+    it("maxLabelLength also truncates test, case and guard text but not badges", () => {
+      const isLongPredicate = named("isLongPredicateName", () => true);
+      const text = toMermaid(
+        withTimeout(when(isLongPredicate, hasItems), 500, "late"),
+        { maxLabelLength: 6 },
+      );
+
+      expect(text).toContain('{"isLon#8230;"}');
+      expect(text).toContain("500ms");
+    });
+
+    it("defaults to 40 characters", () => {
+      const text = toMermaid(named("x".repeat(60), hasItems));
+
+      expect(text).toContain(`["${"x".repeat(39)}#8230;"]`);
     });
   });
 });
