@@ -1,4 +1,5 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, inject, it } from "vitest";
 import { type Entry, PACKAGE_NAME, runInConsumer } from "./helpers";
@@ -123,6 +124,45 @@ describe.each<[Entry, Entry]>([
     });
   },
 );
+
+describe("installed package types", () => {
+  const importing = `import { pass, pipeRules, toGraph, type RuleGraph } from "${PACKAGE_NAME}";
+import { toMermaid, type MermaidOptions } from "${PACKAGE_NAME}/mermaid";
+const options: MermaidOptions = { direction: "LR", failEdges: true, verbose: true, maxLabelLength: 20 };
+const graph: RuleGraph = toGraph(pipeRules([() => pass()]));
+const text: string = toMermaid(pipeRules([() => pass()]), options);
+// @ts-expect-error direction is "TD" | "LR"
+const bad: MermaidOptions = { direction: "diagonal" };
+export { bad, graph, text };
+`;
+
+  it.each(["mts", "cts"])(
+    "compile for a %s consumer, including MermaidOptions",
+    (extension) => {
+      const projectDir = inject("projectDir");
+      const file = `check.${extension}`;
+      writeFileSync(join(projectDir, file), importing);
+
+      // `execFileSync` throws with tsc's output when the types are wrong.
+      execFileSync(
+        process.execPath,
+        [
+          join(import.meta.dirname, "..", "node_modules/typescript/bin/tsc"),
+          "--noEmit",
+          "--strict",
+          "--target",
+          "es2022",
+          "--module",
+          "nodenext",
+          "--moduleResolution",
+          "nodenext",
+          file,
+        ],
+        { cwd: projectDir, encoding: "utf8", stdio: "pipe" },
+      );
+    },
+  );
+});
 
 describe("installed package contents", () => {
   it("ships the built files and metadata, and nothing from src or tests", () => {
