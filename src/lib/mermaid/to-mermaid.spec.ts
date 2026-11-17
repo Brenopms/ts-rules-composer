@@ -120,6 +120,134 @@ describe("toMermaid label escaping", () => {
   });
 });
 
+describe("toMermaid adversarial escaping", () => {
+  const hostile = [
+    '"]; click x call alert(1)',
+    '%%{init: {"securityLevel":"loose"}}%%',
+    'a\nclick root href "javascript:alert(1)"',
+    "x --> y\n  style root fill:red",
+    "`<img src=x onerror=alert(1)>`",
+    "end\n  subgraph evil",
+    "\u202Ertl\u2028\u2029",
+  ];
+
+  // Every line our printer can emit. Quoted text may hold only plain letters,
+  // digits, spaces, `_.,:/-` and numeric entities such as `#34;`.
+  const text = String.raw`(?:[\p{L}\p{N} _.,:/?-]|#\d+;)*`;
+  const id = String.raw`[A-Za-z0-9_]+`;
+  const allowed = [
+    /^flowchart (TD|LR)$/,
+    new RegExp(
+      `^ {2}${id}(?:\\(\\(|\\(\\[|\\(|\\[|\\{)"${text}"(?:\\)\\)|\\]\\)|\\)|\\]|\\})$`,
+      "u",
+    ),
+    new RegExp(`^ {2}${id}(?:\\(\\(|\\(\\[)[a-z]+(?:\\)\\)|\\]\\))$`, "u"),
+    new RegExp(`^ {2}subgraph ${id}\\["${text}"\\]$`, "u"),
+    /^ {2}end$/,
+    new RegExp(`^ {2}${id} (?:-->|-\\.->)(?:\\|"${text}"\\|)? ${id}$`, "u"),
+  ];
+
+  const hostilePipeline = (bad: string) =>
+    pipeRules([
+      named(bad, () => pass()),
+      when(
+        named(bad, () => true),
+        named(bad, () => pass()),
+      ),
+      match(
+        named(bad, () => "k"),
+        {
+          [bad]: named(bad, () => pass()),
+        },
+      ),
+      validateField(
+        named(bad, () => 1),
+        named(bad, () => pass()),
+      ),
+      withFallback(
+        named(bad, () => pass()),
+        named(bad, () => pass()),
+        {
+          onlyFallbackOn: named(bad, () => true),
+        },
+      ),
+      withTimeout(
+        named(bad, () => pass()),
+        5,
+        bad,
+      ),
+      every([named(bad, () => pass())]) as never,
+      not(
+        named(bad, () => pass()),
+        bad,
+      ),
+    ]);
+
+  it.each(hostile)(
+    "keeps every line inside the printer's grammar: %j",
+    (bad) => {
+      const output = toMermaid(hostilePipeline(bad), { verbose: true });
+
+      for (const line of output.split("\n")) {
+        expect(
+          allowed.some((pattern) => pattern.test(line)),
+          line,
+        ).toBe(true);
+      }
+    },
+  );
+
+  it.each(hostile)("never lets a statement keyword start a line: %j", (bad) => {
+    const output = toMermaid(hostilePipeline(bad));
+
+    expect(output).not.toMatch(
+      /^\s*(click|style|classDef|linkStyle|class|href)\b/m,
+    );
+    expect(output).not.toContain("%%");
+  });
+
+  it("opens and closes the same number of groups however hostile the names", () => {
+    const output = toMermaid(hostilePipeline("end\n  subgraph evil"));
+    const outputLines = output.split("\n");
+
+    expect(outputLines.filter((l) => /^ {2}subgraph /.test(l))).toHaveLength(
+      outputLines.filter((l) => l === "  end").length,
+    );
+  });
+
+  it("turns the documented attack string into inert text", () => {
+    const output = toMermaid(named('"]; click x call alert(1)', () => pass()));
+
+    expect(output).toContain('["#34;#93;#59; click x call alert#40;1#41;"]');
+  });
+
+  it("encodes astral characters as one entity, not two surrogates", () => {
+    expect(toMermaid(named("a😀b", () => pass()))).toContain('["a#128512;b"]');
+  });
+
+  it("does not echo a hostile non-string badge param", () => {
+    const odd = attachNode(
+      function inner() {
+        return pass();
+      },
+      {
+        kind: "decorator",
+        decorator: "timeout",
+        rule: hasItems,
+        params: { ms: { toString: () => '"]; click x' } },
+      },
+    );
+
+    expect(toMermaid(odd)).not.toContain("click");
+  });
+
+  it("never invokes hostile getters or names", () => {
+    const spy = vi.fn(() => pass());
+    toMermaid(named('"]; click', spy));
+    expect(spy).not.toHaveBeenCalled();
+  });
+});
+
 const lines = (...rows: string[]) => ["flowchart TD", ...rows].join("\n");
 const isLarge = () => true;
 const isRetryable = () => true;
