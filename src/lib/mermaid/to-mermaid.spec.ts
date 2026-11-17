@@ -404,15 +404,23 @@ describe("toMermaid node shapes", () => {
         '  subgraph root_sg["not"]',
         '  root_rule["hasItems"]',
         "  end",
-        '  root_gate{"inner passed?"}',
+        '  root_gate{"inner failed?"}',
         "  passed([passed])",
         "  failed([failed])",
         "  input --> root_rule",
         "  root_rule --> root_gate",
-        '  root_gate -->|"no"| passed',
-        '  root_gate -.->|"yes"| failed',
+        '  root_gate -->|"yes"| passed',
+        '  root_gate -.->|"no"| failed',
       ),
     );
+  });
+
+  it("reads on its own for a not gate when fail edges are off", () => {
+    const text = printDefault(not(hasItems, "must not pass"));
+
+    expect(text).toContain('root_gate{"inner failed?"}');
+    expect(text).toContain('root_gate -->|"yes"| passed');
+    expect(text).not.toContain("failed(");
   });
 
   it("draws withFallback with a dotted on-fail edge to the fallback", () => {

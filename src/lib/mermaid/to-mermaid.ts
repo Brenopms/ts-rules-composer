@@ -265,11 +265,12 @@ const draw = (
       const part = sub(node.rule);
       const gate = `${id}_gate`;
       return fragment({
-        nodes: [...group(id, "not", part.nodes), `  ${gate}{"inner passed?"}`],
+        nodes: [...group(id, "not", part.nodes), `  ${gate}{"inner failed?"}`],
         edges: [...part.edges, ...linkAll(part.exits, gate)],
         entry: part.entry,
-        exits: [{ id: gate, label: "no" }],
-        fails: [{ id: gate, label: "yes" }],
+        // `not` passes when the inner rule fails, so the happy edge reads "yes".
+        exits: [{ id: gate, label: "yes" }],
+        fails: [{ id: gate, label: "no" }],
       });
     }
     case "fallback": {
