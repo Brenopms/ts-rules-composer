@@ -57,6 +57,7 @@ body.dark, :root[data-theme="dark"] {
 <h2 id="why" class="tsd-anchor-link">Why<a href="#why" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
 <p>Schema validators answer &quot;is this data shaped correctly?&quot;. Business rules ask more: does this user have permission, is this order within their limit, did the fraud service say yes before the timeout? Those checks need shared context, async calls, branching, retries and timeouts.</p>
 <p><code>ts-rules-composer</code> treats each check as a small function (a <strong>rule</strong>) and gives you combinators to wire rules together, with the input, context and error types inferred end to end. It complements schema validators such as <code>zod</code>; it does not replace them.</p>
+<p>Because a pipeline is plain data, you can also <a href="#diagrams">draw it</a>: <code>toMermaid</code> turns the rules you actually ship into a flowchart, without running them. The diagram comes from the code, so it never goes stale.</p>
 <h2 id="contents" class="tsd-anchor-link">Contents<a href="#contents" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
 <ul>
 <li><a href="#installation">Installation</a></li>
@@ -64,10 +65,10 @@ body.dark, :root[data-theme="dark"] {
 <li><a href="#features">Features</a></li>
 <li><a href="#core-concepts">Core concepts</a></li>
 <li><a href="#usage-examples">Usage examples</a></li>
+<li><a href="#diagrams">Diagrams</a></li>
 <li><a href="#error-handling-standardization">Error handling</a></li>
 <li><a href="#guardrails-and-policy-checks">Guardrails and policy checks</a></li>
 <li><a href="#context-cloning-options">Context cloning</a></li>
-<li><a href="#diagrams">Diagrams</a></li>
 <li><a href="#best-practices">Best practices</a></li>
 <li><a href="#comparison-to-other-libraries">Comparison to other libraries</a></li>
 <li><a href="#api-reference">API reference</a></li>
@@ -80,13 +81,65 @@ body.dark, :root[data-theme="dark"] {
 
 <p>Requires Node.js 22 or later, or a modern browser.</p>
 <h2 id="quick-start" class="tsd-anchor-link">Quick start<a href="#quick-start" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
-<pre><code class="typescript"><span class="hl-4">import</span><span class="hl-1"> { </span><span class="hl-5">fail</span><span class="hl-1">, </span><span class="hl-5">match</span><span class="hl-1">, </span><span class="hl-5">pass</span><span class="hl-1">, </span><span class="hl-5">pipeRules</span><span class="hl-1"> } </span><span class="hl-4">from</span><span class="hl-1"> </span><span class="hl-2">&quot;ts-rules-composer&quot;</span><span class="hl-1">;</span><br/><br/><span class="hl-6">type</span><span class="hl-1"> </span><span class="hl-7">Order</span><span class="hl-1"> = { </span><span class="hl-5">items</span><span class="hl-1">: </span><span class="hl-7">number</span><span class="hl-1">; </span><span class="hl-5">total</span><span class="hl-1">: </span><span class="hl-7">number</span><span class="hl-1">; </span><span class="hl-5">payment</span><span class="hl-1">: </span><span class="hl-2">&quot;card&quot;</span><span class="hl-1"> | </span><span class="hl-2">&quot;paypal&quot;</span><span class="hl-1"> };</span><br/><span class="hl-6">type</span><span class="hl-1"> </span><span class="hl-7">Ctx</span><span class="hl-1"> = { </span><span class="hl-5">limit</span><span class="hl-1">: </span><span class="hl-7">number</span><span class="hl-1"> };</span><br/><br/><span class="hl-3">// A rule is a function: (input, context?) =&gt; pass() | fail(error)</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-0">hasItems</span><span class="hl-1"> = (</span><span class="hl-5">order</span><span class="hl-1">: </span><span class="hl-7">Order</span><span class="hl-1">) </span><span class="hl-6">=&gt;</span><br/><span class="hl-1">  </span><span class="hl-5">order</span><span class="hl-1">.</span><span class="hl-5">items</span><span class="hl-1"> &gt; </span><span class="hl-8">0</span><span class="hl-1"> ? </span><span class="hl-0">pass</span><span class="hl-1">() : </span><span class="hl-0">fail</span><span class="hl-1">(</span><span class="hl-2">&quot;Cart is empty&quot;</span><span class="hl-1">);</span><br/><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-0">withinLimit</span><span class="hl-1"> = (</span><span class="hl-5">order</span><span class="hl-1">: </span><span class="hl-7">Order</span><span class="hl-1">, </span><span class="hl-5">ctx</span><span class="hl-1">?: </span><span class="hl-7">Ctx</span><span class="hl-1">) </span><span class="hl-6">=&gt;</span><br/><span class="hl-1">  </span><span class="hl-5">order</span><span class="hl-1">.</span><span class="hl-5">total</span><span class="hl-1"> &lt;= (</span><span class="hl-5">ctx</span><span class="hl-1">?.</span><span class="hl-5">limit</span><span class="hl-1"> ?? </span><span class="hl-8">1000</span><span class="hl-1">) ? </span><span class="hl-0">pass</span><span class="hl-1">() : </span><span class="hl-0">fail</span><span class="hl-1">(</span><span class="hl-2">&quot;Over the spending limit&quot;</span><span class="hl-1">);</span><br/><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-0">validateCard</span><span class="hl-1"> = (</span><span class="hl-5">order</span><span class="hl-1">: </span><span class="hl-7">Order</span><span class="hl-1">) </span><span class="hl-6">=&gt;</span><br/><span class="hl-1">  </span><span class="hl-5">order</span><span class="hl-1">.</span><span class="hl-5">total</span><span class="hl-1"> &gt; </span><span class="hl-8">0</span><span class="hl-1"> ? </span><span class="hl-0">pass</span><span class="hl-1">() : </span><span class="hl-0">fail</span><span class="hl-1">(</span><span class="hl-2">&quot;Invalid amount&quot;</span><span class="hl-1">);</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-0">validatePaypal</span><span class="hl-1"> = (</span><span class="hl-5">_order</span><span class="hl-1">: </span><span class="hl-7">Order</span><span class="hl-1">) </span><span class="hl-6">=&gt;</span><span class="hl-1"> </span><span class="hl-0">pass</span><span class="hl-1">();</span><br/><br/><span class="hl-3">// Combinators wire rules together; context reaches every rule</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-9">validateCheckout</span><span class="hl-1"> = </span><span class="hl-0">pipeRules</span><span class="hl-1">&lt;</span><span class="hl-7">Order</span><span class="hl-1">, </span><span class="hl-7">string</span><span class="hl-1">, </span><span class="hl-7">Ctx</span><span class="hl-1">&gt;([</span><br/><span class="hl-1">  </span><span class="hl-5">hasItems</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-5">withinLimit</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-0">match</span><span class="hl-1">((</span><span class="hl-5">order</span><span class="hl-1">: </span><span class="hl-7">Order</span><span class="hl-1">) </span><span class="hl-6">=&gt;</span><span class="hl-1"> </span><span class="hl-5">order</span><span class="hl-1">.</span><span class="hl-5">payment</span><span class="hl-1">, {</span><br/><span class="hl-1">    </span><span class="hl-5">card:</span><span class="hl-1"> </span><span class="hl-5">validateCard</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-5">paypal:</span><span class="hl-1"> </span><span class="hl-5">validatePaypal</span><span class="hl-1">,</span><br/><span class="hl-1">  }),</span><br/><span class="hl-1">]);</span><br/><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-0">validateCheckout</span><span class="hl-1">({ </span><span class="hl-5">items:</span><span class="hl-1"> </span><span class="hl-8">2</span><span class="hl-1">, </span><span class="hl-5">total:</span><span class="hl-1"> </span><span class="hl-8">40</span><span class="hl-1">, </span><span class="hl-5">payment:</span><span class="hl-1"> </span><span class="hl-2">&quot;card&quot;</span><span class="hl-1"> }, { </span><span class="hl-5">limit:</span><span class="hl-1"> </span><span class="hl-8">500</span><span class="hl-1"> });</span><br/><span class="hl-3">// → { status: &quot;passed&quot; }</span><br/><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-0">validateCheckout</span><span class="hl-1">({ </span><span class="hl-5">items:</span><span class="hl-1"> </span><span class="hl-8">0</span><span class="hl-1">, </span><span class="hl-5">total:</span><span class="hl-1"> </span><span class="hl-8">40</span><span class="hl-1">, </span><span class="hl-5">payment:</span><span class="hl-1"> </span><span class="hl-2">&quot;card&quot;</span><span class="hl-1"> });</span><br/><span class="hl-3">// → { status: &quot;failed&quot;, error: &quot;Cart is empty&quot; }</span><br/><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-0">validateCheckout</span><span class="hl-1">({ </span><span class="hl-5">items:</span><span class="hl-1"> </span><span class="hl-8">1</span><span class="hl-1">, </span><span class="hl-5">total:</span><span class="hl-1"> </span><span class="hl-8">900</span><span class="hl-1">, </span><span class="hl-5">payment:</span><span class="hl-1"> </span><span class="hl-2">&quot;paypal&quot;</span><span class="hl-1"> }, { </span><span class="hl-5">limit:</span><span class="hl-1"> </span><span class="hl-8">500</span><span class="hl-1"> });</span><br/><span class="hl-3">// → { status: &quot;failed&quot;, error: &quot;Over the spending limit&quot; }</span>
+<pre><code class="typescript"><span class="hl-4">import</span><span class="hl-1"> { </span><span class="hl-5">fail</span><span class="hl-1">, </span><span class="hl-5">match</span><span class="hl-1">, </span><span class="hl-5">named</span><span class="hl-1">, </span><span class="hl-5">pass</span><span class="hl-1">, </span><span class="hl-5">pipeRules</span><span class="hl-1"> } </span><span class="hl-4">from</span><span class="hl-1"> </span><span class="hl-2">&quot;ts-rules-composer&quot;</span><span class="hl-1">;</span><br/><br/><span class="hl-6">type</span><span class="hl-1"> </span><span class="hl-7">Order</span><span class="hl-1"> = { </span><span class="hl-5">items</span><span class="hl-1">: </span><span class="hl-7">number</span><span class="hl-1">; </span><span class="hl-5">total</span><span class="hl-1">: </span><span class="hl-7">number</span><span class="hl-1">; </span><span class="hl-5">payment</span><span class="hl-1">: </span><span class="hl-2">&quot;card&quot;</span><span class="hl-1"> | </span><span class="hl-2">&quot;paypal&quot;</span><span class="hl-1"> };</span><br/><span class="hl-6">type</span><span class="hl-1"> </span><span class="hl-7">Ctx</span><span class="hl-1"> = { </span><span class="hl-5">limit</span><span class="hl-1">: </span><span class="hl-7">number</span><span class="hl-1"> };</span><br/><br/><span class="hl-3">// A rule is a function: (input, context?) =&gt; pass() | fail(error)</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-0">hasItems</span><span class="hl-1"> = (</span><span class="hl-5">order</span><span class="hl-1">: </span><span class="hl-7">Order</span><span class="hl-1">) </span><span class="hl-6">=&gt;</span><br/><span class="hl-1">  </span><span class="hl-5">order</span><span class="hl-1">.</span><span class="hl-5">items</span><span class="hl-1"> &gt; </span><span class="hl-8">0</span><span class="hl-1"> ? </span><span class="hl-0">pass</span><span class="hl-1">() : </span><span class="hl-0">fail</span><span class="hl-1">(</span><span class="hl-2">&quot;Cart is empty&quot;</span><span class="hl-1">);</span><br/><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-0">withinLimit</span><span class="hl-1"> = (</span><span class="hl-5">order</span><span class="hl-1">: </span><span class="hl-7">Order</span><span class="hl-1">, </span><span class="hl-5">ctx</span><span class="hl-1">?: </span><span class="hl-7">Ctx</span><span class="hl-1">) </span><span class="hl-6">=&gt;</span><br/><span class="hl-1">  </span><span class="hl-5">order</span><span class="hl-1">.</span><span class="hl-5">total</span><span class="hl-1"> &lt;= (</span><span class="hl-5">ctx</span><span class="hl-1">?.</span><span class="hl-5">limit</span><span class="hl-1"> ?? </span><span class="hl-8">1000</span><span class="hl-1">) ? </span><span class="hl-0">pass</span><span class="hl-1">() : </span><span class="hl-0">fail</span><span class="hl-1">(</span><span class="hl-2">&quot;Over the spending limit&quot;</span><span class="hl-1">);</span><br/><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-0">validateCard</span><span class="hl-1"> = (</span><span class="hl-5">order</span><span class="hl-1">: </span><span class="hl-7">Order</span><span class="hl-1">) </span><span class="hl-6">=&gt;</span><br/><span class="hl-1">  </span><span class="hl-5">order</span><span class="hl-1">.</span><span class="hl-5">total</span><span class="hl-1"> &gt; </span><span class="hl-8">0</span><span class="hl-1"> ? </span><span class="hl-0">pass</span><span class="hl-1">() : </span><span class="hl-0">fail</span><span class="hl-1">(</span><span class="hl-2">&quot;Invalid amount&quot;</span><span class="hl-1">);</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-0">validatePaypal</span><span class="hl-1"> = (</span><span class="hl-5">_order</span><span class="hl-1">: </span><span class="hl-7">Order</span><span class="hl-1">) </span><span class="hl-6">=&gt;</span><span class="hl-1"> </span><span class="hl-0">pass</span><span class="hl-1">();</span><br/><br/><span class="hl-3">// Combinators wire rules together; context reaches every rule</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-9">validateCheckout</span><span class="hl-1"> = </span><span class="hl-0">pipeRules</span><span class="hl-1">&lt;</span><span class="hl-7">Order</span><span class="hl-1">, </span><span class="hl-7">string</span><span class="hl-1">, </span><span class="hl-7">Ctx</span><span class="hl-1">&gt;([</span><br/><span class="hl-1">  </span><span class="hl-5">hasItems</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-5">withinLimit</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-0">match</span><span class="hl-1">(</span><span class="hl-0">named</span><span class="hl-1">(</span><span class="hl-2">&quot;payment&quot;</span><span class="hl-1">, (</span><span class="hl-5">order</span><span class="hl-1">: </span><span class="hl-7">Order</span><span class="hl-1">) </span><span class="hl-6">=&gt;</span><span class="hl-1"> </span><span class="hl-5">order</span><span class="hl-1">.</span><span class="hl-5">payment</span><span class="hl-1">), {</span><br/><span class="hl-1">    </span><span class="hl-5">card:</span><span class="hl-1"> </span><span class="hl-5">validateCard</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-5">paypal:</span><span class="hl-1"> </span><span class="hl-5">validatePaypal</span><span class="hl-1">,</span><br/><span class="hl-1">  }),</span><br/><span class="hl-1">]);</span><br/><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-0">validateCheckout</span><span class="hl-1">({ </span><span class="hl-5">items:</span><span class="hl-1"> </span><span class="hl-8">2</span><span class="hl-1">, </span><span class="hl-5">total:</span><span class="hl-1"> </span><span class="hl-8">40</span><span class="hl-1">, </span><span class="hl-5">payment:</span><span class="hl-1"> </span><span class="hl-2">&quot;card&quot;</span><span class="hl-1"> }, { </span><span class="hl-5">limit:</span><span class="hl-1"> </span><span class="hl-8">500</span><span class="hl-1"> });</span><br/><span class="hl-3">// → { status: &quot;passed&quot; }</span><br/><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-0">validateCheckout</span><span class="hl-1">({ </span><span class="hl-5">items:</span><span class="hl-1"> </span><span class="hl-8">0</span><span class="hl-1">, </span><span class="hl-5">total:</span><span class="hl-1"> </span><span class="hl-8">40</span><span class="hl-1">, </span><span class="hl-5">payment:</span><span class="hl-1"> </span><span class="hl-2">&quot;card&quot;</span><span class="hl-1"> });</span><br/><span class="hl-3">// → { status: &quot;failed&quot;, error: &quot;Cart is empty&quot; }</span><br/><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-0">validateCheckout</span><span class="hl-1">({ </span><span class="hl-5">items:</span><span class="hl-1"> </span><span class="hl-8">1</span><span class="hl-1">, </span><span class="hl-5">total:</span><span class="hl-1"> </span><span class="hl-8">900</span><span class="hl-1">, </span><span class="hl-5">payment:</span><span class="hl-1"> </span><span class="hl-2">&quot;paypal&quot;</span><span class="hl-1"> }, { </span><span class="hl-5">limit:</span><span class="hl-1"> </span><span class="hl-8">500</span><span class="hl-1"> });</span><br/><span class="hl-3">// → { status: &quot;failed&quot;, error: &quot;Over the spending limit&quot; }</span>
 </code><button type="button">Copy</button></pre>
 
 <p><code>pipeRules</code> runs rules in order and stops at the first failure. See <a href="#core-concepts">Core concepts</a> for the model and the <a href="#api-reference">API reference</a> for every combinator.</p>
+<h3 id="see-it-as-a-diagram" class="tsd-anchor-link">See it as a diagram<a href="#see-it-as-a-diagram" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<p>The same pipeline, drawn without running it:</p>
+<pre><code class="ts"><span class="hl-4">import</span><span class="hl-1"> { </span><span class="hl-5">toMermaid</span><span class="hl-1"> } </span><span class="hl-4">from</span><span class="hl-1"> </span><span class="hl-2">&quot;ts-rules-composer/mermaid&quot;</span><span class="hl-1">;</span><br/><br/><span class="hl-5">console</span><span class="hl-1">.</span><span class="hl-0">log</span><span class="hl-1">(</span><span class="hl-0">toMermaid</span><span class="hl-1">(</span><span class="hl-5">validateCheckout</span><span class="hl-1">));</span>
+</code><button type="button">Copy</button></pre>
+
+<div class="mermaid-block"><div class="mermaid dark">%%{init:{"theme":"dark"}}%%
+flowchart TD
+  input([input])
+  root_steps_0[&quot;hasItems&quot;]
+  root_steps_1[&quot;withinLimit&quot;]
+  root_steps_2{&quot;payment&quot;}
+  root_steps_2_cases_0[&quot;validateCard&quot;]
+  root_steps_2_cases_1[&quot;validatePaypal&quot;]
+  passed([passed])
+  input --&gt; root_steps_0
+  root_steps_2 --&gt;|&quot;card&quot;| root_steps_2_cases_0
+  root_steps_2 --&gt;|&quot;paypal&quot;| root_steps_2_cases_1
+  root_steps_0 --&gt; root_steps_1
+  root_steps_1 --&gt; root_steps_2
+  root_steps_2_cases_0 --&gt; passed
+  root_steps_2_cases_1 --&gt; passed</div><div class="mermaid light">%%{init:{"theme":"default"}}%%
+flowchart TD
+  input([input])
+  root_steps_0[&quot;hasItems&quot;]
+  root_steps_1[&quot;withinLimit&quot;]
+  root_steps_2{&quot;payment&quot;}
+  root_steps_2_cases_0[&quot;validateCard&quot;]
+  root_steps_2_cases_1[&quot;validatePaypal&quot;]
+  passed([passed])
+  input --&gt; root_steps_0
+  root_steps_2 --&gt;|&quot;card&quot;| root_steps_2_cases_0
+  root_steps_2 --&gt;|&quot;paypal&quot;| root_steps_2_cases_1
+  root_steps_0 --&gt; root_steps_1
+  root_steps_1 --&gt; root_steps_2
+  root_steps_2_cases_0 --&gt; passed
+  root_steps_2_cases_1 --&gt; passed</div><pre><code class="language-mermaid">flowchart TD
+  input([input])
+  root_steps_0[&quot;hasItems&quot;]
+  root_steps_1[&quot;withinLimit&quot;]
+  root_steps_2{&quot;payment&quot;}
+  root_steps_2_cases_0[&quot;validateCard&quot;]
+  root_steps_2_cases_1[&quot;validatePaypal&quot;]
+  passed([passed])
+  input --&gt; root_steps_0
+  root_steps_2 --&gt;|&quot;card&quot;| root_steps_2_cases_0
+  root_steps_2 --&gt;|&quot;paypal&quot;| root_steps_2_cases_1
+  root_steps_0 --&gt; root_steps_1
+  root_steps_1 --&gt; root_steps_2
+  root_steps_2_cases_0 --&gt; passed
+  root_steps_2_cases_1 --&gt; passed</code></pre></div>
+<p>Diagrams show the names the engine can find, which is why the <code>match</code> accessor above uses <code>named(&quot;payment&quot;, ...)</code>. Unnamed functions print as <code>rule #1</code>. See <a href="#diagrams">Diagrams</a> for options and naming tips.</p>
 <h2 id="features" class="tsd-anchor-link">Features<a href="#features" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
 <ul>
 <li><strong>Composable</strong>: build pipelines from combinators such as <code>when</code>, <code>unless</code>, <code>match</code>, <code>every</code> and <code>mapError</code></li>
+<li><strong>Self-documenting</strong>: <code>toMermaid</code> turns any pipeline into a flowchart that always matches the code, without running it</li>
 <li><strong>Zero dependencies</strong>: small and tree-shakeable (<code>sideEffects: false</code>)</li>
 <li><strong>TypeScript first</strong>: inference for inputs, contexts and errors</li>
 <li><strong>Async ready</strong>: mix sync and async rules</li>
@@ -94,7 +147,6 @@ body.dark, :root[data-theme="dark"] {
 <li><strong>Resilient</strong>: retries, timeouts, memoization and fallbacks built in</li>
 <li><strong>Extensible</strong>: write your own combinators with the same <code>Rule</code> type</li>
 <li><strong>Instrumented</strong>: <code>withDebug</code> and <code>withTap</code> for logging and metrics</li>
-<li><strong>Diagrams</strong>: <code>toGraph</code> and <code>toMermaid</code> draw your pipelines as flowcharts without running them</li>
 <li><strong>Portable</strong>: Node.js 22+ and modern browsers</li>
 </ul>
 <h2 id="core-concepts" class="tsd-anchor-link">Core Concepts<a href="#core-concepts" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
@@ -153,6 +205,144 @@ body.dark, :root[data-theme="dark"] {
 <pre><code class="typescript"><span class="hl-4">import</span><span class="hl-1"> {</span><br/><span class="hl-1">  </span><span class="hl-5">pipeRules</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-5">match</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-5">withRetry</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-5">withMemoize</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-5">withTimeout</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-5">when</span><br/><span class="hl-1">} </span><span class="hl-4">from</span><span class="hl-1"> </span><span class="hl-2">&#39;ts-rules-composer&#39;</span><span class="hl-1">;</span><br/><br/><span class="hl-3">// 1. Basic validators</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-0">validateAmount</span><span class="hl-1"> = (</span><span class="hl-5">tx</span><span class="hl-1">: </span><span class="hl-7">Transaction</span><span class="hl-1">) </span><span class="hl-6">=&gt;</span><br/><span class="hl-1">  </span><span class="hl-5">tx</span><span class="hl-1">.</span><span class="hl-5">amount</span><span class="hl-1"> &gt; </span><span class="hl-8">0</span><span class="hl-1"> ? </span><span class="hl-0">pass</span><span class="hl-1">() : </span><span class="hl-0">fail</span><span class="hl-1">(</span><span class="hl-2">&quot;Amount must be positive&quot;</span><span class="hl-1">);</span><br/><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-0">validateCurrency</span><span class="hl-1"> = (</span><span class="hl-5">tx</span><span class="hl-1">: </span><span class="hl-7">Transaction</span><span class="hl-1">) </span><span class="hl-6">=&gt;</span><br/><span class="hl-1">  </span><span class="hl-9">SUPPORTED_CURRENCIES</span><span class="hl-1">.</span><span class="hl-0">includes</span><span class="hl-1">(</span><span class="hl-5">tx</span><span class="hl-1">.</span><span class="hl-5">currency</span><span class="hl-1">)</span><br/><span class="hl-1">    ? </span><span class="hl-0">pass</span><span class="hl-1">()</span><br/><span class="hl-1">    : </span><span class="hl-0">fail</span><span class="hl-1">(</span><span class="hl-2">`Unsupported currency: </span><span class="hl-6">${</span><span class="hl-5">tx</span><span class="hl-10">.</span><span class="hl-5">currency</span><span class="hl-6">}</span><span class="hl-2">`</span><span class="hl-1">);</span><br/><br/><span class="hl-3">// 2. Memoized fraud check (cached for 5 minutes)</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-9">checkFraudRisk</span><span class="hl-1"> = </span><span class="hl-0">withMemoize</span><span class="hl-1">(</span><br/><span class="hl-1">  </span><span class="hl-6">async</span><span class="hl-1"> (</span><span class="hl-5">tx</span><span class="hl-1">: </span><span class="hl-7">Transaction</span><span class="hl-1">) </span><span class="hl-6">=&gt;</span><span class="hl-1"> {</span><br/><span class="hl-1">    </span><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-9">risk</span><span class="hl-1"> = </span><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">fraudService</span><span class="hl-1">.</span><span class="hl-0">assess</span><span class="hl-1">(</span><span class="hl-5">tx</span><span class="hl-1">);</span><br/><span class="hl-1">    </span><span class="hl-4">return</span><span class="hl-1"> </span><span class="hl-5">risk</span><span class="hl-1">.</span><span class="hl-5">score</span><span class="hl-1"> &lt; </span><span class="hl-8">5</span><span class="hl-1"> ? </span><span class="hl-0">pass</span><span class="hl-1">() : </span><span class="hl-0">fail</span><span class="hl-1">(</span><span class="hl-2">&quot;High fraud risk&quot;</span><span class="hl-1">);</span><br/><span class="hl-1">  },</span><br/><span class="hl-1">  </span><span class="hl-5">tx</span><span class="hl-1"> </span><span class="hl-6">=&gt;</span><span class="hl-1"> </span><span class="hl-9">JSON</span><span class="hl-1">.</span><span class="hl-0">stringify</span><span class="hl-1">([</span><span class="hl-5">tx</span><span class="hl-1">.</span><span class="hl-5">userId</span><span class="hl-1">, </span><span class="hl-5">tx</span><span class="hl-1">.</span><span class="hl-5">amount</span><span class="hl-1">, </span><span class="hl-5">tx</span><span class="hl-1">.</span><span class="hl-5">recipient</span><span class="hl-1">]),</span><br/><span class="hl-1">  { </span><span class="hl-5">ttl:</span><span class="hl-1"> </span><span class="hl-8">300000</span><span class="hl-1"> }</span><br/><span class="hl-1">);</span><br/><br/><span class="hl-3">// 3. Payment method handling</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-9">validatePaymentMethod</span><span class="hl-1"> = </span><span class="hl-0">match</span><span class="hl-1">(</span><br/><span class="hl-1">  </span><span class="hl-5">tx</span><span class="hl-1"> </span><span class="hl-6">=&gt;</span><span class="hl-1"> </span><span class="hl-5">tx</span><span class="hl-1">.</span><span class="hl-5">paymentType</span><span class="hl-1">,</span><br/><span class="hl-1">  {</span><br/><span class="hl-1">    </span><span class="hl-2">&quot;credit_card&quot;</span><span class="hl-5">:</span><span class="hl-1"> </span><span class="hl-0">pipeRules</span><span class="hl-1">([</span><br/><span class="hl-1">      </span><span class="hl-5">validateCardNumber</span><span class="hl-1">,</span><br/><span class="hl-1">      </span><span class="hl-5">validateExpiry</span><span class="hl-1">,</span><br/><span class="hl-1">      </span><span class="hl-0">withTimeout</span><span class="hl-1">(</span><span class="hl-5">bankAuthCheck</span><span class="hl-1">, </span><span class="hl-8">3000</span><span class="hl-1">, </span><span class="hl-2">&quot;Bank auth timeout&quot;</span><span class="hl-1">)</span><br/><span class="hl-1">    ]),</span><br/><span class="hl-1">    </span><span class="hl-2">&quot;crypto&quot;</span><span class="hl-5">:</span><span class="hl-1"> </span><span class="hl-5">validateWalletAddress</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-2">&quot;bank_transfer&quot;</span><span class="hl-5">:</span><span class="hl-1"> </span><span class="hl-5">validateIBAN</span><br/><span class="hl-1">  }</span><br/><span class="hl-1">);</span><br/><br/><span class="hl-3">// 4. Complete pipeline</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-9">validateTransaction</span><span class="hl-1"> = </span><span class="hl-0">pipeRules</span><span class="hl-1">([</span><br/><span class="hl-1">  </span><span class="hl-5">validateAmount</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-5">validateCurrency</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><br/><span class="hl-1">  </span><span class="hl-3">// Only run fraud check for transactions &gt; $1000</span><br/><span class="hl-1">  </span><span class="hl-0">when</span><span class="hl-1">(</span><br/><span class="hl-1">    </span><span class="hl-5">tx</span><span class="hl-1"> </span><span class="hl-6">=&gt;</span><span class="hl-1"> </span><span class="hl-5">tx</span><span class="hl-1">.</span><span class="hl-5">amount</span><span class="hl-1"> &gt; </span><span class="hl-8">1000</span><span class="hl-1">,</span><br/><span class="hl-1">    </span><span class="hl-0">withRetry</span><span class="hl-1">(</span><span class="hl-5">checkFraudRisk</span><span class="hl-1">, { </span><span class="hl-5">attempts:</span><span class="hl-1"> </span><span class="hl-8">2</span><span class="hl-1"> })</span><br/><span class="hl-1">  ),</span><br/><span class="hl-1">  </span><br/><span class="hl-1">  </span><span class="hl-5">validatePaymentMethod</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><br/><span class="hl-1">  </span><span class="hl-3">// Compliance check (different for business/personal)</span><br/><span class="hl-1">  </span><span class="hl-0">match</span><span class="hl-1">(</span><br/><span class="hl-1">    </span><span class="hl-5">tx</span><span class="hl-1"> </span><span class="hl-6">=&gt;</span><span class="hl-1"> </span><span class="hl-5">tx</span><span class="hl-1">.</span><span class="hl-5">accountType</span><span class="hl-1">,</span><br/><span class="hl-1">    {</span><br/><span class="hl-1">      </span><span class="hl-2">&quot;business&quot;</span><span class="hl-5">:</span><span class="hl-1"> </span><span class="hl-5">validateBusinessTransfer</span><span class="hl-1">,</span><br/><span class="hl-1">      </span><span class="hl-2">&quot;personal&quot;</span><span class="hl-5">:</span><span class="hl-1"> </span><span class="hl-5">validatePersonalTransfer</span><br/><span class="hl-1">    }</span><br/><span class="hl-1">  )</span><br/><span class="hl-1">]);</span><br/><br/><span class="hl-3">// Usage</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-9">result</span><span class="hl-1"> = </span><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-0">validateTransaction</span><span class="hl-1">(</span><span class="hl-5">paymentRequest</span><span class="hl-1">);</span>
 </code><button type="button">Copy</button></pre>
 
+<h2 id="diagrams" class="tsd-anchor-link">Diagrams<a href="#diagrams" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<p><code>toGraph</code> and <code>toMermaid</code> describe a pipeline without running it, so you can draw the rules you actually ship. Neither calls your rules, predicates or accessors.</p>
+<pre><code class="ts"><span class="hl-4">import</span><span class="hl-1"> { </span><span class="hl-5">every</span><span class="hl-1">, </span><span class="hl-5">mapError</span><span class="hl-1">, </span><span class="hl-5">match</span><span class="hl-1">, </span><span class="hl-5">named</span><span class="hl-1">, </span><span class="hl-5">pipeRules</span><span class="hl-1">, </span><span class="hl-5">toGraph</span><span class="hl-1">, </span><span class="hl-5">withMemoize</span><span class="hl-1"> } </span><span class="hl-4">from</span><span class="hl-1"> </span><span class="hl-2">&quot;ts-rules-composer&quot;</span><span class="hl-1">;</span><br/><span class="hl-4">import</span><span class="hl-1"> { </span><span class="hl-5">toMermaid</span><span class="hl-1"> } </span><span class="hl-4">from</span><span class="hl-1"> </span><span class="hl-2">&quot;ts-rules-composer/mermaid&quot;</span><span class="hl-1">;</span><br/><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-9">pipeline</span><span class="hl-1"> = </span><span class="hl-0">pipeRules</span><span class="hl-1">&lt;</span><span class="hl-7">User</span><span class="hl-1">, </span><span class="hl-7">string</span><span class="hl-1">&gt;([</span><br/><span class="hl-1">  </span><span class="hl-5">validateUsernameFormat</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-0">withMemoize</span><span class="hl-1">(</span><span class="hl-5">checkUsernameAvailability</span><span class="hl-1">, (</span><span class="hl-5">user</span><span class="hl-1">) </span><span class="hl-6">=&gt;</span><span class="hl-1"> </span><span class="hl-5">user</span><span class="hl-1">.</span><span class="hl-5">username</span><span class="hl-1">, { </span><span class="hl-5">ttl:</span><span class="hl-1"> </span><span class="hl-8">60000</span><span class="hl-1"> }),</span><br/><span class="hl-1">  </span><span class="hl-0">mapError</span><span class="hl-1">(</span><br/><span class="hl-1">    </span><span class="hl-0">every</span><span class="hl-1">([</span><span class="hl-5">validatePasswordStrength</span><span class="hl-1">, </span><span class="hl-5">validateEmailFormat</span><span class="hl-1">, </span><span class="hl-5">checkEmailUnique</span><span class="hl-1">]),</span><br/><span class="hl-1">    (</span><span class="hl-5">errors</span><span class="hl-1">) </span><span class="hl-6">=&gt;</span><span class="hl-1"> </span><span class="hl-5">errors</span><span class="hl-1">.</span><span class="hl-0">join</span><span class="hl-1">(</span><span class="hl-2">&quot;, &quot;</span><span class="hl-1">),</span><br/><span class="hl-1">  ),</span><br/><span class="hl-1">  </span><span class="hl-0">match</span><span class="hl-1">&lt;</span><span class="hl-7">User</span><span class="hl-1">, </span><span class="hl-7">string</span><span class="hl-1">&gt;(</span><br/><span class="hl-1">    </span><span class="hl-0">named</span><span class="hl-1">(</span><span class="hl-2">&quot;role&quot;</span><span class="hl-1">, (</span><span class="hl-5">user</span><span class="hl-1">: </span><span class="hl-7">User</span><span class="hl-1">) </span><span class="hl-6">=&gt;</span><span class="hl-1"> </span><span class="hl-5">user</span><span class="hl-1">.</span><span class="hl-5">role</span><span class="hl-1">),</span><br/><span class="hl-1">    { </span><span class="hl-5">admin:</span><span class="hl-1"> </span><span class="hl-5">validateAdminPrivileges</span><span class="hl-1">, </span><span class="hl-5">user:</span><span class="hl-1"> </span><span class="hl-5">validateStandardUser</span><span class="hl-1"> },</span><br/><span class="hl-1">    </span><span class="hl-2">&quot;Unknown role&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">  ),</span><br/><span class="hl-1">]);</span><br/><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-9">graph</span><span class="hl-1"> = </span><span class="hl-0">toGraph</span><span class="hl-1">(</span><span class="hl-5">pipeline</span><span class="hl-1">); </span><span class="hl-3">// JSON-serializable: { version: 1, root: { kind: &quot;sequence&quot;, ... } }</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-9">text</span><span class="hl-1"> = </span><span class="hl-0">toMermaid</span><span class="hl-1">(</span><span class="hl-5">pipeline</span><span class="hl-1">); </span><span class="hl-3">// Mermaid flowchart source</span>
+</code><button type="button">Copy</button></pre>
+
+<p>Paste the output into <a href="https://mermaid.live">mermaid.live</a>, a Markdown file on GitHub, or any Mermaid renderer. This is the output for a user registration pipeline (a fork of three checks that must all pass, a <code>match</code> on role, and a memoized lookup):</p>
+<div class="mermaid-block"><div class="mermaid dark">%%{init:{"theme":"dark"}}%%
+flowchart TD
+  input([input])
+  root_steps_0[&quot;validateUsernameFormat&quot;]
+  root_steps_1_rule[&quot;checkUsernameAvailability #9889; cached&quot;]
+  subgraph root_steps_2_rule_sg[&quot;all must pass&quot;]
+  root_steps_2_rule_in((&quot;fork&quot;))
+  root_steps_2_rule_rules_0[&quot;validatePasswordStrength&quot;]
+  root_steps_2_rule_rules_1[&quot;validateEmailFormat&quot;]
+  root_steps_2_rule_rules_2[&quot;checkEmailUnique&quot;]
+  root_steps_2_rule_out((&quot;join&quot;))
+  end
+  root_steps_3{&quot;role&quot;}
+  root_steps_3_cases_0[&quot;validateAdminPrivileges&quot;]
+  root_steps_3_cases_1[&quot;validateStandardUser&quot;]
+  passed([passed])
+  input --&gt; root_steps_0
+  root_steps_2_rule_in --&gt; root_steps_2_rule_rules_0
+  root_steps_2_rule_rules_0 --&gt; root_steps_2_rule_out
+  root_steps_2_rule_in --&gt; root_steps_2_rule_rules_1
+  root_steps_2_rule_rules_1 --&gt; root_steps_2_rule_out
+  root_steps_2_rule_in --&gt; root_steps_2_rule_rules_2
+  root_steps_2_rule_rules_2 --&gt; root_steps_2_rule_out
+  root_steps_3 --&gt;|&quot;admin&quot;| root_steps_3_cases_0
+  root_steps_3 --&gt;|&quot;user&quot;| root_steps_3_cases_1
+  root_steps_0 --&gt; root_steps_1_rule
+  root_steps_1_rule --&gt; root_steps_2_rule_in
+  root_steps_2_rule_out --&gt; root_steps_3
+  root_steps_3_cases_0 --&gt; passed
+  root_steps_3_cases_1 --&gt; passed</div><div class="mermaid light">%%{init:{"theme":"default"}}%%
+flowchart TD
+  input([input])
+  root_steps_0[&quot;validateUsernameFormat&quot;]
+  root_steps_1_rule[&quot;checkUsernameAvailability #9889; cached&quot;]
+  subgraph root_steps_2_rule_sg[&quot;all must pass&quot;]
+  root_steps_2_rule_in((&quot;fork&quot;))
+  root_steps_2_rule_rules_0[&quot;validatePasswordStrength&quot;]
+  root_steps_2_rule_rules_1[&quot;validateEmailFormat&quot;]
+  root_steps_2_rule_rules_2[&quot;checkEmailUnique&quot;]
+  root_steps_2_rule_out((&quot;join&quot;))
+  end
+  root_steps_3{&quot;role&quot;}
+  root_steps_3_cases_0[&quot;validateAdminPrivileges&quot;]
+  root_steps_3_cases_1[&quot;validateStandardUser&quot;]
+  passed([passed])
+  input --&gt; root_steps_0
+  root_steps_2_rule_in --&gt; root_steps_2_rule_rules_0
+  root_steps_2_rule_rules_0 --&gt; root_steps_2_rule_out
+  root_steps_2_rule_in --&gt; root_steps_2_rule_rules_1
+  root_steps_2_rule_rules_1 --&gt; root_steps_2_rule_out
+  root_steps_2_rule_in --&gt; root_steps_2_rule_rules_2
+  root_steps_2_rule_rules_2 --&gt; root_steps_2_rule_out
+  root_steps_3 --&gt;|&quot;admin&quot;| root_steps_3_cases_0
+  root_steps_3 --&gt;|&quot;user&quot;| root_steps_3_cases_1
+  root_steps_0 --&gt; root_steps_1_rule
+  root_steps_1_rule --&gt; root_steps_2_rule_in
+  root_steps_2_rule_out --&gt; root_steps_3
+  root_steps_3_cases_0 --&gt; passed
+  root_steps_3_cases_1 --&gt; passed</div><pre><code class="language-mermaid">flowchart TD
+  input([input])
+  root_steps_0[&quot;validateUsernameFormat&quot;]
+  root_steps_1_rule[&quot;checkUsernameAvailability #9889; cached&quot;]
+  subgraph root_steps_2_rule_sg[&quot;all must pass&quot;]
+  root_steps_2_rule_in((&quot;fork&quot;))
+  root_steps_2_rule_rules_0[&quot;validatePasswordStrength&quot;]
+  root_steps_2_rule_rules_1[&quot;validateEmailFormat&quot;]
+  root_steps_2_rule_rules_2[&quot;checkEmailUnique&quot;]
+  root_steps_2_rule_out((&quot;join&quot;))
+  end
+  root_steps_3{&quot;role&quot;}
+  root_steps_3_cases_0[&quot;validateAdminPrivileges&quot;]
+  root_steps_3_cases_1[&quot;validateStandardUser&quot;]
+  passed([passed])
+  input --&gt; root_steps_0
+  root_steps_2_rule_in --&gt; root_steps_2_rule_rules_0
+  root_steps_2_rule_rules_0 --&gt; root_steps_2_rule_out
+  root_steps_2_rule_in --&gt; root_steps_2_rule_rules_1
+  root_steps_2_rule_rules_1 --&gt; root_steps_2_rule_out
+  root_steps_2_rule_in --&gt; root_steps_2_rule_rules_2
+  root_steps_2_rule_rules_2 --&gt; root_steps_2_rule_out
+  root_steps_3 --&gt;|&quot;admin&quot;| root_steps_3_cases_0
+  root_steps_3 --&gt;|&quot;user&quot;| root_steps_3_cases_1
+  root_steps_0 --&gt; root_steps_1_rule
+  root_steps_1_rule --&gt; root_steps_2_rule_in
+  root_steps_2_rule_out --&gt; root_steps_3
+  root_steps_3_cases_0 --&gt; passed
+  root_steps_3_cases_1 --&gt; passed</code></pre></div>
+<p><code>toMermaid</code> lives in <code>ts-rules-composer/mermaid</code>, so the main entry point stays small. <code>toGraph</code> and <code>named</code> come from the main entry point.</p>
+<h3 id="options" class="tsd-anchor-link">Options<a href="#options" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<pre><code class="ts"><span class="hl-0">toMermaid</span><span class="hl-1">(</span><span class="hl-5">pipeline</span><span class="hl-1">, { </span><span class="hl-5">direction:</span><span class="hl-1"> </span><span class="hl-2">&quot;LR&quot;</span><span class="hl-1">, </span><span class="hl-5">verbose:</span><span class="hl-1"> </span><span class="hl-6">true</span><span class="hl-1">, </span><span class="hl-5">failEdges:</span><span class="hl-1"> </span><span class="hl-6">true</span><span class="hl-1">, </span><span class="hl-5">maxLabelLength:</span><span class="hl-1"> </span><span class="hl-8">60</span><span class="hl-1"> });</span>
+</code><button type="button">Copy</button></pre>
+
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>direction</code></td>
+<td><code>&quot;TD&quot;</code></td>
+<td><code>&quot;TD&quot;</code> (top down) or <code>&quot;LR&quot;</code> (left to right).</td>
+</tr>
+<tr>
+<td><code>failEdges</code></td>
+<td><code>false</code></td>
+<td>Draw dotted edges from every step that can fail to a <code>failed</code> terminal. Off by default: they bury the happy path.</td>
+</tr>
+<tr>
+<td><code>verbose</code></td>
+<td><code>false</code></td>
+<td>Also show <code>withDebug</code>, <code>withTap</code>, <code>mapError</code> and <code>withLazyContext</code> (a group title when the wrapped rule is composite).</td>
+</tr>
+<tr>
+<td><code>maxLabelLength</code></td>
+<td><code>40</code></td>
+<td>Longest label text, cut with <code>…</code> (minimum 2). Badges are never cut.</td>
+</tr>
+</tbody>
+</table>
+<p><code>withTimeout</code>, <code>withRetry</code> and <code>withMemoize</code> always show as badges on the wrapped rule: <code>⏱ 500ms</code>, <code>↻ 3x</code>, <code>⚡ cached</code>.</p>
+<h3 id="naming-things" class="tsd-anchor-link">Naming things<a href="#naming-things" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<p>A diagram can only show names the engine can find. Name your rules, predicates, accessors and selectors, or they print as <code>rule #1</code>, <code>rule #2</code> and so on.</p>
+<ul>
+<li>Declared functions and <code>const</code> arrow functions keep their name (<code>const validateAmount = ...</code>).</li>
+<li>Use <code>named(&quot;amount &gt; 1000&quot;, (tx) =&gt; tx.amount &gt; 1000)</code> for anything anonymous. It also collapses a sub-pipeline into a single box. It does not change behavior.</li>
+<li>An anonymous function passed through a decorator loses the <code>const</code> name: <code>const x = withMemoize(async () =&gt; ...)</code> prints <code>rule #n</code>. Name the inner function, as in <code>withMemoize(named(&quot;checkFraudRisk&quot;, async () =&gt; ...), ...)</code>.</li>
+<li>A plain function you write yourself is drawn as one leaf, even if it calls other rules inside. Only this package's combinators are described structurally.</li>
+</ul>
 <h2 id="error-handling-standardization" class="tsd-anchor-link">Error Handling Standardization<a href="#error-handling-standardization" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
 <p>This library provides consistent error handling across all validation operations through a standardized system:</p>
 <h3 id="core-principles" class="tsd-anchor-link">Core Principles<a href="#core-principles" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
@@ -435,144 +625,6 @@ unchanged.</p>
 <pre><code class="typescript"><span class="hl-3">// Most accurate - preserves special object types</span><br/><span class="hl-0">pipeRules</span><span class="hl-1">(</span><span class="hl-5">rules</span><span class="hl-1">, { </span><span class="hl-5">cloneContext:</span><span class="hl-1"> </span><span class="hl-6">true</span><span class="hl-1">, </span><span class="hl-5">cloneStrategy:</span><span class="hl-1"> </span><span class="hl-2">&quot;structured&quot;</span><span class="hl-1"> })</span><br/><span class="hl-3">// Falls back to the JSON clone if structuredClone isn&#39;t available</span>
 </code><button type="button">Copy</button></pre>
 
-<h2 id="diagrams" class="tsd-anchor-link">Diagrams<a href="#diagrams" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
-<p><code>toGraph</code> and <code>toMermaid</code> describe a pipeline without running it, so you can draw the rules you actually ship. Neither calls your rules, predicates or accessors.</p>
-<pre><code class="ts"><span class="hl-4">import</span><span class="hl-1"> { </span><span class="hl-5">every</span><span class="hl-1">, </span><span class="hl-5">mapError</span><span class="hl-1">, </span><span class="hl-5">match</span><span class="hl-1">, </span><span class="hl-5">named</span><span class="hl-1">, </span><span class="hl-5">pipeRules</span><span class="hl-1">, </span><span class="hl-5">toGraph</span><span class="hl-1">, </span><span class="hl-5">withMemoize</span><span class="hl-1"> } </span><span class="hl-4">from</span><span class="hl-1"> </span><span class="hl-2">&quot;ts-rules-composer&quot;</span><span class="hl-1">;</span><br/><span class="hl-4">import</span><span class="hl-1"> { </span><span class="hl-5">toMermaid</span><span class="hl-1"> } </span><span class="hl-4">from</span><span class="hl-1"> </span><span class="hl-2">&quot;ts-rules-composer/mermaid&quot;</span><span class="hl-1">;</span><br/><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-9">pipeline</span><span class="hl-1"> = </span><span class="hl-0">pipeRules</span><span class="hl-1">&lt;</span><span class="hl-7">User</span><span class="hl-1">, </span><span class="hl-7">string</span><span class="hl-1">&gt;([</span><br/><span class="hl-1">  </span><span class="hl-5">validateUsernameFormat</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-0">withMemoize</span><span class="hl-1">(</span><span class="hl-5">checkUsernameAvailability</span><span class="hl-1">, (</span><span class="hl-5">user</span><span class="hl-1">) </span><span class="hl-6">=&gt;</span><span class="hl-1"> </span><span class="hl-5">user</span><span class="hl-1">.</span><span class="hl-5">username</span><span class="hl-1">, { </span><span class="hl-5">ttl:</span><span class="hl-1"> </span><span class="hl-8">60000</span><span class="hl-1"> }),</span><br/><span class="hl-1">  </span><span class="hl-0">mapError</span><span class="hl-1">(</span><br/><span class="hl-1">    </span><span class="hl-0">every</span><span class="hl-1">([</span><span class="hl-5">validatePasswordStrength</span><span class="hl-1">, </span><span class="hl-5">validateEmailFormat</span><span class="hl-1">, </span><span class="hl-5">checkEmailUnique</span><span class="hl-1">]),</span><br/><span class="hl-1">    (</span><span class="hl-5">errors</span><span class="hl-1">) </span><span class="hl-6">=&gt;</span><span class="hl-1"> </span><span class="hl-5">errors</span><span class="hl-1">.</span><span class="hl-0">join</span><span class="hl-1">(</span><span class="hl-2">&quot;, &quot;</span><span class="hl-1">),</span><br/><span class="hl-1">  ),</span><br/><span class="hl-1">  </span><span class="hl-0">match</span><span class="hl-1">&lt;</span><span class="hl-7">User</span><span class="hl-1">, </span><span class="hl-7">string</span><span class="hl-1">&gt;(</span><br/><span class="hl-1">    </span><span class="hl-0">named</span><span class="hl-1">(</span><span class="hl-2">&quot;role&quot;</span><span class="hl-1">, (</span><span class="hl-5">user</span><span class="hl-1">: </span><span class="hl-7">User</span><span class="hl-1">) </span><span class="hl-6">=&gt;</span><span class="hl-1"> </span><span class="hl-5">user</span><span class="hl-1">.</span><span class="hl-5">role</span><span class="hl-1">),</span><br/><span class="hl-1">    { </span><span class="hl-5">admin:</span><span class="hl-1"> </span><span class="hl-5">validateAdminPrivileges</span><span class="hl-1">, </span><span class="hl-5">user:</span><span class="hl-1"> </span><span class="hl-5">validateStandardUser</span><span class="hl-1"> },</span><br/><span class="hl-1">    </span><span class="hl-2">&quot;Unknown role&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">  ),</span><br/><span class="hl-1">]);</span><br/><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-9">graph</span><span class="hl-1"> = </span><span class="hl-0">toGraph</span><span class="hl-1">(</span><span class="hl-5">pipeline</span><span class="hl-1">); </span><span class="hl-3">// JSON-serializable: { version: 1, root: { kind: &quot;sequence&quot;, ... } }</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-9">text</span><span class="hl-1"> = </span><span class="hl-0">toMermaid</span><span class="hl-1">(</span><span class="hl-5">pipeline</span><span class="hl-1">); </span><span class="hl-3">// Mermaid flowchart source</span>
-</code><button type="button">Copy</button></pre>
-
-<p>Paste the output into <a href="https://mermaid.live">mermaid.live</a>, a Markdown file on GitHub, or any Mermaid renderer. This is the output for a user registration pipeline (a fork of three checks that must all pass, a <code>match</code> on role, and a memoized lookup):</p>
-<div class="mermaid-block"><div class="mermaid dark">%%{init:{"theme":"dark"}}%%
-flowchart TD
-  input([input])
-  root_steps_0[&quot;validateUsernameFormat&quot;]
-  root_steps_1_rule[&quot;checkUsernameAvailability #9889; cached&quot;]
-  subgraph root_steps_2_rule_sg[&quot;all must pass&quot;]
-  root_steps_2_rule_in((&quot;fork&quot;))
-  root_steps_2_rule_rules_0[&quot;validatePasswordStrength&quot;]
-  root_steps_2_rule_rules_1[&quot;validateEmailFormat&quot;]
-  root_steps_2_rule_rules_2[&quot;checkEmailUnique&quot;]
-  root_steps_2_rule_out((&quot;join&quot;))
-  end
-  root_steps_3{&quot;role&quot;}
-  root_steps_3_cases_0[&quot;validateAdminPrivileges&quot;]
-  root_steps_3_cases_1[&quot;validateStandardUser&quot;]
-  passed([passed])
-  input --&gt; root_steps_0
-  root_steps_2_rule_in --&gt; root_steps_2_rule_rules_0
-  root_steps_2_rule_rules_0 --&gt; root_steps_2_rule_out
-  root_steps_2_rule_in --&gt; root_steps_2_rule_rules_1
-  root_steps_2_rule_rules_1 --&gt; root_steps_2_rule_out
-  root_steps_2_rule_in --&gt; root_steps_2_rule_rules_2
-  root_steps_2_rule_rules_2 --&gt; root_steps_2_rule_out
-  root_steps_3 --&gt;|&quot;admin&quot;| root_steps_3_cases_0
-  root_steps_3 --&gt;|&quot;user&quot;| root_steps_3_cases_1
-  root_steps_0 --&gt; root_steps_1_rule
-  root_steps_1_rule --&gt; root_steps_2_rule_in
-  root_steps_2_rule_out --&gt; root_steps_3
-  root_steps_3_cases_0 --&gt; passed
-  root_steps_3_cases_1 --&gt; passed</div><div class="mermaid light">%%{init:{"theme":"default"}}%%
-flowchart TD
-  input([input])
-  root_steps_0[&quot;validateUsernameFormat&quot;]
-  root_steps_1_rule[&quot;checkUsernameAvailability #9889; cached&quot;]
-  subgraph root_steps_2_rule_sg[&quot;all must pass&quot;]
-  root_steps_2_rule_in((&quot;fork&quot;))
-  root_steps_2_rule_rules_0[&quot;validatePasswordStrength&quot;]
-  root_steps_2_rule_rules_1[&quot;validateEmailFormat&quot;]
-  root_steps_2_rule_rules_2[&quot;checkEmailUnique&quot;]
-  root_steps_2_rule_out((&quot;join&quot;))
-  end
-  root_steps_3{&quot;role&quot;}
-  root_steps_3_cases_0[&quot;validateAdminPrivileges&quot;]
-  root_steps_3_cases_1[&quot;validateStandardUser&quot;]
-  passed([passed])
-  input --&gt; root_steps_0
-  root_steps_2_rule_in --&gt; root_steps_2_rule_rules_0
-  root_steps_2_rule_rules_0 --&gt; root_steps_2_rule_out
-  root_steps_2_rule_in --&gt; root_steps_2_rule_rules_1
-  root_steps_2_rule_rules_1 --&gt; root_steps_2_rule_out
-  root_steps_2_rule_in --&gt; root_steps_2_rule_rules_2
-  root_steps_2_rule_rules_2 --&gt; root_steps_2_rule_out
-  root_steps_3 --&gt;|&quot;admin&quot;| root_steps_3_cases_0
-  root_steps_3 --&gt;|&quot;user&quot;| root_steps_3_cases_1
-  root_steps_0 --&gt; root_steps_1_rule
-  root_steps_1_rule --&gt; root_steps_2_rule_in
-  root_steps_2_rule_out --&gt; root_steps_3
-  root_steps_3_cases_0 --&gt; passed
-  root_steps_3_cases_1 --&gt; passed</div><pre><code class="language-mermaid">flowchart TD
-  input([input])
-  root_steps_0[&quot;validateUsernameFormat&quot;]
-  root_steps_1_rule[&quot;checkUsernameAvailability #9889; cached&quot;]
-  subgraph root_steps_2_rule_sg[&quot;all must pass&quot;]
-  root_steps_2_rule_in((&quot;fork&quot;))
-  root_steps_2_rule_rules_0[&quot;validatePasswordStrength&quot;]
-  root_steps_2_rule_rules_1[&quot;validateEmailFormat&quot;]
-  root_steps_2_rule_rules_2[&quot;checkEmailUnique&quot;]
-  root_steps_2_rule_out((&quot;join&quot;))
-  end
-  root_steps_3{&quot;role&quot;}
-  root_steps_3_cases_0[&quot;validateAdminPrivileges&quot;]
-  root_steps_3_cases_1[&quot;validateStandardUser&quot;]
-  passed([passed])
-  input --&gt; root_steps_0
-  root_steps_2_rule_in --&gt; root_steps_2_rule_rules_0
-  root_steps_2_rule_rules_0 --&gt; root_steps_2_rule_out
-  root_steps_2_rule_in --&gt; root_steps_2_rule_rules_1
-  root_steps_2_rule_rules_1 --&gt; root_steps_2_rule_out
-  root_steps_2_rule_in --&gt; root_steps_2_rule_rules_2
-  root_steps_2_rule_rules_2 --&gt; root_steps_2_rule_out
-  root_steps_3 --&gt;|&quot;admin&quot;| root_steps_3_cases_0
-  root_steps_3 --&gt;|&quot;user&quot;| root_steps_3_cases_1
-  root_steps_0 --&gt; root_steps_1_rule
-  root_steps_1_rule --&gt; root_steps_2_rule_in
-  root_steps_2_rule_out --&gt; root_steps_3
-  root_steps_3_cases_0 --&gt; passed
-  root_steps_3_cases_1 --&gt; passed</code></pre></div>
-<p><code>toMermaid</code> lives in <code>ts-rules-composer/mermaid</code>, so the main entry point stays small. <code>toGraph</code> and <code>named</code> come from the main entry point.</p>
-<h3 id="options" class="tsd-anchor-link">Options<a href="#options" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<pre><code class="ts"><span class="hl-0">toMermaid</span><span class="hl-1">(</span><span class="hl-5">pipeline</span><span class="hl-1">, { </span><span class="hl-5">direction:</span><span class="hl-1"> </span><span class="hl-2">&quot;LR&quot;</span><span class="hl-1">, </span><span class="hl-5">verbose:</span><span class="hl-1"> </span><span class="hl-6">true</span><span class="hl-1">, </span><span class="hl-5">failEdges:</span><span class="hl-1"> </span><span class="hl-6">true</span><span class="hl-1">, </span><span class="hl-5">maxLabelLength:</span><span class="hl-1"> </span><span class="hl-8">60</span><span class="hl-1"> });</span>
-</code><button type="button">Copy</button></pre>
-
-<table>
-<thead>
-<tr>
-<th>Option</th>
-<th>Default</th>
-<th>Effect</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>direction</code></td>
-<td><code>&quot;TD&quot;</code></td>
-<td><code>&quot;TD&quot;</code> (top down) or <code>&quot;LR&quot;</code> (left to right).</td>
-</tr>
-<tr>
-<td><code>failEdges</code></td>
-<td><code>false</code></td>
-<td>Draw dotted edges from every step that can fail to a <code>failed</code> terminal. Off by default: they bury the happy path.</td>
-</tr>
-<tr>
-<td><code>verbose</code></td>
-<td><code>false</code></td>
-<td>Also show <code>withDebug</code>, <code>withTap</code>, <code>mapError</code> and <code>withLazyContext</code> (a group title when the wrapped rule is composite).</td>
-</tr>
-<tr>
-<td><code>maxLabelLength</code></td>
-<td><code>40</code></td>
-<td>Longest label text, cut with <code>…</code> (minimum 2). Badges are never cut.</td>
-</tr>
-</tbody>
-</table>
-<p><code>withTimeout</code>, <code>withRetry</code> and <code>withMemoize</code> always show as badges on the wrapped rule: <code>⏱ 500ms</code>, <code>↻ 3x</code>, <code>⚡ cached</code>.</p>
-<h3 id="naming-things" class="tsd-anchor-link">Naming things<a href="#naming-things" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<p>A diagram can only show names the engine can find. Name your rules, predicates, accessors and selectors, or they print as <code>rule #1</code>, <code>rule #2</code> and so on.</p>
-<ul>
-<li>Declared functions and <code>const</code> arrow functions keep their name (<code>const validateAmount = ...</code>).</li>
-<li>Use <code>named(&quot;amount &gt; 1000&quot;, (tx) =&gt; tx.amount &gt; 1000)</code> for anything anonymous. It also collapses a sub-pipeline into a single box. It does not change behavior.</li>
-<li>An anonymous function passed through a decorator loses the <code>const</code> name: <code>const x = withMemoize(async () =&gt; ...)</code> prints <code>rule #n</code>. Name the inner function, as in <code>withMemoize(named(&quot;checkFraudRisk&quot;, async () =&gt; ...), ...)</code>.</li>
-<li>A plain function you write yourself is drawn as one leaf, even if it calls other rules inside. Only this package's combinators are described structurally.</li>
-</ul>
 <h2 id="best-practices" class="tsd-anchor-link">Best Practices<a href="#best-practices" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
 <ol>
 <li><strong>Small Rules</strong> - Keep each rule focused</li>
@@ -968,6 +1020,9 @@ unchanged; the error type then stays <code>TError</code>.</p>
 <li><a href="#contents"><span>Contents</span></a></li>
 <li><a href="#installation"><span>Installation</span></a></li>
 <li><a href="#quick-start"><span>Quick start</span></a></li>
+<li>
+<ul>
+<li><a href="#see-it-as-a-diagram"><span>See it as a diagram</span></a></li></ul></li>
 <li><a href="#features"><span>Features</span></a></li>
 <li><a href="#core-concepts"><span>Core <wbr/>Concepts</span></a></li>
 <li>
@@ -983,6 +1038,11 @@ unchanged; the error type then stays <code>TError</code>.</p>
 <li>
 <ul>
 <li><a href="#sketch-financial-transaction-pipeline"><span>Sketch: financial transaction pipeline</span></a></li></ul></li>
+<li><a href="#diagrams"><span>Diagrams</span></a></li>
+<li>
+<ul>
+<li><a href="#options"><span>Options</span></a></li>
+<li><a href="#naming-things"><span>Naming things</span></a></li></ul></li>
 <li><a href="#error-handling-standardization"><span>Error <wbr/>Handling <wbr/>Standardization</span></a></li>
 <li>
 <ul>
@@ -1005,11 +1065,6 @@ unchanged; the error type then stays <code>TError</code>.</p>
 <ul>
 <li><a href="#cloning-strategies"><span>Cloning <wbr/>Strategies</span></a></li>
 <li><a href="#cloning-examples"><span>Cloning examples</span></a></li></ul></li>
-<li><a href="#diagrams"><span>Diagrams</span></a></li>
-<li>
-<ul>
-<li><a href="#options"><span>Options</span></a></li>
-<li><a href="#naming-things"><span>Naming things</span></a></li></ul></li>
 <li><a href="#best-practices"><span>Best <wbr/>Practices</span></a></li>
 <li><a href="#comparison-to-other-libraries"><span>Comparison to <wbr/>Other <wbr/>Libraries</span></a></li>
 <li>
