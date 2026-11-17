@@ -118,6 +118,27 @@ describe("withMemoize", () => {
     expect(failing).toHaveBeenCalledTimes(2);
   });
 
+  it("should still cache when maxSize is negative and there is nothing to evict", async () => {
+    const memoized = withMemoize(mockRule, keyFn, { maxSize: -1 });
+
+    await memoized({ id: "1" });
+    await memoized({ id: "1" });
+
+    expect(mockRule).toHaveBeenCalledTimes(1);
+  });
+
+  it("should cache the result of a synchronous rule in unsafe mode", async () => {
+    const syncRule = vi.fn(() => pass());
+    const memoized = withMemoize(syncRule, keyFn, {
+      errorHandlingMode: "unsafe",
+    });
+
+    await memoized({ id: "1" });
+    await memoized({ id: "1" });
+
+    expect(syncRule).toHaveBeenCalledTimes(1);
+  });
+
   describe("context-aware key", () => {
     type Ctx = { userId: string };
     const ctxKey = (input: { id: string }, context?: Ctx) =>
