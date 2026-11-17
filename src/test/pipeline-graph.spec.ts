@@ -230,13 +230,15 @@ describe("example pipelines as diagrams", () => {
       "flowchart TD
         input([input])
         root_steps_0("log: started")
-        root_steps_1["rule #35;1"]
+        root_steps_1_rule_steps_0["validateVersionUpToDate"]
+        root_steps_1_rule_steps_1["checkDeprecation"]
         root_steps_2_rule["checkRisk #9889; cached"]
         root_steps_3("log: passed")
         passed([passed])
         input --> root_steps_0
-        root_steps_0 --> root_steps_1
-        root_steps_1 --> root_steps_2_rule
+        root_steps_1_rule_steps_0 --> root_steps_1_rule_steps_1
+        root_steps_0 --> root_steps_1_rule_steps_0
+        root_steps_1_rule_steps_1 --> root_steps_2_rule
         root_steps_2_rule --> root_steps_3
         root_steps_3 --> passed"
     `);

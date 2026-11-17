@@ -21,6 +21,7 @@ import {
   when,
   withDebug,
   withFallback,
+  withLazyContext,
   withMemoize,
   withRetry,
   withTap,
@@ -518,6 +519,35 @@ describe("toGraph", () => {
         decorator: "mapError",
         params: {},
         rule: { id: "root.rule", kind: "rule", label: "hasItems" },
+      });
+    });
+
+    it("describes withLazyContext as a decorator around the rule it feeds", () => {
+      const loader = vi.fn(async () => ({}));
+      const rule = withLazyContext(loader, hasItems);
+
+      expect(toGraph(rule).root).toEqual({
+        id: "root",
+        kind: "decorator",
+        decorator: "lazyContext",
+        params: {},
+        rule: { id: "root.rule", kind: "rule", label: "hasItems" },
+      });
+      expect(loader).not.toHaveBeenCalled();
+    });
+
+    it("keeps the rules inside a withLazyContext pipeline reachable", () => {
+      const rule = withLazyContext(
+        async () => ({}),
+        pipeRules<Order>([hasItems, withinLimit]),
+      );
+
+      expect(toGraph(rule).root).toMatchObject({
+        kind: "decorator",
+        rule: {
+          kind: "sequence",
+          steps: [{ label: "hasItems" }, { label: "withinLimit" }],
+        },
       });
     });
 

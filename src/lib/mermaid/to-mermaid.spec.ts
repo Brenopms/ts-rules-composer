@@ -16,6 +16,7 @@ import {
   when,
   withDebug,
   withFallback,
+  withLazyContext,
   withMemoize,
   withRetry,
   withTap,
@@ -618,6 +619,21 @@ describe("toMermaid edge cases", () => {
 
       expect(text).toContain('subgraph root_rule_badge_sg["#9201; 5ms"]');
       expect(text.match(/^ {2}end$/gm)).toHaveLength(1);
+    });
+
+    it("draws the rules inside withLazyContext and hides the wrapper unless verbose", () => {
+      const rule = withLazyContext(
+        async () => ({}),
+        pipeRules([hasItems, withinLimit]),
+      );
+
+      const plain = toMermaid(rule);
+      expect(plain).toContain('["hasItems"]');
+      expect(plain).toContain('["withinLimit"]');
+      expect(plain).not.toContain("_badge_sg");
+      expect(toMermaid(rule, { verbose: true })).toContain(
+        'subgraph root_rule_badge_sg["lazyContext"]',
+      );
     });
 
     it("hides debug, tap and mapError plumbing unless verbose", () => {
