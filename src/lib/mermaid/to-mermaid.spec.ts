@@ -504,6 +504,46 @@ describe("toMermaid edge cases", () => {
     });
   });
 
+  describe("decorator badges: leaves and edge cases", () => {
+    it("badges an effect leaf", () => {
+      const text = toMermaid(withTimeout(tap(logOrder), 5, "late"));
+
+      expect(text).toMatch(/\("[^"]*#9201; 5ms"\)/);
+    });
+
+    it("badges an unknown-kind leaf", () => {
+      const unknown = attachNode(
+        function futureRule() {
+          return pass();
+        },
+        { kind: "mystery" } as never,
+      );
+
+      expect(toMermaid(withTimeout(unknown, 5, "late"))).toContain(
+        '["futureRule #9201; 5ms"]',
+      );
+    });
+
+    it("titles a group with a plumbing decorator when verbose", () => {
+      const rule = withDebug(pipeRules([hasItems, withinLimit]), "audit");
+
+      expect(toMermaid(rule, { verbose: true })).toContain('["debug"]');
+      expect(toMermaid(rule)).not.toContain("_badge_sg");
+    });
+
+    it("shows a placeholder when a badge param is missing", () => {
+      const odd = attachNode(
+        function inner() {
+          return pass();
+        },
+        { kind: "decorator", decorator: "timeout", rule: hasItems, params: {} },
+      );
+
+      expect(toMermaid(odd)).toContain("#9201; #63;ms");
+      expect(toMermaid(odd)).not.toContain("undefined");
+    });
+  });
+
   describe("options", () => {
     const rule = pipeRules([hasItems, withinLimit]);
 
@@ -545,6 +585,39 @@ describe("toMermaid edge cases", () => {
 
       expect(text).toContain('{"isLon#8230;"}');
       expect(text).toContain("500ms");
+    });
+
+    it("falls back to TD for a direction outside the allowlist", () => {
+      const evil = "TD\n  click root call alert(1)" as never;
+      const text = toMermaid(rule, { direction: evil });
+
+      expect(text.split("\n")[0]).toBe("flowchart TD");
+      expect(text).not.toContain("click");
+    });
+
+    it("never exceeds maxLabelLength, even for tiny or odd values", () => {
+      const name = named("abcdef", hasItems);
+      const label = (max: number) =>
+        toMermaid(name, { maxLabelLength: max }).match(/root\["(.*)"\]/)?.[1];
+
+      expect(label(1)).toBe("a#8230;");
+      expect(label(0)).toBe("a#8230;");
+      expect(label(-5)).toBe("a#8230;");
+      expect(label(3)).toBe("ab#8230;");
+      expect(label(Number.NaN)).toBe("abcdef");
+      expect(label(Number.POSITIVE_INFINITY)).toBe("abcdef");
+    });
+
+    it("maxLabelLength truncates case keys and guards", () => {
+      const sw = match((i: string) => i, { averyLongCaseKey: hasItems });
+      const guarded = withFallback(hasItems, withinLimit, {
+        onlyFallbackOn: named("isRetryableErrorName", isRetryable),
+      });
+
+      expect(toMermaid(sw, { maxLabelLength: 5 })).toContain('|"aver#8230;"|');
+      expect(toMermaid(guarded, { maxLabelLength: 12 })).toContain(
+        '|"on fail if isRetryable#8230;"|',
+      );
     });
 
     it("defaults to 40 characters", () => {

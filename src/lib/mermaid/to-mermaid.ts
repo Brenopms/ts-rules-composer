@@ -31,12 +31,19 @@ export type MermaidOptions = {
 
 type Settings = { verbose: boolean; max: number };
 
+/** At least 2, so a label keeps one character before its `…`. */
+const labelLimit = (requested: number) =>
+  Number.isNaN(requested) ? 40 : Math.max(2, Math.floor(requested));
+
 const clip = (max: number, text: string) => {
   const chars = [...text];
-  return chars.length > max
-    ? `${chars.slice(0, Math.max(1, max - 1)).join("")}…`
-    : text;
+  return chars.length > max ? `${chars.slice(0, max - 1).join("")}…` : text;
 };
+
+const direction = (requested: string) => (requested === "LR" ? "LR" : "TD");
+
+const param = (value: unknown) =>
+  typeof value === "number" || typeof value === "string" ? `${value}` : "?";
 
 /** Short text for a decorator, or `undefined` when it stays hidden. */
 const badge = (
@@ -45,9 +52,9 @@ const badge = (
 ) => {
   switch (node.decorator) {
     case "timeout":
-      return `⏱ ${node.params.ms}ms`;
+      return `⏱ ${param(node.params.ms)}ms`;
     case "retry":
-      return `↻ ${node.params.attempts}x`;
+      return `↻ ${param(node.params.attempts)}x`;
     case "memoize":
       return "⚡ cached";
     default:
@@ -101,6 +108,19 @@ const fragment = (parts: Partial<Fragment> & { entry: string }): Fragment => ({
   ...parts,
 });
 
+const composite = new Set<string>([
+  "sequence",
+  "branch",
+  "switch",
+  "all",
+  "any",
+  "not",
+  "fallback",
+  "field",
+]);
+
+const isLeaf = (node: GraphNode) => !composite.has(node.kind);
+
 /** Draws the rule at `id` plus whichever children it has, in order. */
 const render = (
   node: GraphNode,
@@ -123,20 +143,6 @@ const render = (
       }
     : part;
 };
-
-const isLeaf = (node: GraphNode) =>
-  node.kind === "rule" || node.kind === "effect" || !composite.has(node.kind);
-
-const composite = new Set<string>([
-  "sequence",
-  "branch",
-  "switch",
-  "all",
-  "any",
-  "not",
-  "fallback",
-  "field",
-]);
 
 const draw = (
   node: Exclude<GraphNode, { kind: "decorator" }>,
@@ -323,15 +329,18 @@ export const toMermaid = <TInput, TError, TContext>(
   options: MermaidOptions = {},
 ): string => {
   const {
-    direction = "TD",
+    direction: requestedDirection = "TD",
     failEdges = true,
     verbose = false,
     maxLabelLength = 40,
   } = options;
-  const body = render(toGraph(rule).root, { verbose, max: maxLabelLength });
+  const body = render(toGraph(rule).root, {
+    verbose,
+    max: labelLimit(maxLabelLength),
+  });
   const fails = failEdges ? body.fails : [];
   return [
-    `flowchart ${direction}`,
+    `flowchart ${direction(requestedDirection)}`,
     "  input([input])",
     ...body.nodes,
     "  passed([passed])",
