@@ -55,6 +55,17 @@ describe("withLazyContext", () => {
     expect(result).toEqual(fail("DB down"));
   });
 
+  it("should use a generic message when the loader throws a non-Error", async () => {
+    const lazyRule = withLazyContext(
+      () => Promise.reject("not an Error"),
+      () => pass(),
+    );
+
+    const result = await lazyRule({});
+
+    expect(result).toEqual(fail("Context loading failed"));
+  });
+
   it("should preserve input types", async () => {
     type StrictInput = { id: string };
     type LooseInput = { other: number };

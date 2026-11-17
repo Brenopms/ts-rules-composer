@@ -47,6 +47,17 @@ describe("unless combinator", () => {
     expect(mockRule).toHaveBeenCalled();
   });
 
+  it("should fail with the predicate error and not run the rule when the predicate throws", async () => {
+    const validator = unless(() => {
+      throw new Error("predicate broke");
+    }, mockRule);
+
+    const result = await validator({ id: 1 });
+
+    expect(result).toEqual(fail(new Error("predicate broke")));
+    expect(mockRule).not.toHaveBeenCalled();
+  });
+
   // Type safety tests
   it("should enforce predicate input type", () => {
     type StrictInput = { id: string };

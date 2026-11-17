@@ -68,4 +68,33 @@ describe("withDebug", () => {
       expect.anything(),
     );
   });
+
+  it("should name an unnamed rule anonymous_rule when no name is given", async () => {
+    const onEnd = vi.fn();
+    const rule = withDebug((_input: string) => pass(), { onEnd });
+
+    await rule("x");
+
+    expect(onEnd).toHaveBeenCalledWith(
+      "x",
+      pass(),
+      undefined,
+      expect.objectContaining({ ruleName: "anonymous_rule" }),
+    );
+  });
+
+  it("should use the function name of the rule when no name option is given", async () => {
+    const onEnd = vi.fn();
+    const checkInput = (_input: string) => pass();
+    const rule = withDebug(checkInput, { onEnd });
+
+    await rule("valid");
+
+    expect(onEnd).toHaveBeenCalledWith(
+      "valid",
+      pass(),
+      undefined,
+      expect.objectContaining({ ruleName: "checkInput" }),
+    );
+  });
 });
