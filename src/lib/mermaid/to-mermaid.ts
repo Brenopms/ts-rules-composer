@@ -323,7 +323,14 @@ const draw = (
  * wrapped rule; debug, tap and mapError only with `verbose`.
  *
  * @example
- * const text = toMermaid(pipeRules([hasItems, withinLimit]));
+ * const text = toMermaid(pipeRules([hasItems, withinLimit]), {
+ *   direction: "LR",
+ *   failEdges: true,
+ * });
+ * @caveats
+ * - Nothing is executed: rules, predicates and accessors are never called.
+ * - Anonymous functions print as `rule #n`; use `named` for a real name.
+ * - `failEdges` defaults to `false`; pass `true` for dotted edges to `failed`.
  */
 export const toMermaid = <TInput, TError, TContext>(
   rule: Rule<TInput, TError, TContext>,

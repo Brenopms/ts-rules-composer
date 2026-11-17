@@ -22,6 +22,7 @@ Schema validators answer "is this data shaped correctly?". Business rules ask mo
 - [Error handling](#error-handling-standardization)
 - [Guardrails and policy checks](#guardrails-and-policy-checks)
 - [Context cloning](#context-cloning-options)
+- [Diagrams](#diagrams)
 - [Best practices](#best-practices)
 - [Comparison to other libraries](#comparison-to-other-libraries)
 - [API reference](#api-reference)
@@ -91,6 +92,7 @@ await validateCheckout({ items: 1, total: 900, payment: "paypal" }, { limit: 500
 - **Resilient**: retries, timeouts, memoization and fallbacks built in
 - **Extensible**: write your own combinators with the same `Rule` type
 - **Instrumented**: `withDebug` and `withTap` for logging and metrics
+- **Diagrams**: `toGraph` and `toMermaid` draw your pipelines as flowcharts without running them
 - **Portable**: Node.js 22+ and modern browsers
 
 ## Core Concepts
@@ -485,6 +487,92 @@ pipeRules(rules, { cloneContext: true, cloneStrategy: "shallow" })
 pipeRules(rules, { cloneContext: true, cloneStrategy: "structured" })
 // Falls back to the JSON clone if structuredClone isn't available
 ```
+
+## Diagrams
+
+`toGraph` and `toMermaid` describe a pipeline without running it, so you can draw the rules you actually ship. Neither calls your rules, predicates or accessors.
+
+```ts
+import { every, mapError, match, named, pipeRules, toGraph, withMemoize } from "ts-rules-composer";
+import { toMermaid } from "ts-rules-composer/mermaid";
+
+const pipeline = pipeRules<User, string>([
+  validateUsernameFormat,
+  withMemoize(checkUsernameAvailability, (user) => user.username, { ttl: 60000 }),
+  mapError(
+    every([validatePasswordStrength, validateEmailFormat, checkEmailUnique]),
+    (errors) => errors.join(", "),
+  ),
+  match<User, string>(
+    named("role", (user: User) => user.role),
+    { admin: validateAdminPrivileges, user: validateStandardUser },
+    "Unknown role",
+  ),
+]);
+
+const graph = toGraph(pipeline); // JSON-serializable: { version: 1, root: { kind: "sequence", ... } }
+const text = toMermaid(pipeline); // Mermaid flowchart source
+```
+
+Paste the output into [mermaid.live](https://mermaid.live), a Markdown file on GitHub, or any Mermaid renderer. This is the output for a user registration pipeline (a fork of three checks that must all pass, a `match` on role, and a memoized lookup):
+
+```mermaid
+flowchart TD
+  input([input])
+  root_steps_0["validateUsernameFormat"]
+  root_steps_1_rule["checkUsernameAvailability #9889; cached"]
+  subgraph root_steps_2_rule_sg["all must pass"]
+  root_steps_2_rule_in(("fork"))
+  root_steps_2_rule_rules_0["validatePasswordStrength"]
+  root_steps_2_rule_rules_1["validateEmailFormat"]
+  root_steps_2_rule_rules_2["checkEmailUnique"]
+  root_steps_2_rule_out(("join"))
+  end
+  root_steps_3{"role"}
+  root_steps_3_cases_0["validateAdminPrivileges"]
+  root_steps_3_cases_1["validateStandardUser"]
+  passed([passed])
+  input --> root_steps_0
+  root_steps_2_rule_in --> root_steps_2_rule_rules_0
+  root_steps_2_rule_rules_0 --> root_steps_2_rule_out
+  root_steps_2_rule_in --> root_steps_2_rule_rules_1
+  root_steps_2_rule_rules_1 --> root_steps_2_rule_out
+  root_steps_2_rule_in --> root_steps_2_rule_rules_2
+  root_steps_2_rule_rules_2 --> root_steps_2_rule_out
+  root_steps_3 -->|"admin"| root_steps_3_cases_0
+  root_steps_3 -->|"user"| root_steps_3_cases_1
+  root_steps_0 --> root_steps_1_rule
+  root_steps_1_rule --> root_steps_2_rule_in
+  root_steps_2_rule_out --> root_steps_3
+  root_steps_3_cases_0 --> passed
+  root_steps_3_cases_1 --> passed
+```
+
+`toMermaid` lives in `ts-rules-composer/mermaid`, so the main entry point stays small. `toGraph` and `named` come from the main entry point.
+
+### Options
+
+```ts
+toMermaid(pipeline, { direction: "LR", verbose: true, failEdges: true, maxLabelLength: 60 });
+```
+
+| Option           | Default | Effect                                                                                                      |
+| ---------------- | ------- | ----------------------------------------------------------------------------------------------------------- |
+| `direction`      | `"TD"`  | `"TD"` (top down) or `"LR"` (left to right).                                                                |
+| `failEdges`      | `false` | Draw dotted edges from every step that can fail to a `failed` terminal. Off by default: they bury the happy path. |
+| `verbose`        | `false` | Also show `withDebug`, `withTap`, `mapError` and `withLazyContext` (a group title when the wrapped rule is composite). |
+| `maxLabelLength` | `40`    | Longest label text, cut with `…` (minimum 2). Badges are never cut.                                          |
+
+`withTimeout`, `withRetry` and `withMemoize` always show as badges on the wrapped rule: `⏱ 500ms`, `↻ 3x`, `⚡ cached`.
+
+### Naming things
+
+A diagram can only show names the engine can find. Name your rules, predicates, accessors and selectors, or they print as `rule #1`, `rule #2` and so on.
+
+- Declared functions and `const` arrow functions keep their name (`const validateAmount = ...`).
+- Use `named("amount > 1000", (tx) => tx.amount > 1000)` for anything anonymous. It also collapses a sub-pipeline into a single box. It does not change behavior.
+- An anonymous function passed through a decorator loses the `const` name: `const x = withMemoize(async () => ...)` prints `rule #n`. Name the inner function, as in `withMemoize(named("checkFraudRisk", async () => ...), ...)`.
+- A plain function you write yourself is drawn as one leaf, even if it calls other rules inside. Only this package's combinators are described structurally.
 
 ## Best Practices
 
