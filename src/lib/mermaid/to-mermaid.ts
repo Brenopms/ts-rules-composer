@@ -29,15 +29,17 @@ export type MermaidOptions = {
   maxLabelLength?: number;
 };
 
-type Settings = { verbose: boolean; max: number };
+type RenderSettings = { verbose: boolean; maxLabelLength: number };
 
 /** At least 2, so a label keeps one character before its `…`. */
 const labelLimit = (requested: number) =>
   Number.isNaN(requested) ? 40 : Math.max(2, Math.floor(requested));
 
-const clip = (max: number, text: string) => {
+const clip = (maxLabelLength: number, text: string) => {
   const chars = [...text];
-  return chars.length > max ? `${chars.slice(0, max - 1).join("")}…` : text;
+  return chars.length > maxLabelLength
+    ? `${chars.slice(0, maxLabelLength - 1).join("")}…`
+    : text;
 };
 
 const direction = (requested: string) => (requested === "LR" ? "LR" : "TD");
@@ -124,14 +126,14 @@ const isLeaf = (node: GraphNode) => !composite.has(node.kind);
 /** Draws the rule at `id` plus whichever children it has, in order. */
 const render = (
   node: GraphNode,
-  cfg: Settings,
+  settings: RenderSettings,
   badges: string[] = [],
 ): Fragment => {
   if (node.kind === "decorator") {
-    const own = badge(node, cfg.verbose);
-    return render(node.rule, cfg, own ? [...badges, own] : badges);
+    const own = badge(node, settings.verbose);
+    return render(node.rule, settings, own ? [...badges, own] : badges);
   }
-  const part = draw(node, cfg, badges);
+  const part = draw(node, settings, badges);
   return badges.length > 0 && !isLeaf(node)
     ? {
         ...part,
@@ -332,14 +334,14 @@ const drawLeaf = (node: NodeOf<"rule">, { id, text, badges }: Ctx): Fragment =>
 
 const draw = (
   node: Exclude<GraphNode, { kind: "decorator" }>,
-  cfg: Settings,
+  settings: RenderSettings,
   badges: string[],
 ): Fragment => {
   const ctx: Ctx = {
     id: mermaidId(node.id),
     badges,
-    text: (value) => clip(cfg.max, value),
-    sub: (child) => render(child, cfg),
+    text: (value) => clip(settings.maxLabelLength, value),
+    sub: (child) => render(child, settings),
   };
 
   switch (node.kind) {
@@ -394,7 +396,7 @@ export const toMermaid = <TInput, TError, TContext>(
   } = options;
   const body = render(toGraph(rule).root, {
     verbose,
-    max: labelLimit(maxLabelLength),
+    maxLabelLength: labelLimit(maxLabelLength),
   });
   const fails = failEdges ? body.fails : [];
   return [
