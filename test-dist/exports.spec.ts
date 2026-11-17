@@ -92,6 +92,38 @@ describe.each<Entry>(["esm", "cjs"])(
   },
 );
 
+describe.each<[Entry, Entry]>([
+  ["esm", "cjs"],
+  ["cjs", "esm"],
+])(
+  "ts-rules-composer/mermaid (%s printer) reading a pipeline built by the %s entry",
+  (printer, builder) => {
+    it("describes named rules, badges and the graph", () => {
+      // The builder entry is loaded from inside the printer's own process.
+      const loadMain =
+        builder === "esm"
+          ? `await import("${PACKAGE_NAME}")`
+          : `(await import("node:module")).createRequire(process.cwd() + "/")("${PACKAGE_NAME}")`;
+      const result = runInConsumer<{ text: string; kind: string }>(
+        inject("projectDir"),
+        printer,
+        `const main = ${loadMain};
+         const check = main.named("amount > 10", (n) => n > 10);
+         const rule = main.pipeRules([
+           main.withTimeout(() => main.pass(), 500, "slow"),
+           main.when(check, main.withRetry(() => main.pass(), { attempts: 3 })),
+         ]);
+         return { text: m.toMermaid(rule), kind: main.toGraph(rule).root.kind };`,
+        `${PACKAGE_NAME}/mermaid`,
+      );
+      expect(result.kind).toBe("sequence");
+      expect(result.text).toContain("amount #62; 10");
+      expect(result.text).toContain("500ms");
+      expect(result.text).toContain("3x");
+    });
+  },
+);
+
 describe("installed package contents", () => {
   it("ships the built files and metadata, and nothing from src or tests", () => {
     const files = listFiles(installedDir());
