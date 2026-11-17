@@ -797,6 +797,17 @@ describe("toMermaid edge cases", () => {
       );
     });
 
+    it("maxLabelLength truncates validateField getter names", () => {
+      const field = validateField(
+        named("averyLongGetterName", (i: { total: number }) => i.total),
+        positive,
+      );
+
+      expect(toMermaid(field, { maxLabelLength: 8 })).toContain(
+        'subgraph root_sg["field: averyLo#8230;"]',
+      );
+    });
+
     it("defaults to 40 characters", () => {
       const text = toMermaid(named("x".repeat(60), hasItems));
 
