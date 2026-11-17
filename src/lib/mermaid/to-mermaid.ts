@@ -144,176 +144,226 @@ const render = (
     : part;
 };
 
-const draw = (
-  node: Exclude<GraphNode, { kind: "decorator" }>,
-  cfg: Settings,
-  badges: string[],
-): Fragment => {
-  const id = mermaidId(node.id);
-  const text = (value: string) => clip(cfg.max, value);
-  const sub = (child: GraphNode) => render(child, cfg);
+/** What every `draw*` function needs besides its node. */
+type Ctx = {
+  id: string;
+  badges: string[];
+  /** A label cut to `maxLabelLength`. */
+  text: (value: string) => string;
+  /** Draws a child rule. */
+  sub: (child: GraphNode) => Fragment;
+};
 
-  switch (node.kind) {
-    case "sequence": {
-      if (node.steps.length === 0) {
-        return fragment({
-          nodes: [`  ${id}("no rules")`],
-          entry: id,
-          exits: [{ id }],
-        });
-      }
-      const parts = node.steps.map(sub);
-      return fragment({
-        nodes: parts.flatMap((part) => part.nodes),
-        edges: [
-          ...parts.flatMap((part) => part.edges),
-          ...parts
-            .slice(1)
-            .flatMap((part, i) => linkAll(parts[i].exits, part.entry)),
-        ],
-        entry: parts[0].entry,
-        exits: parts[parts.length - 1].exits,
-        fails: parts.flatMap((part) => part.fails),
-      });
-    }
-    case "branch": {
-      const sides = [
-        { child: node.ifTrue, label: "yes" },
-        { child: node.ifFalse, label: "no" },
-      ].map(({ child, label }) => ({
-        label,
-        part: child && sub(child),
-      }));
-      return fragment({
-        nodes: [
-          `  ${id}{"${escapeLabel(text(node.test))}"}`,
-          ...sides.flatMap(({ part }) => part?.nodes ?? []),
-        ],
-        edges: sides.flatMap(({ part, label }) => [
-          ...(part ? [link({ id, label }, part.entry)] : []),
-          ...(part?.edges ?? []),
-        ]),
-        entry: id,
-        exits: sides.flatMap(
-          ({ part, label }) => part?.exits ?? [{ id, label }],
-        ),
-        fails: sides.flatMap(({ part }) => part?.fails ?? []),
-      });
-    }
-    case "switch": {
-      const cases = node.cases.map(({ key, node: child }) => ({
-        label: text(key),
-        part: sub(child),
-      }));
-      const fallback = node.default && {
-        label: "default",
-        part: sub(node.default),
-      };
-      const routed = fallback ? [...cases, fallback] : cases;
-      return fragment({
-        nodes: [
-          `  ${id}{"${escapeLabel(text(node.selector))}"}`,
-          ...routed.flatMap(({ part }) => part.nodes),
-        ],
-        edges: routed.flatMap(({ part, label }) => [
-          link({ id, label }, part.entry),
-          ...part.edges,
-        ]),
-        entry: id,
-        exits: routed.flatMap(({ part }) => part.exits),
-        fails: [
-          ...routed.flatMap(({ part }) => part.fails),
-          ...(fallback
-            ? []
-            : [
-                {
-                  id,
-                  label:
-                    node.defaultError === undefined ? "no match" : "default",
-                },
-              ]),
-        ],
-      });
-    }
-    case "all":
-    case "any": {
-      const parts = node.rules.map(sub);
-      const fork = `${id}_in`;
-      const join = `${id}_out`;
-      const title =
-        node.kind === "all" ? "all must pass" : "at least one must pass";
-      return fragment({
-        nodes: group(id, title, [
-          `  ${fork}(("fork"))`,
-          ...parts.flatMap((part) => part.nodes),
-          `  ${join}(("join"))`,
-        ]),
-        edges: [
-          ...(parts.length === 0 ? [`  ${fork} --> ${join}`] : []),
-          ...parts.flatMap((part) => [
-            `  ${fork} --> ${part.entry}`,
-            ...part.edges,
-            ...linkAll(part.exits, join),
-          ]),
-        ],
-        entry: fork,
-        exits: [{ id: join }],
-        fails: parts.length === 0 ? [] : [{ id: join }],
-      });
-    }
-    case "not": {
-      const part = sub(node.rule);
-      const gate = `${id}_gate`;
-      return fragment({
-        nodes: [...group(id, "not", part.nodes), `  ${gate}{"inner failed?"}`],
-        edges: [...part.edges, ...linkAll(part.exits, gate)],
-        entry: part.entry,
-        // `not` passes when the inner rule fails, so the happy edge reads "yes".
-        exits: [{ id: gate, label: "yes" }],
-        fails: [{ id: gate, label: "no" }],
-      });
-    }
-    case "fallback": {
-      const main = sub(node.main);
-      const fallback = sub(node.fallback);
-      const onFail = node.guard ? `on fail if ${text(node.guard)}` : "on fail";
-      return fragment({
-        nodes: [...main.nodes, ...fallback.nodes],
-        edges: [
-          ...main.edges,
-          ...fallback.edges,
-          ...linkAll(main.fails, fallback.entry, "-.->", onFail),
-        ],
-        entry: main.entry,
-        exits: [...main.exits, ...fallback.exits],
-        // A guard that rejects the error lets the main failure through.
-        fails: [...(node.guard ? main.fails : []), ...fallback.fails],
-      });
-    }
-    case "field": {
-      const part = sub(node.rule);
-      return fragment({
-        ...part,
-        nodes: group(id, `field: ${text(node.getter)}`, part.nodes),
-      });
-    }
-    case "effect":
-      return fragment({
-        nodes: [
-          `  ${id}("${escapeLabel(withBadges(text(node.label), badges))}")`,
-        ],
-        entry: id,
-        exits: [{ id }],
-      });
+type NodeOf<K extends GraphNode["kind"]> = Extract<GraphNode, { kind: K }>;
+
+const drawSequence = (node: NodeOf<"sequence">, { id, sub }: Ctx): Fragment => {
+  if (node.steps.length === 0) {
+    return fragment({
+      nodes: [`  ${id}("no rules")`],
+      entry: id,
+      exits: [{ id }],
+    });
   }
-
-  // Every other kind was drawn above, so this is a leaf rule.
+  const parts = node.steps.map(sub);
   return fragment({
+    nodes: parts.flatMap((part) => part.nodes),
+    edges: [
+      ...parts.flatMap((part) => part.edges),
+      ...parts
+        .slice(1)
+        .flatMap((part, i) => linkAll(parts[i].exits, part.entry)),
+    ],
+    entry: parts[0].entry,
+    exits: parts[parts.length - 1].exits,
+    fails: parts.flatMap((part) => part.fails),
+  });
+};
+
+const drawBranch = (
+  node: NodeOf<"branch">,
+  { id, text, sub }: Ctx,
+): Fragment => {
+  const sides = [
+    { child: node.ifTrue, label: "yes" },
+    { child: node.ifFalse, label: "no" },
+  ].map(({ child, label }) => ({
+    label,
+    part: child && sub(child),
+  }));
+  return fragment({
+    nodes: [
+      `  ${id}{"${escapeLabel(text(node.test))}"}`,
+      ...sides.flatMap(({ part }) => part?.nodes ?? []),
+    ],
+    edges: sides.flatMap(({ part, label }) => [
+      ...(part ? [link({ id, label }, part.entry)] : []),
+      ...(part?.edges ?? []),
+    ]),
+    entry: id,
+    exits: sides.flatMap(({ part, label }) => part?.exits ?? [{ id, label }]),
+    fails: sides.flatMap(({ part }) => part?.fails ?? []),
+  });
+};
+
+const drawSwitch = (
+  node: NodeOf<"switch">,
+  { id, text, sub }: Ctx,
+): Fragment => {
+  const cases = node.cases.map(({ key, node: child }) => ({
+    label: text(key),
+    part: sub(child),
+  }));
+  const fallback = node.default && {
+    label: "default",
+    part: sub(node.default),
+  };
+  const routed = fallback ? [...cases, fallback] : cases;
+  return fragment({
+    nodes: [
+      `  ${id}{"${escapeLabel(text(node.selector))}"}`,
+      ...routed.flatMap(({ part }) => part.nodes),
+    ],
+    edges: routed.flatMap(({ part, label }) => [
+      link({ id, label }, part.entry),
+      ...part.edges,
+    ]),
+    entry: id,
+    exits: routed.flatMap(({ part }) => part.exits),
+    fails: [
+      ...routed.flatMap(({ part }) => part.fails),
+      ...(fallback
+        ? []
+        : [
+            {
+              id,
+              label: node.defaultError === undefined ? "no match" : "default",
+            },
+          ]),
+    ],
+  });
+};
+
+/** `every` and `oneOf`: a fork and a join around the child rules. */
+const drawFork = (node: NodeOf<"all" | "any">, { id, sub }: Ctx): Fragment => {
+  const parts = node.rules.map(sub);
+  const fork = `${id}_in`;
+  const join = `${id}_out`;
+  const title =
+    node.kind === "all" ? "all must pass" : "at least one must pass";
+  return fragment({
+    nodes: group(id, title, [
+      `  ${fork}(("fork"))`,
+      ...parts.flatMap((part) => part.nodes),
+      `  ${join}(("join"))`,
+    ]),
+    edges: [
+      ...(parts.length === 0 ? [`  ${fork} --> ${join}`] : []),
+      ...parts.flatMap((part) => [
+        `  ${fork} --> ${part.entry}`,
+        ...part.edges,
+        ...linkAll(part.exits, join),
+      ]),
+    ],
+    entry: fork,
+    exits: [{ id: join }],
+    fails: parts.length === 0 ? [] : [{ id: join }],
+  });
+};
+
+const drawNot = (node: NodeOf<"not">, { id, sub }: Ctx): Fragment => {
+  const part = sub(node.rule);
+  const gate = `${id}_gate`;
+  return fragment({
+    nodes: [...group(id, "not", part.nodes), `  ${gate}{"inner failed?"}`],
+    edges: [...part.edges, ...linkAll(part.exits, gate)],
+    entry: part.entry,
+    // `not` passes when the inner rule fails, so the happy edge reads "yes".
+    exits: [{ id: gate, label: "yes" }],
+    fails: [{ id: gate, label: "no" }],
+  });
+};
+
+const drawFallback = (
+  node: NodeOf<"fallback">,
+  { text, sub }: Ctx,
+): Fragment => {
+  const main = sub(node.main);
+  const fallback = sub(node.fallback);
+  const onFail = node.guard ? `on fail if ${text(node.guard)}` : "on fail";
+  return fragment({
+    nodes: [...main.nodes, ...fallback.nodes],
+    edges: [
+      ...main.edges,
+      ...fallback.edges,
+      ...linkAll(main.fails, fallback.entry, "-.->", onFail),
+    ],
+    entry: main.entry,
+    exits: [...main.exits, ...fallback.exits],
+    // A guard that rejects the error lets the main failure through.
+    fails: [...(node.guard ? main.fails : []), ...fallback.fails],
+  });
+};
+
+const drawField = (node: NodeOf<"field">, { id, text, sub }: Ctx): Fragment => {
+  const part = sub(node.rule);
+  return fragment({
+    ...part,
+    nodes: group(id, `field: ${text(node.getter)}`, part.nodes),
+  });
+};
+
+const drawEffect = (
+  node: NodeOf<"effect">,
+  { id, text, badges }: Ctx,
+): Fragment =>
+  fragment({
+    nodes: [`  ${id}("${escapeLabel(withBadges(text(node.label), badges))}")`],
+    entry: id,
+    exits: [{ id }],
+  });
+
+const drawLeaf = (node: NodeOf<"rule">, { id, text, badges }: Ctx): Fragment =>
+  fragment({
     nodes: [box(id, withBadges(text(node.label), badges))],
     entry: id,
     exits: [{ id }],
     fails: [{ id }],
   });
+
+const draw = (
+  node: Exclude<GraphNode, { kind: "decorator" }>,
+  cfg: Settings,
+  badges: string[],
+): Fragment => {
+  const ctx: Ctx = {
+    id: mermaidId(node.id),
+    badges,
+    text: (value) => clip(cfg.max, value),
+    sub: (child) => render(child, cfg),
+  };
+
+  switch (node.kind) {
+    case "sequence":
+      return drawSequence(node, ctx);
+    case "branch":
+      return drawBranch(node, ctx);
+    case "switch":
+      return drawSwitch(node, ctx);
+    case "all":
+    case "any":
+      return drawFork(node, ctx);
+    case "not":
+      return drawNot(node, ctx);
+    case "fallback":
+      return drawFallback(node, ctx);
+    case "field":
+      return drawField(node, ctx);
+    case "effect":
+      return drawEffect(node, ctx);
+    default:
+      // Every other kind is a leaf rule, including kinds this printer does not know.
+      return drawLeaf(node, ctx);
+  }
 };
 
 /**
