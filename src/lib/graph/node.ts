@@ -19,7 +19,8 @@ export type DecoratorName =
   | "memoize"
   | "debug"
   | "tap"
-  | "mapError";
+  | "mapError"
+  | "lazyContext";
 
 /**
  * Structure recorded by a combinator at construction time. Children are the

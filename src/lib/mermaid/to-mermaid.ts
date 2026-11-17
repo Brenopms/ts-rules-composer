@@ -2,12 +2,68 @@ import type { GraphNode } from "../graph/node";
 import { toGraph } from "../graph/to-graph";
 import type { Rule } from "../types";
 
+/** A point control leaves a fragment from, with an optional edge label. */
+type Port = { id: string; label?: string };
+
+/**
+ * A drawn piece of the diagram. `exits` continue to whatever comes next when the
+ * piece passes; `fails` are where it can fail, left for the parent to route
+ * (to `failed`, or to a fallback).
+ */
 type Fragment = {
   nodes: string[];
   edges: string[];
   entry: string;
-  exit: string;
+  exits: Port[];
+  fails: Port[];
 };
+
+export type MermaidOptions = {
+  /** Flow direction. Default `"TD"`. */
+  direction?: "TD" | "LR";
+  /** Draw dotted edges from steps that can fail to `failed`. Default `false`: they roughly double the edges and bury the happy path. */
+  failEdges?: boolean;
+  /** Also show `withDebug`, `withTap` and `mapError` decorators. Default `false`. */
+  verbose?: boolean;
+  /** Longest label text, cut with `…`. Default `40`. Badges are never cut. */
+  maxLabelLength?: number;
+};
+
+type Settings = { verbose: boolean; max: number };
+
+/** At least 2, so a label keeps one character before its `…`. */
+const labelLimit = (requested: number) =>
+  Number.isNaN(requested) ? 40 : Math.max(2, Math.floor(requested));
+
+const clip = (max: number, text: string) => {
+  const chars = [...text];
+  return chars.length > max ? `${chars.slice(0, max - 1).join("")}…` : text;
+};
+
+const direction = (requested: string) => (requested === "LR" ? "LR" : "TD");
+
+const param = (value: unknown) =>
+  typeof value === "number" || typeof value === "string" ? `${value}` : "?";
+
+/** Short text for a decorator, or `undefined` when it stays hidden. */
+const badge = (
+  node: Extract<GraphNode, { kind: "decorator" }>,
+  verbose: boolean,
+) => {
+  switch (node.decorator) {
+    case "timeout":
+      return `⏱ ${param(node.params.ms)}ms`;
+    case "retry":
+      return `↻ ${param(node.params.attempts)}x`;
+    case "memoize":
+      return "⚡ cached";
+    default:
+      return verbose ? node.decorator : undefined;
+  }
+};
+
+const withBadges = (label: string, badges: string[]) =>
+  [label, ...badges].join(" ");
 
 const mermaidId = (id: string) => id.replace(/[^A-Za-z0-9_]/g, "_");
 
@@ -23,48 +79,276 @@ const escapeLabel = (label: string) =>
 
 const box = (id: string, label: string) => `  ${id}["${escapeLabel(label)}"]`;
 
-const render = (node: GraphNode): Fragment => {
-  const id = mermaidId(node.id);
+const link = (
+  from: Port,
+  to: string,
+  arrow = "-->",
+  fallbackLabel?: string,
+) => {
+  const label = from.label ?? fallbackLabel;
+  return label === undefined
+    ? `  ${from.id} ${arrow} ${to}`
+    : `  ${from.id} ${arrow}|"${escapeLabel(label)}"| ${to}`;
+};
 
-  if (node.kind === "sequence" && node.steps.length > 0) {
-    const parts = node.steps.map(render);
-    return {
-      nodes: parts.flatMap((part) => part.nodes),
-      edges: [
-        ...parts.flatMap((part) => part.edges),
-        ...parts
-          .slice(1)
-          .map((part, i) => `  ${parts[i].exit} --> ${part.entry}`),
-      ],
-      entry: parts[0].entry,
-      exit: parts[parts.length - 1].exit,
-    };
+const linkAll = (from: Port[], to: string, arrow = "-->", label?: string) =>
+  from.map((port) => link(port, to, arrow, label));
+
+const group = (id: string, title: string, nodes: string[]) => [
+  `  subgraph ${id}_sg["${escapeLabel(title)}"]`,
+  ...nodes,
+  "  end",
+];
+
+const fragment = (parts: Partial<Fragment> & { entry: string }): Fragment => ({
+  nodes: [],
+  edges: [],
+  exits: [],
+  fails: [],
+  ...parts,
+});
+
+const composite = new Set<string>([
+  "sequence",
+  "branch",
+  "switch",
+  "all",
+  "any",
+  "not",
+  "fallback",
+  "field",
+]);
+
+const isLeaf = (node: GraphNode) => !composite.has(node.kind);
+
+/** Draws the rule at `id` plus whichever children it has, in order. */
+const render = (
+  node: GraphNode,
+  cfg: Settings,
+  badges: string[] = [],
+): Fragment => {
+  if (node.kind === "decorator") {
+    const own = badge(node, cfg.verbose);
+    return render(node.rule, cfg, own ? [...badges, own] : badges);
+  }
+  const part = draw(node, cfg, badges);
+  return badges.length > 0 && !isLeaf(node)
+    ? {
+        ...part,
+        nodes: group(
+          `${mermaidId(node.id)}_badge`,
+          badges.join(" "),
+          part.nodes,
+        ),
+      }
+    : part;
+};
+
+const draw = (
+  node: Exclude<GraphNode, { kind: "decorator" }>,
+  cfg: Settings,
+  badges: string[],
+): Fragment => {
+  const id = mermaidId(node.id);
+  const text = (value: string) => clip(cfg.max, value);
+  const sub = (child: GraphNode) => render(child, cfg);
+
+  switch (node.kind) {
+    case "sequence": {
+      if (node.steps.length === 0) {
+        return fragment({
+          nodes: [`  ${id}("no rules")`],
+          entry: id,
+          exits: [{ id }],
+        });
+      }
+      const parts = node.steps.map(sub);
+      return fragment({
+        nodes: parts.flatMap((part) => part.nodes),
+        edges: [
+          ...parts.flatMap((part) => part.edges),
+          ...parts
+            .slice(1)
+            .flatMap((part, i) => linkAll(parts[i].exits, part.entry)),
+        ],
+        entry: parts[0].entry,
+        exits: parts[parts.length - 1].exits,
+        fails: parts.flatMap((part) => part.fails),
+      });
+    }
+    case "branch": {
+      const sides = [
+        { child: node.ifTrue, label: "yes" },
+        { child: node.ifFalse, label: "no" },
+      ].map(({ child, label }) => ({
+        label,
+        part: child && sub(child),
+      }));
+      return fragment({
+        nodes: [
+          `  ${id}{"${escapeLabel(text(node.test))}"}`,
+          ...sides.flatMap(({ part }) => part?.nodes ?? []),
+        ],
+        edges: sides.flatMap(({ part, label }) => [
+          ...(part ? [link({ id, label }, part.entry)] : []),
+          ...(part?.edges ?? []),
+        ]),
+        entry: id,
+        exits: sides.flatMap(
+          ({ part, label }) => part?.exits ?? [{ id, label }],
+        ),
+        fails: sides.flatMap(({ part }) => part?.fails ?? []),
+      });
+    }
+    case "switch": {
+      const cases = node.cases.map(({ key, node: child }) => ({
+        label: text(key),
+        part: sub(child),
+      }));
+      const fallback = node.default && {
+        label: "default",
+        part: sub(node.default),
+      };
+      const routed = fallback ? [...cases, fallback] : cases;
+      return fragment({
+        nodes: [
+          `  ${id}{"${escapeLabel(text(node.selector))}"}`,
+          ...routed.flatMap(({ part }) => part.nodes),
+        ],
+        edges: routed.flatMap(({ part, label }) => [
+          link({ id, label }, part.entry),
+          ...part.edges,
+        ]),
+        entry: id,
+        exits: routed.flatMap(({ part }) => part.exits),
+        fails: [
+          ...routed.flatMap(({ part }) => part.fails),
+          ...(fallback
+            ? []
+            : [
+                {
+                  id,
+                  label:
+                    node.defaultError === undefined ? "no match" : "default",
+                },
+              ]),
+        ],
+      });
+    }
+    case "all":
+    case "any": {
+      const parts = node.rules.map(sub);
+      const fork = `${id}_in`;
+      const join = `${id}_out`;
+      const title =
+        node.kind === "all" ? "all must pass" : "at least one must pass";
+      return fragment({
+        nodes: group(id, title, [
+          `  ${fork}(("fork"))`,
+          ...parts.flatMap((part) => part.nodes),
+          `  ${join}(("join"))`,
+        ]),
+        edges: [
+          ...(parts.length === 0 ? [`  ${fork} --> ${join}`] : []),
+          ...parts.flatMap((part) => [
+            `  ${fork} --> ${part.entry}`,
+            ...part.edges,
+            ...linkAll(part.exits, join),
+          ]),
+        ],
+        entry: fork,
+        exits: [{ id: join }],
+        fails: parts.length === 0 ? [] : [{ id: join }],
+      });
+    }
+    case "not": {
+      const part = sub(node.rule);
+      const gate = `${id}_gate`;
+      return fragment({
+        nodes: [...group(id, "not", part.nodes), `  ${gate}{"inner failed?"}`],
+        edges: [...part.edges, ...linkAll(part.exits, gate)],
+        entry: part.entry,
+        // `not` passes when the inner rule fails, so the happy edge reads "yes".
+        exits: [{ id: gate, label: "yes" }],
+        fails: [{ id: gate, label: "no" }],
+      });
+    }
+    case "fallback": {
+      const main = sub(node.main);
+      const fallback = sub(node.fallback);
+      const onFail = node.guard ? `on fail if ${text(node.guard)}` : "on fail";
+      return fragment({
+        nodes: [...main.nodes, ...fallback.nodes],
+        edges: [
+          ...main.edges,
+          ...fallback.edges,
+          ...linkAll(main.fails, fallback.entry, "-.->", onFail),
+        ],
+        entry: main.entry,
+        exits: [...main.exits, ...fallback.exits],
+        // A guard that rejects the error lets the main failure through.
+        fails: [...(node.guard ? main.fails : []), ...fallback.fails],
+      });
+    }
+    case "field": {
+      const part = sub(node.rule);
+      return fragment({
+        ...part,
+        nodes: group(id, `field: ${text(node.getter)}`, part.nodes),
+      });
+    }
+    case "effect":
+      return fragment({
+        nodes: [
+          `  ${id}("${escapeLabel(withBadges(text(node.label), badges))}")`,
+        ],
+        entry: id,
+        exits: [{ id }],
+      });
   }
 
-  // Leaves and kinds the skeleton cannot draw yet render as a single box.
-  const label = node.kind === "rule" ? node.label : node.kind;
-  return { nodes: [box(id, label)], edges: [], entry: id, exit: id };
+  // Every other kind was drawn above, so this is a leaf rule.
+  return fragment({
+    nodes: [box(id, withBadges(text(node.label), badges))],
+    entry: id,
+    exits: [{ id }],
+    fails: [{ id }],
+  });
 };
 
 /**
  * Renders a rule as Mermaid flowchart source, without running it.
  *
- * Skeleton: draws leaf rules and `pipeRules` sequences only.
+ * Draws every node kind. Timeout, retry and memoize show as badges on the
+ * wrapped rule; debug, tap and mapError only with `verbose`.
  *
  * @example
  * const text = toMermaid(pipeRules([hasItems, withinLimit]));
  */
 export const toMermaid = <TInput, TError, TContext>(
   rule: Rule<TInput, TError, TContext>,
+  options: MermaidOptions = {},
 ): string => {
-  const body = render(toGraph(rule).root);
+  const {
+    direction: requestedDirection = "TD",
+    failEdges = false,
+    verbose = false,
+    maxLabelLength = 40,
+  } = options;
+  const body = render(toGraph(rule).root, {
+    verbose,
+    max: labelLimit(maxLabelLength),
+  });
+  const fails = failEdges ? body.fails : [];
   return [
-    "flowchart TD",
+    `flowchart ${direction(requestedDirection)}`,
     "  input([input])",
     ...body.nodes,
     "  passed([passed])",
+    ...(fails.length > 0 ? ["  failed([failed])"] : []),
     `  input --> ${body.entry}`,
     ...body.edges,
-    `  ${body.exit} --> passed`,
+    ...linkAll(body.exits, "passed"),
+    ...linkAll(fails, "failed", "-.->", "fail"),
   ].join("\n");
 };

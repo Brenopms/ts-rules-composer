@@ -21,12 +21,13 @@ import {
   when,
   withDebug,
   withFallback,
+  withLazyContext,
   withMemoize,
   withRetry,
   withTap,
   withTimeout,
 } from "../index";
-import { readNode } from "./node";
+import { attachNode, readNode } from "./node";
 
 type Order = { items: number; total: number };
 
@@ -521,6 +522,35 @@ describe("toGraph", () => {
       });
     });
 
+    it("describes withLazyContext as a decorator around the rule it feeds", () => {
+      const loader = vi.fn(async () => ({}));
+      const rule = withLazyContext(loader, hasItems);
+
+      expect(toGraph(rule).root).toEqual({
+        id: "root",
+        kind: "decorator",
+        decorator: "lazyContext",
+        params: {},
+        rule: { id: "root.rule", kind: "rule", label: "hasItems" },
+      });
+      expect(loader).not.toHaveBeenCalled();
+    });
+
+    it("keeps the rules inside a withLazyContext pipeline reachable", () => {
+      const rule = withLazyContext(
+        async () => ({}),
+        pipeRules<Order>([hasItems, withinLimit]),
+      );
+
+      expect(toGraph(rule).root).toMatchObject({
+        kind: "decorator",
+        rule: {
+          kind: "sequence",
+          steps: [{ label: "hasItems" }, { label: "withinLimit" }],
+        },
+      });
+    });
+
     it("describes inject as the rule it configures", () => {
       const pipeline = pipeRules<Order>([hasItems, withinLimit]);
       const injected = inject({ limit: 1 }, () => pipeline);
@@ -907,6 +937,28 @@ describe("node capture keeps the original children", () => {
 
     expect(toGraph(pipeline).root).toMatchObject({
       steps: [{ label: "hasItems" }],
+    });
+  });
+});
+
+describe("toGraph with a node it does not know", () => {
+  it("describes it as a leaf rule instead of dropping it", () => {
+    // The node key is a shared symbol, so another version or package could
+    // attach a kind this one has never heard of.
+    const unknown = attachNode(
+      function futureRule() {
+        return pass();
+      },
+      { kind: "mystery" } as never,
+    );
+
+    expect(toGraph(unknown).root).toEqual({
+      id: "root",
+      kind: "rule",
+      label: "futureRule",
+    });
+    expect(toGraph(pipeRules<Order>([unknown, hasItems])).root).toMatchObject({
+      steps: [{ kind: "rule", label: "futureRule" }, { label: "hasItems" }],
     });
   });
 });
