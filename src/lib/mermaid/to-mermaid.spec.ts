@@ -21,7 +21,17 @@ import {
   withTap,
   withTimeout,
 } from "../index";
-import { toMermaid } from "./to-mermaid";
+import type { Rule } from "../types";
+import { type MermaidOptions, toMermaid as printDefault } from "./to-mermaid";
+
+/**
+ * Most tests pin how failures are drawn, so they print with fail edges on.
+ * `printDefault` is the real default, covered in "fail edges" below.
+ */
+const toMermaid = <TInput, TError, TContext>(
+  rule: Rule<TInput, TError, TContext>,
+  options: MermaidOptions = {},
+) => printDefault(rule, { failEdges: true, ...options });
 
 const hasItems = () => pass();
 const withinLimit = () => pass();
@@ -679,6 +689,21 @@ describe("toMermaid edge cases", () => {
       expect(toMermaid(rule, { direction: "LR" }).split("\n")[0]).toBe(
         "flowchart LR",
       );
+    });
+
+    it("leaves fail edges off by default", () => {
+      const text = printDefault(rule);
+
+      expect(text).not.toContain("failed");
+      expect(text).not.toContain("-.->");
+      expect(text).toBe(printDefault(rule, { failEdges: false }));
+    });
+
+    it("failEdges: true adds the failed terminal and a dotted edge per failing step", () => {
+      const text = printDefault(rule, { failEdges: true });
+
+      expect(text).toContain("failed([failed])");
+      expect(text).toContain('root_steps_1 -.->|"fail"| failed');
     });
 
     it("failEdges: false drops the failed terminal and its edges", () => {

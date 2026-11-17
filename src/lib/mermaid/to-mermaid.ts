@@ -21,7 +21,7 @@ type Fragment = {
 export type MermaidOptions = {
   /** Flow direction. Default `"TD"`. */
   direction?: "TD" | "LR";
-  /** Draw dotted edges from steps that can fail to `failed`. Default `true`. */
+  /** Draw dotted edges from steps that can fail to `failed`. Default `false`: they roughly double the edges and bury the happy path. */
   failEdges?: boolean;
   /** Also show `withDebug`, `withTap` and `mapError` decorators. Default `false`. */
   verbose?: boolean;
@@ -330,7 +330,7 @@ export const toMermaid = <TInput, TError, TContext>(
 ): string => {
   const {
     direction: requestedDirection = "TD",
-    failEdges = true,
+    failEdges = false,
     verbose = false,
     maxLabelLength = 40,
   } = options;

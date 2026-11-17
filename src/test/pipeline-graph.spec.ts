@@ -169,7 +169,6 @@ describe("example pipelines as diagrams", () => {
         root_steps_3_cases_0["validateAdminPrivileges"]
         root_steps_3_cases_1["validateStandardUser"]
         passed([passed])
-        failed([failed])
         input --> root_steps_0
         root_steps_2_rule_in --> root_steps_2_rule_rules_0
         root_steps_2_rule_rules_0 --> root_steps_2_rule_out
@@ -183,18 +182,70 @@ describe("example pipelines as diagrams", () => {
         root_steps_1_rule --> root_steps_2_rule_in
         root_steps_2_rule_out --> root_steps_3
         root_steps_3_cases_0 --> passed
-        root_steps_3_cases_1 --> passed
-        root_steps_0 -.->|"fail"| failed
-        root_steps_1_rule -.->|"fail"| failed
-        root_steps_2_rule_out -.->|"fail"| failed
-        root_steps_3_cases_0 -.->|"fail"| failed
-        root_steps_3_cases_1 -.->|"fail"| failed
-        root_steps_3 -.->|"default"| failed"
+        root_steps_3_cases_1 --> passed"
     `);
   });
 
   it("financial transaction", () => {
     expect(toMermaid(financialTransaction())).toMatchInlineSnapshot(`
+      "flowchart TD
+        input([input])
+        root_steps_0["validateAmount"]
+        root_steps_1["validateCurrency"]
+        root_steps_2{"amount #62; 1000"}
+        root_steps_2_ifTrue_rule_rule["checkFraudRisk #8635; 2x #9889; cached"]
+        root_steps_3{"paymentType"}
+        root_steps_3_cases_0_steps_0["validateCardNumber"]
+        root_steps_3_cases_0_steps_1["validateExpiry"]
+        root_steps_3_cases_0_steps_2_rule["bankAuthCheck #9201; 3000ms"]
+        root_steps_3_cases_1["validateWalletAddress"]
+        root_steps_3_cases_2["validateIBAN"]
+        root_steps_4{"accountType"}
+        root_steps_4_cases_0["validateBusinessTransfer"]
+        root_steps_4_cases_1["validatePersonalTransfer"]
+        passed([passed])
+        input --> root_steps_0
+        root_steps_2 -->|"yes"| root_steps_2_ifTrue_rule_rule
+        root_steps_3 -->|"credit_card"| root_steps_3_cases_0_steps_0
+        root_steps_3_cases_0_steps_0 --> root_steps_3_cases_0_steps_1
+        root_steps_3_cases_0_steps_1 --> root_steps_3_cases_0_steps_2_rule
+        root_steps_3 -->|"crypto"| root_steps_3_cases_1
+        root_steps_3 -->|"bank_transfer"| root_steps_3_cases_2
+        root_steps_4 -->|"business"| root_steps_4_cases_0
+        root_steps_4 -->|"personal"| root_steps_4_cases_1
+        root_steps_0 --> root_steps_1
+        root_steps_1 --> root_steps_2
+        root_steps_2_ifTrue_rule_rule --> root_steps_3
+        root_steps_2 -->|"no"| root_steps_3
+        root_steps_3_cases_0_steps_2_rule --> root_steps_4
+        root_steps_3_cases_1 --> root_steps_4
+        root_steps_3_cases_2 --> root_steps_4
+        root_steps_4_cases_0 --> passed
+        root_steps_4_cases_1 --> passed"
+    `);
+  });
+
+  it("model deployment", () => {
+    expect(toMermaid(modelDeployment())).toMatchInlineSnapshot(`
+      "flowchart TD
+        input([input])
+        root_steps_0("log: started")
+        root_steps_1["rule #35;1"]
+        root_steps_2_rule["checkRisk #9889; cached"]
+        root_steps_3("log: passed")
+        passed([passed])
+        input --> root_steps_0
+        root_steps_0 --> root_steps_1
+        root_steps_1 --> root_steps_2_rule
+        root_steps_2_rule --> root_steps_3
+        root_steps_3 --> passed"
+    `);
+  });
+
+  it("renders the failEdges: true variant for the busiest pipeline", () => {
+    expect(
+      toMermaid(financialTransaction(), { failEdges: true }),
+    ).toMatchInlineSnapshot(`
       "flowchart TD
         input([input])
         root_steps_0["validateAmount"]
@@ -242,67 +293,6 @@ describe("example pipelines as diagrams", () => {
         root_steps_4_cases_0 -.->|"fail"| failed
         root_steps_4_cases_1 -.->|"fail"| failed
         root_steps_4 -.->|"no match"| failed"
-    `);
-  });
-
-  it("model deployment", () => {
-    expect(toMermaid(modelDeployment())).toMatchInlineSnapshot(`
-      "flowchart TD
-        input([input])
-        root_steps_0("log: started")
-        root_steps_1["rule #35;1"]
-        root_steps_2_rule["checkRisk #9889; cached"]
-        root_steps_3("log: passed")
-        passed([passed])
-        failed([failed])
-        input --> root_steps_0
-        root_steps_0 --> root_steps_1
-        root_steps_1 --> root_steps_2_rule
-        root_steps_2_rule --> root_steps_3
-        root_steps_3 --> passed
-        root_steps_1 -.->|"fail"| failed
-        root_steps_2_rule -.->|"fail"| failed"
-    `);
-  });
-
-  it("renders the failEdges: false variant for the busiest pipeline", () => {
-    expect(
-      toMermaid(financialTransaction(), { failEdges: false }),
-    ).toMatchInlineSnapshot(`
-      "flowchart TD
-        input([input])
-        root_steps_0["validateAmount"]
-        root_steps_1["validateCurrency"]
-        root_steps_2{"amount #62; 1000"}
-        root_steps_2_ifTrue_rule_rule["checkFraudRisk #8635; 2x #9889; cached"]
-        root_steps_3{"paymentType"}
-        root_steps_3_cases_0_steps_0["validateCardNumber"]
-        root_steps_3_cases_0_steps_1["validateExpiry"]
-        root_steps_3_cases_0_steps_2_rule["bankAuthCheck #9201; 3000ms"]
-        root_steps_3_cases_1["validateWalletAddress"]
-        root_steps_3_cases_2["validateIBAN"]
-        root_steps_4{"accountType"}
-        root_steps_4_cases_0["validateBusinessTransfer"]
-        root_steps_4_cases_1["validatePersonalTransfer"]
-        passed([passed])
-        input --> root_steps_0
-        root_steps_2 -->|"yes"| root_steps_2_ifTrue_rule_rule
-        root_steps_3 -->|"credit_card"| root_steps_3_cases_0_steps_0
-        root_steps_3_cases_0_steps_0 --> root_steps_3_cases_0_steps_1
-        root_steps_3_cases_0_steps_1 --> root_steps_3_cases_0_steps_2_rule
-        root_steps_3 -->|"crypto"| root_steps_3_cases_1
-        root_steps_3 -->|"bank_transfer"| root_steps_3_cases_2
-        root_steps_4 -->|"business"| root_steps_4_cases_0
-        root_steps_4 -->|"personal"| root_steps_4_cases_1
-        root_steps_0 --> root_steps_1
-        root_steps_1 --> root_steps_2
-        root_steps_2_ifTrue_rule_rule --> root_steps_3
-        root_steps_2 -->|"no"| root_steps_3
-        root_steps_3_cases_0_steps_2_rule --> root_steps_4
-        root_steps_3_cases_1 --> root_steps_4
-        root_steps_3_cases_2 --> root_steps_4
-        root_steps_4_cases_0 --> passed
-        root_steps_4_cases_1 --> passed"
     `);
   });
 });

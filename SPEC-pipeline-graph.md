@@ -86,7 +86,7 @@ toMermaid<TInput, TError, TContext>(rule: Rule<TInput, TError, TContext>, option
 
 type MermaidOptions = {
   direction?: "TD" | "LR";      // default "TD"
-  failEdges?: boolean;           // default true: dotted edge from each step to the failed terminal
+  failEdges?: boolean;           // default false: when true, a dotted edge from each step that can fail to the failed terminal
   verbose?: boolean;             // default false: also show debug/tap/inject/mapError decorators
   maxLabelLength?: number;       // default 40, truncates with "…"
 };
@@ -163,6 +163,6 @@ Test-first per combinator; mutation check: remove each `attachNode` and confirm 
 1. **Subpath export** `ts-rules-composer/mermaid` (my recommendation) versus exporting `toMermaid` from the main entry (simpler, small cost) versus a separate package. Needs a decision before the packaging task.
 2. **Symbol property vs WeakMap** (assumption 2): I recommend `Symbol.for` because of the dual-package hazard. Confirm you accept a property on the returned function, even though it is non-enumerable.
 3. **`named` returns a wrapper** (one extra call per invocation at runtime, no mutation) versus mutating the function in place (free, but a shared rule can only carry one name). I recommend the wrapper. Confirm.
-4. **Fail edges on by default** (honest about fail-fast, but busy on long pipelines) versus off by default. I chose on; say if the three example diagrams look too noisy and I'll flip it.
+4. **Fail edges** (decided after T13 review: off by default, the three example diagrams were too noisy; `failEdges: true` opts in).
 5. **Automated Mermaid syntax check:** add `mermaid` as a devDependency and parse in tests (it may need a DOM shim in Node), or rely on snapshots plus the manual check? I lean on snapshots plus manual for v1.
 6. **Should custom combinator authors get a public `attachNode`/describe hook** in v1? I lean on keeping it internal until the IR has settled.
