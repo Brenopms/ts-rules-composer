@@ -67,6 +67,7 @@ body.dark, :root[data-theme="dark"] {
 <li><a href="#error-handling-standardization">Error handling</a></li>
 <li><a href="#guardrails-and-policy-checks">Guardrails and policy checks</a></li>
 <li><a href="#context-cloning-options">Context cloning</a></li>
+<li><a href="#diagrams">Diagrams</a></li>
 <li><a href="#best-practices">Best practices</a></li>
 <li><a href="#comparison-to-other-libraries">Comparison to other libraries</a></li>
 <li><a href="#api-reference">API reference</a></li>
@@ -93,6 +94,7 @@ body.dark, :root[data-theme="dark"] {
 <li><strong>Resilient</strong>: retries, timeouts, memoization and fallbacks built in</li>
 <li><strong>Extensible</strong>: write your own combinators with the same <code>Rule</code> type</li>
 <li><strong>Instrumented</strong>: <code>withDebug</code> and <code>withTap</code> for logging and metrics</li>
+<li><strong>Diagrams</strong>: <code>toGraph</code> and <code>toMermaid</code> draw your pipelines as flowcharts without running them</li>
 <li><strong>Portable</strong>: Node.js 22+ and modern browsers</li>
 </ul>
 <h2 id="core-concepts" class="tsd-anchor-link">Core Concepts<a href="#core-concepts" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
@@ -433,6 +435,144 @@ unchanged.</p>
 <pre><code class="typescript"><span class="hl-3">// Most accurate - preserves special object types</span><br/><span class="hl-0">pipeRules</span><span class="hl-1">(</span><span class="hl-5">rules</span><span class="hl-1">, { </span><span class="hl-5">cloneContext:</span><span class="hl-1"> </span><span class="hl-6">true</span><span class="hl-1">, </span><span class="hl-5">cloneStrategy:</span><span class="hl-1"> </span><span class="hl-2">&quot;structured&quot;</span><span class="hl-1"> })</span><br/><span class="hl-3">// Falls back to the JSON clone if structuredClone isn&#39;t available</span>
 </code><button type="button">Copy</button></pre>
 
+<h2 id="diagrams" class="tsd-anchor-link">Diagrams<a href="#diagrams" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<p><code>toGraph</code> and <code>toMermaid</code> describe a pipeline without running it, so you can draw the rules you actually ship. Neither calls your rules, predicates or accessors.</p>
+<pre><code class="ts"><span class="hl-4">import</span><span class="hl-1"> { </span><span class="hl-5">every</span><span class="hl-1">, </span><span class="hl-5">mapError</span><span class="hl-1">, </span><span class="hl-5">match</span><span class="hl-1">, </span><span class="hl-5">named</span><span class="hl-1">, </span><span class="hl-5">pipeRules</span><span class="hl-1">, </span><span class="hl-5">toGraph</span><span class="hl-1">, </span><span class="hl-5">withMemoize</span><span class="hl-1"> } </span><span class="hl-4">from</span><span class="hl-1"> </span><span class="hl-2">&quot;ts-rules-composer&quot;</span><span class="hl-1">;</span><br/><span class="hl-4">import</span><span class="hl-1"> { </span><span class="hl-5">toMermaid</span><span class="hl-1"> } </span><span class="hl-4">from</span><span class="hl-1"> </span><span class="hl-2">&quot;ts-rules-composer/mermaid&quot;</span><span class="hl-1">;</span><br/><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-9">pipeline</span><span class="hl-1"> = </span><span class="hl-0">pipeRules</span><span class="hl-1">&lt;</span><span class="hl-7">User</span><span class="hl-1">, </span><span class="hl-7">string</span><span class="hl-1">&gt;([</span><br/><span class="hl-1">  </span><span class="hl-5">validateUsernameFormat</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-0">withMemoize</span><span class="hl-1">(</span><span class="hl-5">checkUsernameAvailability</span><span class="hl-1">, (</span><span class="hl-5">user</span><span class="hl-1">) </span><span class="hl-6">=&gt;</span><span class="hl-1"> </span><span class="hl-5">user</span><span class="hl-1">.</span><span class="hl-5">username</span><span class="hl-1">, { </span><span class="hl-5">ttl:</span><span class="hl-1"> </span><span class="hl-8">60000</span><span class="hl-1"> }),</span><br/><span class="hl-1">  </span><span class="hl-0">mapError</span><span class="hl-1">(</span><br/><span class="hl-1">    </span><span class="hl-0">every</span><span class="hl-1">([</span><span class="hl-5">validatePasswordStrength</span><span class="hl-1">, </span><span class="hl-5">validateEmailFormat</span><span class="hl-1">, </span><span class="hl-5">checkEmailUnique</span><span class="hl-1">]),</span><br/><span class="hl-1">    (</span><span class="hl-5">errors</span><span class="hl-1">) </span><span class="hl-6">=&gt;</span><span class="hl-1"> </span><span class="hl-5">errors</span><span class="hl-1">.</span><span class="hl-0">join</span><span class="hl-1">(</span><span class="hl-2">&quot;, &quot;</span><span class="hl-1">),</span><br/><span class="hl-1">  ),</span><br/><span class="hl-1">  </span><span class="hl-0">match</span><span class="hl-1">&lt;</span><span class="hl-7">User</span><span class="hl-1">, </span><span class="hl-7">string</span><span class="hl-1">&gt;(</span><br/><span class="hl-1">    </span><span class="hl-0">named</span><span class="hl-1">(</span><span class="hl-2">&quot;role&quot;</span><span class="hl-1">, (</span><span class="hl-5">user</span><span class="hl-1">: </span><span class="hl-7">User</span><span class="hl-1">) </span><span class="hl-6">=&gt;</span><span class="hl-1"> </span><span class="hl-5">user</span><span class="hl-1">.</span><span class="hl-5">role</span><span class="hl-1">),</span><br/><span class="hl-1">    { </span><span class="hl-5">admin:</span><span class="hl-1"> </span><span class="hl-5">validateAdminPrivileges</span><span class="hl-1">, </span><span class="hl-5">user:</span><span class="hl-1"> </span><span class="hl-5">validateStandardUser</span><span class="hl-1"> },</span><br/><span class="hl-1">    </span><span class="hl-2">&quot;Unknown role&quot;</span><span class="hl-1">,</span><br/><span class="hl-1">  ),</span><br/><span class="hl-1">]);</span><br/><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-9">graph</span><span class="hl-1"> = </span><span class="hl-0">toGraph</span><span class="hl-1">(</span><span class="hl-5">pipeline</span><span class="hl-1">); </span><span class="hl-3">// JSON-serializable: { version: 1, root: { kind: &quot;sequence&quot;, ... } }</span><br/><span class="hl-6">const</span><span class="hl-1"> </span><span class="hl-9">text</span><span class="hl-1"> = </span><span class="hl-0">toMermaid</span><span class="hl-1">(</span><span class="hl-5">pipeline</span><span class="hl-1">); </span><span class="hl-3">// Mermaid flowchart source</span>
+</code><button type="button">Copy</button></pre>
+
+<p>Paste the output into <a href="https://mermaid.live">mermaid.live</a>, a Markdown file on GitHub, or any Mermaid renderer. This is the output for a user registration pipeline (a fork of three checks that must all pass, a <code>match</code> on role, and a memoized lookup):</p>
+<div class="mermaid-block"><div class="mermaid dark">%%{init:{"theme":"dark"}}%%
+flowchart TD
+  input([input])
+  root_steps_0[&quot;validateUsernameFormat&quot;]
+  root_steps_1_rule[&quot;checkUsernameAvailability #9889; cached&quot;]
+  subgraph root_steps_2_rule_sg[&quot;all must pass&quot;]
+  root_steps_2_rule_in((&quot;fork&quot;))
+  root_steps_2_rule_rules_0[&quot;validatePasswordStrength&quot;]
+  root_steps_2_rule_rules_1[&quot;validateEmailFormat&quot;]
+  root_steps_2_rule_rules_2[&quot;checkEmailUnique&quot;]
+  root_steps_2_rule_out((&quot;join&quot;))
+  end
+  root_steps_3{&quot;role&quot;}
+  root_steps_3_cases_0[&quot;validateAdminPrivileges&quot;]
+  root_steps_3_cases_1[&quot;validateStandardUser&quot;]
+  passed([passed])
+  input --&gt; root_steps_0
+  root_steps_2_rule_in --&gt; root_steps_2_rule_rules_0
+  root_steps_2_rule_rules_0 --&gt; root_steps_2_rule_out
+  root_steps_2_rule_in --&gt; root_steps_2_rule_rules_1
+  root_steps_2_rule_rules_1 --&gt; root_steps_2_rule_out
+  root_steps_2_rule_in --&gt; root_steps_2_rule_rules_2
+  root_steps_2_rule_rules_2 --&gt; root_steps_2_rule_out
+  root_steps_3 --&gt;|&quot;admin&quot;| root_steps_3_cases_0
+  root_steps_3 --&gt;|&quot;user&quot;| root_steps_3_cases_1
+  root_steps_0 --&gt; root_steps_1_rule
+  root_steps_1_rule --&gt; root_steps_2_rule_in
+  root_steps_2_rule_out --&gt; root_steps_3
+  root_steps_3_cases_0 --&gt; passed
+  root_steps_3_cases_1 --&gt; passed</div><div class="mermaid light">%%{init:{"theme":"default"}}%%
+flowchart TD
+  input([input])
+  root_steps_0[&quot;validateUsernameFormat&quot;]
+  root_steps_1_rule[&quot;checkUsernameAvailability #9889; cached&quot;]
+  subgraph root_steps_2_rule_sg[&quot;all must pass&quot;]
+  root_steps_2_rule_in((&quot;fork&quot;))
+  root_steps_2_rule_rules_0[&quot;validatePasswordStrength&quot;]
+  root_steps_2_rule_rules_1[&quot;validateEmailFormat&quot;]
+  root_steps_2_rule_rules_2[&quot;checkEmailUnique&quot;]
+  root_steps_2_rule_out((&quot;join&quot;))
+  end
+  root_steps_3{&quot;role&quot;}
+  root_steps_3_cases_0[&quot;validateAdminPrivileges&quot;]
+  root_steps_3_cases_1[&quot;validateStandardUser&quot;]
+  passed([passed])
+  input --&gt; root_steps_0
+  root_steps_2_rule_in --&gt; root_steps_2_rule_rules_0
+  root_steps_2_rule_rules_0 --&gt; root_steps_2_rule_out
+  root_steps_2_rule_in --&gt; root_steps_2_rule_rules_1
+  root_steps_2_rule_rules_1 --&gt; root_steps_2_rule_out
+  root_steps_2_rule_in --&gt; root_steps_2_rule_rules_2
+  root_steps_2_rule_rules_2 --&gt; root_steps_2_rule_out
+  root_steps_3 --&gt;|&quot;admin&quot;| root_steps_3_cases_0
+  root_steps_3 --&gt;|&quot;user&quot;| root_steps_3_cases_1
+  root_steps_0 --&gt; root_steps_1_rule
+  root_steps_1_rule --&gt; root_steps_2_rule_in
+  root_steps_2_rule_out --&gt; root_steps_3
+  root_steps_3_cases_0 --&gt; passed
+  root_steps_3_cases_1 --&gt; passed</div><pre><code class="language-mermaid">flowchart TD
+  input([input])
+  root_steps_0[&quot;validateUsernameFormat&quot;]
+  root_steps_1_rule[&quot;checkUsernameAvailability #9889; cached&quot;]
+  subgraph root_steps_2_rule_sg[&quot;all must pass&quot;]
+  root_steps_2_rule_in((&quot;fork&quot;))
+  root_steps_2_rule_rules_0[&quot;validatePasswordStrength&quot;]
+  root_steps_2_rule_rules_1[&quot;validateEmailFormat&quot;]
+  root_steps_2_rule_rules_2[&quot;checkEmailUnique&quot;]
+  root_steps_2_rule_out((&quot;join&quot;))
+  end
+  root_steps_3{&quot;role&quot;}
+  root_steps_3_cases_0[&quot;validateAdminPrivileges&quot;]
+  root_steps_3_cases_1[&quot;validateStandardUser&quot;]
+  passed([passed])
+  input --&gt; root_steps_0
+  root_steps_2_rule_in --&gt; root_steps_2_rule_rules_0
+  root_steps_2_rule_rules_0 --&gt; root_steps_2_rule_out
+  root_steps_2_rule_in --&gt; root_steps_2_rule_rules_1
+  root_steps_2_rule_rules_1 --&gt; root_steps_2_rule_out
+  root_steps_2_rule_in --&gt; root_steps_2_rule_rules_2
+  root_steps_2_rule_rules_2 --&gt; root_steps_2_rule_out
+  root_steps_3 --&gt;|&quot;admin&quot;| root_steps_3_cases_0
+  root_steps_3 --&gt;|&quot;user&quot;| root_steps_3_cases_1
+  root_steps_0 --&gt; root_steps_1_rule
+  root_steps_1_rule --&gt; root_steps_2_rule_in
+  root_steps_2_rule_out --&gt; root_steps_3
+  root_steps_3_cases_0 --&gt; passed
+  root_steps_3_cases_1 --&gt; passed</code></pre></div>
+<p><code>toMermaid</code> lives in <code>ts-rules-composer/mermaid</code>, so the main entry point stays small. <code>toGraph</code> and <code>named</code> come from the main entry point.</p>
+<h3 id="options" class="tsd-anchor-link">Options<a href="#options" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<pre><code class="ts"><span class="hl-0">toMermaid</span><span class="hl-1">(</span><span class="hl-5">pipeline</span><span class="hl-1">, { </span><span class="hl-5">direction:</span><span class="hl-1"> </span><span class="hl-2">&quot;LR&quot;</span><span class="hl-1">, </span><span class="hl-5">verbose:</span><span class="hl-1"> </span><span class="hl-6">true</span><span class="hl-1">, </span><span class="hl-5">failEdges:</span><span class="hl-1"> </span><span class="hl-6">true</span><span class="hl-1">, </span><span class="hl-5">maxLabelLength:</span><span class="hl-1"> </span><span class="hl-8">60</span><span class="hl-1"> });</span>
+</code><button type="button">Copy</button></pre>
+
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Default</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>direction</code></td>
+<td><code>&quot;TD&quot;</code></td>
+<td><code>&quot;TD&quot;</code> (top down) or <code>&quot;LR&quot;</code> (left to right).</td>
+</tr>
+<tr>
+<td><code>failEdges</code></td>
+<td><code>false</code></td>
+<td>Draw dotted edges from every step that can fail to a <code>failed</code> terminal. Off by default: they bury the happy path.</td>
+</tr>
+<tr>
+<td><code>verbose</code></td>
+<td><code>false</code></td>
+<td>Also show <code>withDebug</code>, <code>withTap</code>, <code>mapError</code> and <code>withLazyContext</code> (a group title when the wrapped rule is composite).</td>
+</tr>
+<tr>
+<td><code>maxLabelLength</code></td>
+<td><code>40</code></td>
+<td>Longest label text, cut with <code>…</code> (minimum 2). Badges are never cut.</td>
+</tr>
+</tbody>
+</table>
+<p><code>withTimeout</code>, <code>withRetry</code> and <code>withMemoize</code> always show as badges on the wrapped rule: <code>⏱ 500ms</code>, <code>↻ 3x</code>, <code>⚡ cached</code>.</p>
+<h3 id="naming-things" class="tsd-anchor-link">Naming things<a href="#naming-things" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<p>A diagram can only show names the engine can find. Name your rules, predicates, accessors and selectors, or they print as <code>rule #1</code>, <code>rule #2</code> and so on.</p>
+<ul>
+<li>Declared functions and <code>const</code> arrow functions keep their name (<code>const validateAmount = ...</code>).</li>
+<li>Use <code>named(&quot;amount &gt; 1000&quot;, (tx) =&gt; tx.amount &gt; 1000)</code> for anything anonymous. It also collapses a sub-pipeline into a single box. It does not change behavior.</li>
+<li>An anonymous function passed through a decorator loses the <code>const</code> name: <code>const x = withMemoize(async () =&gt; ...)</code> prints <code>rule #n</code>. Name the inner function, as in <code>withMemoize(named(&quot;checkFraudRisk&quot;, async () =&gt; ...), ...)</code>.</li>
+<li>A plain function you write yourself is drawn as one leaf, even if it calls other rules inside. Only this package's combinators are described structurally.</li>
+</ul>
 <h2 id="best-practices" class="tsd-anchor-link">Best Practices<a href="#best-practices" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
 <ol>
 <li><strong>Small Rules</strong> - Keep each rule focused</li>
@@ -865,6 +1005,11 @@ unchanged; the error type then stays <code>TError</code>.</p>
 <ul>
 <li><a href="#cloning-strategies"><span>Cloning <wbr/>Strategies</span></a></li>
 <li><a href="#cloning-examples"><span>Cloning examples</span></a></li></ul></li>
+<li><a href="#diagrams"><span>Diagrams</span></a></li>
+<li>
+<ul>
+<li><a href="#options"><span>Options</span></a></li>
+<li><a href="#naming-things"><span>Naming things</span></a></li></ul></li>
 <li><a href="#best-practices"><span>Best <wbr/>Practices</span></a></li>
 <li><a href="#comparison-to-other-libraries"><span>Comparison to <wbr/>Other <wbr/>Libraries</span></a></li>
 <li>
