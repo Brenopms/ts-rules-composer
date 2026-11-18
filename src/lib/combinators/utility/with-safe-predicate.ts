@@ -45,18 +45,18 @@ export const withSafePredicate = <TInput, TError = string, TContext = unknown>(
 
       // Check if result is a boolean
       if (typeof result === "boolean") {
-        return { status: "passed", value: result };
+        return { outcome: "passed", value: result };
       }
 
       return {
-        status: "failed",
+        outcome: "failed",
         error: errorTransform(
           new Error(`Predicate must return boolean, got ${typeof result}`),
         ),
       };
     } catch (error) {
       return {
-        status: "failed",
+        outcome: "failed",
         error: errorTransform(error),
       };
     }

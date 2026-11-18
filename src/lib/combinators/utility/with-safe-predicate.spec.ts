@@ -16,7 +16,7 @@ describe("withSafePredicate", () => {
       const safePred = withSafePredicate(mockPredicate);
       const result = await safePred("test");
 
-      expect(result).toEqual({ status: "passed", value: true });
+      expect(result).toEqual({ outcome: "passed", value: true });
       expect(mockPredicate).toHaveBeenCalledWith("test", undefined);
     });
 
@@ -25,7 +25,7 @@ describe("withSafePredicate", () => {
       const safePred = withSafePredicate(mockPredicate);
       const result = await safePred("test");
 
-      expect(result).toEqual({ status: "passed", value: false });
+      expect(result).toEqual({ outcome: "passed", value: false });
     });
 
     it("should handle sync predicates", async () => {
@@ -33,7 +33,7 @@ describe("withSafePredicate", () => {
       const safePred = withSafePredicate(mockPredicate);
       const result = await safePred("test");
 
-      expect(result).toEqual({ status: "passed", value: true });
+      expect(result).toEqual({ outcome: "passed", value: true });
     });
   });
 
@@ -45,7 +45,7 @@ describe("withSafePredicate", () => {
       const safePred = withSafePredicate(mockPredicate);
       const result = await safePred("test");
 
-      expect(result.status).toBe("failed");
+      expect(result.outcome).toBe("failed");
       expect((result as any).error).toEqual(new Error("Boom!"));
     });
 
@@ -54,7 +54,7 @@ describe("withSafePredicate", () => {
       const safePred = withSafePredicate(mockPredicate);
       const result = await safePred("test");
 
-      expect(result.status).toBe("failed");
+      expect(result.outcome).toBe("failed");
       expect((result as any).error).toEqual(new Error("Async boom!"));
     });
 
@@ -65,7 +65,7 @@ describe("withSafePredicate", () => {
       const safePred = withSafePredicate(mockPredicate);
       const result = await safePred("test");
 
-      expect(result.status).toBe("failed");
+      expect(result.outcome).toBe("failed");
       expect((result as any).error).toBe("String error");
     });
 
@@ -74,7 +74,7 @@ describe("withSafePredicate", () => {
       const safePred = withSafePredicate(mockPredicate, mockErrorTransform);
       const result = await safePred("test");
 
-      expect(result.status).toBe("failed");
+      expect(result.outcome).toBe("failed");
       expect((result as any).error).toBe("Transformed: Error: Original");
       expect(mockErrorTransform).toHaveBeenCalledWith(expect.any(Error));
     });
@@ -86,7 +86,7 @@ describe("withSafePredicate", () => {
       const safePred = withSafePredicate(mockPredicate);
       const result = await safePred("test");
 
-      expect(result.status).toBe("failed");
+      expect(result.outcome).toBe("failed");
       expect((result as any).error.message).toContain(
         "Predicate must return boolean",
       );
@@ -97,7 +97,7 @@ describe("withSafePredicate", () => {
       const safePred = withSafePredicate(mockPredicate);
       const result = await safePred("test");
 
-      expect(result.status).toBe("failed");
+      expect(result.outcome).toBe("failed");
       expect((result as any).error.message).toContain("got object");
     });
 
@@ -106,7 +106,7 @@ describe("withSafePredicate", () => {
       const safePred = withSafePredicate(mockPredicate);
       const result = await safePred("test");
 
-      expect(result.status).toBe("failed");
+      expect(result.outcome).toBe("failed");
       expect((result as any).error.message).toContain("got object");
     });
   });
@@ -145,7 +145,7 @@ describe("withSafePredicate", () => {
       const safePred = withSafePredicate(mockPredicate, errorTransform);
       const result = await safePred("test");
 
-      expect(result.status).toBe("failed");
+      expect(result.outcome).toBe("failed");
       expect((result as any).error).toEqual({
         code: 500,
         details: "Error: Test",
@@ -160,7 +160,7 @@ describe("withSafePredicate", () => {
       const safePred = withSafePredicate(mockPredicate);
       const result = await safePred("test");
 
-      expect(result.status).toBe("failed");
+      expect(result.outcome).toBe("failed");
       expect((result as any).error).toEqual(originalError);
     });
 
@@ -169,7 +169,7 @@ describe("withSafePredicate", () => {
       const safePred = withSafePredicate(mockPredicate);
       const result = await safePred("test");
 
-      expect(result.status).toBe("failed");
+      expect(result.outcome).toBe("failed");
       expect((result as any).error.message).toContain("got string");
     });
   });
