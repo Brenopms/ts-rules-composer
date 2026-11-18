@@ -29,6 +29,7 @@ Because a pipeline is plain data, you can also [draw it](#diagrams): `toMermaid`
 - [Comparison to other libraries](#comparison-to-other-libraries)
 - [API reference](#api-reference)
 - [Cheat sheet](#cheat-sheet)
+- [Migrating from 1.x](#migrating-from-1x)
 - [Contributing](#contributing)
 
 ## Installation
@@ -73,13 +74,13 @@ const validateCheckout = pipeRules<Order, string, Ctx>([
 ]);
 
 await validateCheckout({ items: 2, total: 40, payment: "card" }, { limit: 500 });
-// → { status: "passed" }
+// → { outcome: "passed" }
 
 await validateCheckout({ items: 0, total: 40, payment: "card" });
-// → { status: "failed", error: "Cart is empty" }
+// → { outcome: "failed", error: "Cart is empty" }
 
 await validateCheckout({ items: 1, total: 900, payment: "paypal" }, { limit: 500 });
-// → { status: "failed", error: "Over the spending limit" }
+// → { outcome: "failed", error: "Over the spending limit" }
 ```
 
 `pipeRules` runs rules in order and stops at the first failure. See [Core concepts](#core-concepts) for the model and the [API reference](#api-reference) for every combinator.
@@ -159,8 +160,8 @@ Rules must return one of two outcomes:
 
 ```ts
 type RuleResult<TError = string> =
-  | { status: "passed" }
-  | { status: "failed"; error: TError };
+  | { outcome: "passed" }
+  | { outcome: "failed"; error: TError };
 ```
 
 Aggregating combinators change the error type: `every` and `oneOf` return a rule whose error is `TError[]` (one entry per failed rule), while `pipeRules`, `composeRules` and the rest keep a single `TError`.
@@ -200,10 +201,10 @@ const validate = pipeRules([
 ]);
 
 const result = await validate(4, { threshold: 2 });
-// → { status: "passed" }
+// → { outcome: "passed" }
 
 const result2 = await validate(3, { threshold: 2 });
-// → { status: "failed", error: "Must be even" }
+// → { outcome: "failed", error: "Must be even" }
 ```
 
 ---
@@ -552,7 +553,7 @@ When a rule decides whether something is allowed (a permission check, a safety p
 - **Keep the reason when retries run out.** `onExhausted: "last-error"` returns the final error instead of `"MAX_RETRIES_EXCEEDED"`.
 - **Key caches by identity.** `withMemoize` shares entries between callers with the same key, so include everything the verdict depends on (user, tenant, input id), build keys with `JSON.stringify([...])` rather than joining strings, and key by context when the result depends on who is asking. See [`withMemoize`](#withmemoizerule-keyfn-options).
 - **Time out as a failure.** `withTimeout` returns your `timeoutError` as a failed result, so a slow dependency blocks the action instead of letting it through.
-- **Test the failure paths.** Assert that thrown errors, timeouts and exhausted retries all produce `status: "failed"`.
+- **Test the failure paths.** Assert that thrown errors, timeouts and exhausted retries all produce `outcome: "failed"`.
 
 ## Context Cloning Options
 
@@ -1018,6 +1019,32 @@ const dbRule = inject(database, createDbRule)
 |------|---------|---------|
 | `withDebug` | Debug logging | `withDebug(rule, { name: "Validation" })` |
 | `tap` | Side effects | `tap((input, context) => log(input))` |
+
+## Migrating from 1.x
+
+2.0 renames the result field `status` to `outcome`. The values (`"passed"`, `"failed"`) and the `error` field stay the same. No other export, signature or option was renamed.
+
+```ts
+// 1.x
+if (result.status === "failed") console.log(result.error);
+const custom: RuleResult = { status: "passed" };
+
+// 2.0
+if (result.outcome === "failed") console.log(result.error);
+const custom: RuleResult = { outcome: "passed" };
+```
+
+If you only build results with `pass()` and `fail()` and never read the field yourself, you have nothing to change.
+
+**Find and replace.** Search for `status` next to `"passed"` or `"failed"`, for example with the regex `\bstatus(\s*(?::|===?|!==?)\s*)(["'])(passed|failed)\2` and the replacement `outcome$1$2$3$2`. Review each match: don't rename domain fields that happen to be called `status`, such as `order.status` or an HTTP `status`. In TypeScript, run your typecheck afterwards; it flags the uses the regex missed, such as `switch (result.status)`, on values typed as `RuleResult` or `PredicateResult`. It can't flag values typed `any` (for example from `JSON.parse`) or forced with `as`.
+
+**Error for 1.x results.** In the default `safe` mode, a rule that still returns `{ status: ... }` fails with:
+
+```text
+Invalid rule - returned a 1.x result ({ status }); 2.0 results use { outcome }
+```
+
+**Unsafe mode does not check results. With `errorHandlingMode: "unsafe"`, a `pipeRules`, `composeRules` or `every` pipeline skips a 1.x `{ status: "failed" }` result and can return a pass, so the check fails open.** The compiler catches this only for results it can type-check. If a rule is plain JavaScript, or returns a value typed `any` or forced with `as`, finish the rename before you use unsafe mode.
 
 ## Contributing
 
