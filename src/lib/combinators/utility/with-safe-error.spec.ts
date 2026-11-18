@@ -64,6 +64,42 @@ describe("withSafeError", () => {
     );
   });
 
+  it.each([
+    ["an unknown outcome value", { outcome: "denied" }],
+    ['"failed" without an error key', { outcome: "failed" }],
+    ["null", null],
+    ["an object without outcome", { ok: true }],
+  ])("should reject a result with %s as not a RuleResult", async (_, value) => {
+    const safeRule = withSafeError(() => value as unknown as RuleResult);
+    const result = await safeRule({});
+    expect(result).toEqual(
+      fail(new Error("Invalid rule - did not return RuleResult")),
+    );
+  });
+
+  // 3b. 1.x-shaped results
+  it.each([
+    ["passed", { status: "passed" }],
+    ["failed", { status: "failed", error: "Old error" }],
+  ])("should explain a 1.x { status: %s } result", async (_, value) => {
+    const safeRule = withSafeError(() => value as unknown as RuleResult);
+    const result = await safeRule({});
+    expect(result).toEqual(
+      fail(
+        new Error(
+          "Invalid rule - returned a 1.x result ({ status }); 2.0 results use { outcome }",
+        ),
+      ),
+    );
+  });
+
+  it("should return a valid result that also has status unchanged", async () => {
+    const value = { outcome: "failed", error: "New error", status: 404 };
+    const safeRule = withSafeError(() => value as unknown as RuleResult);
+    const result = await safeRule({});
+    expect(result).toBe(value);
+  });
+
   // 4. Custom error transformation tests
   it("should use custom error transformation when provided", async () => {
     const customTransform = vi.fn((error: unknown) => ({

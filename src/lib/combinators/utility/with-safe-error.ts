@@ -1,6 +1,10 @@
 import { fail } from "../../helpers";
 import type { Rule, RuleResult } from "../../types";
 
+const INVALID_RESULT_MESSAGE = "Invalid rule - did not return RuleResult";
+const LEGACY_RESULT_MESSAGE =
+  "Invalid rule - returned a 1.x result ({ status }); 2.0 results use { outcome }";
+
 /**
  * Wraps a rule to catch errors and convert them to failed RuleResults
  * @template TInput - The input type
@@ -40,15 +44,22 @@ export const withSafeError = <TInput, TError = string, TContext = unknown>(
     try {
       const result = await rule(input, context);
 
-      // Preserve existing RuleResults
-      if (result && typeof result === "object" && "outcome" in result) {
-        return result;
+      if (result && typeof result === "object") {
+        // Preserve valid RuleResults
+        if (
+          result.outcome === "passed" ||
+          (result.outcome === "failed" && "error" in result)
+        ) {
+          return result;
+        }
+        // Explain results still shaped like 1.x ({ status })
+        if (!("outcome" in result) && "status" in result) {
+          return fail(errorTransform(new Error(LEGACY_RESULT_MESSAGE)));
+        }
       }
 
       // Handle invalid rule implementations that don't return RuleResult
-      return fail(
-        errorTransform(new Error(`Invalid rule - did not return RuleResult`)),
-      );
+      return fail(errorTransform(new Error(INVALID_RESULT_MESSAGE)));
     } catch (error) {
       return fail(errorTransform(error));
     }
