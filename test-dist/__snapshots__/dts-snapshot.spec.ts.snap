@@ -1,0 +1,2150 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`keeps the published declaration files unchanged 1`] = `
+"// ==== index.d.cts ====
+import { n as RuleResult, t as Rule } from "./rule-[hash].cjs";
+type Prettify<T> = { [K in keyof T]: T[K]; } & {};
+/**
+ * Configuration options for error handling behavior in rule combinators
+ * @template TError - The type of the error that will be caught and transformed (when safe)
+ *
+ * @property errorHandlingMode - Determines how the combinator handles thrown errors
+ *   - "safe": (default) Catches errors and converts them to failed RuleResults
+ *   - "unsafe": Lets errors propagate normally (for performance-critical cases)
+ *
+ * @property errorTransform - Optional custom error transformation function
+ *   Allows customizing how thrown errors are converted to the rule's error
+ *   type. Only valid when errorHandlingMode is "safe" (or omitted); combining
+ *   it with "unsafe" is a compile error because the transform would never run.
+ *
+ * @example
+ * // Basic usage with default safe handling
+ * const rule = every([rule1, rule2], { errorHandlingMode: "safe" });
+ *
+ * @example
+ * // Unsafe mode for performance
+ * const rule = every([rule1, rule2], { errorHandlingMode: "unsafe" });
+ *
+ * @example
+ * // Custom error transformation
+ * const rule = every([rule1, rule2], {
+ *   errorHandlingMode: "safe",
+ *   errorTransform: (err) => ({
+ *     code: 500,
+ *     message: String(err)
+ *   })
+ * });
+ */
+type RuleSafetyOptions<TError = unknown> = {
+  errorHandlingMode?: "safe";
+  errorTransform?: (error: unknown) => TError;
+} | {
+  errorHandlingMode: "unsafe";
+  errorTransform?: never;
+};
+/**
+ * Options for rule composition functions.
+ * @property cloneContext - Whether to clone the context once per composed invocation
+ * @property cloneStrategy - Which strategy to use when cloning the context
+ * @property errorHandlingMode - Determines how the combinator handles thrown errors
+ *   - "safe": (default) Catches errors and converts them to failed RuleResults
+ *   - "unsafe": Lets errors propagate normally (for performance-critical cases)
+ *
+ * @property errorTransform - Optional custom error transformation function
+ *   Allows customizing how thrown errors are converted to the rule's error
+ *   type. Only valid when errorHandlingMode is "safe" (or omitted).
+ *
+ *
+ *  @warn
+ * - Cloning behavior follows this priority:
+ *   1. Uses shallowClone if options.cloneStrategy = "shallow"
+ *   2. Uses structuredClone if available and options.cloneStrategy = "structured"
+ *   3. Falls back to JSON clone otherwise
+ * - structuredClone requires Node 17+ or modern browsers
+ * - JSON clone will lose special types (Date, Map, etc.)
+ * - All clones convert undefined/null to empty object {}
+ * - Circular references fail silently in JSON clone mode
+ */
+type CompositionOptions<TError = string> = Prettify<{
+  cloneContext?: boolean;
+  cloneStrategy?: "shallow" | "json" | "structured";
+} & RuleSafetyOptions<TError>>;
+/**
+ * Configuration options for debug functionality.
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error
+ * @template TContext - The type of the context object
+ * @property name - Unique identifier for the rule
+ * @property onStart - Called before rule execution
+ * @property onEnd - Called after rule completes
+ * @property onError - Called when rule throws
+ */
+type DebugOptions<TInput, TError, TContext> = {
+  /** Unique identifier for the rule */
+  name?: string;
+  /** Called before rule execution */
+  onStart?: (input: TInput, context?: TContext) => void;
+  /** Called after rule completes */
+  onEnd?: (input: TInput, result: RuleResult<TError>, context?: TContext, meta?: {
+    ruleName: string;
+    duration: number;
+    startTime: number;
+  }) => void;
+  /** Called when rule throws */
+  onError?: (error: unknown, input: TInput, context?: TContext, duration?: number) => void;
+};
+/**
+ * A predicate function that evaluates an input and returns a boolean result.
+ * Can be synchronous or asynchronous.
+ */
+type Predicate<TInput, TContext> = (input: TInput, context?: TContext) => boolean | Promise<boolean>;
+/**
+ * Represents the result of a predicate evaluation.
+ * @template TError - The type of the error (defaults to string)
+ * @example
+ * // Passed result, true value
+ * const passed: PredicateResult = { status: "passed", value: true };
+ *
+ * // Passed result, false value
+ * const passed: PredicateResult = { status: "passed", value: false };
+ *
+ *
+ * // Failed result
+ * const failed: PredicateResult = {
+ *   status: "failed",
+ *   error: "Validation failed"
+ * };
+ */
+type PredicateResult<TError = string> = {
+  readonly status: "passed";
+  value: boolean;
+} | {
+  readonly status: "failed";
+  readonly error: TError;
+};
+/**
+ * A predicate function that evaluates an input and returns a PredicateResult.
+ * Can be synchronous or asynchronous.
+ */
+type PredicateSafe<TInput, TError, TContext> = (input: TInput, context?: TContext) => PredicateResult<TError> | Promise<PredicateResult<TError>>;
+/**
+ * Composes multiple rules into a single rule that runs them all and collects all errors.
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error (defaults to string)
+ * @template TContext - The type of the context object (optional)
+ * @param rules - Array of rules to compose
+ * @param options - Configuration options
+ * @param options.cloneContext - Whether to clone the context once per composed invocation (default: false)
+ * @param options.cloneStrategy -Which strategy to use when cloning the context
+ * @param options.errorHandlingMode - Determines how errors are handled:
+ *   - 'safe': (default) Converts thrown errors to validation failures
+ *   - 'unsafe': Lets errors propagate (use only in performance-critical paths)
+ * @param options.errorTransform - Custom transformation for caught errors
+ * @returns A new rule that returns all errors from all failing rules
+ * @example
+ * const rule = every([
+ *   validatePresence,
+ *   validateEmail,
+ *   validateUnique
+ * ]);
+ *
+ * const result = await rule("invalid-email");
+ * if (result.status === "failed") {
+ *   console.log(result.error); // Array of all errors
+ * }
+ * @caveats
+ * - Rules are executed in parallel (using Promise.all)
+ * - All rules are executed even if some fail
+ * - Cloning behavior follows this priority:
+ *   1. Uses shallowClone if options.shallowClone = true
+ *   2. Uses structuredClone if available and options.structuredClone = true
+ *   3. Falls back to JSON clone otherwise
+ */
+export declare const every: <TInput, TError = string, TContext = unknown>(rules: Rule<TInput, TError, TContext>[], options?: CompositionOptions<TError>) => Rule<TInput, TError[], TContext>;
+/**
+ * Configuration options for error handling behavior in rule combinators
+ * @template TError - The type of the error that will be caught and transformed (when safe)
+ *
+ *
+ * @property predicateErrorTransform - Optional custom error transformation function
+ *   Allows customizing how thrown errors are converted to the rule's error
+ *   type. Only valid when errorHandlingMode is "safe" (or omitted).
+ *
+ *
+ * @example
+ * // Custom error transformation
+ * const rule = ifElse(
+ *   (user) => user.age >= 18,
+ *   validateAdultAccount,
+ *   validateMinorAccount,
+ *   {
+ *      predicateErrorTransform: (err) => ({
+ *           code: 500,
+ *           message: String(err)
+ *       })
+ *    }
+ * );
+ */
+type PredicateSafetyOptions<TError = unknown> = {
+  predicateErrorTransform?: (error: unknown) => TError;
+};
+type SafetyOptions<TError = unknown> = Prettify<RuleSafetyOptions<TError> & PredicateSafetyOptions<TError>>;
+/**
+ * Conditionally executes one of two rules based on a predicate
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error (defaults to string)
+ * @template TContext - The type of the context object (optional)
+ * @param predicate - Function that determines which rule to execute
+ * @param ifRule - Rule to execute when predicate returns true
+ * @param elseRule - Rule to execute when predicate returns false (optional)
+ * @param options - Configuration for error handling and predicate safety
+ * @param options.errorHandlingMode - Determines how errors are handled:
+ *   - 'safe': (default) Converts thrown errors to validation failures
+ *   - 'unsafe': Lets errors propagate (use only in performance-critical paths)
+ * @param options.errorTransform - Custom transformation for caught errors
+ * @param options.predicateErrorTransform - Special error handler for predicate failures
+ * @returns A new rule that conditionally executes one of two rules
+ * @example
+ * const rule = ifElse(
+ *   (user) => user.age >= 18,
+ *   validateAdultAccount,
+ *   validateMinorAccount
+ * );
+ *
+ * // Without elseRule (passes when predicate is false)
+ * const adultOnlyRule = ifElse(
+ *   (user) => user.age >= 18,
+ *   validateAdultAccount
+ * );
+ */
+export declare const ifElse: <TInput, TError = string, TContext = unknown>(predicate: Predicate<TInput, TContext>, ifRule: Rule<TInput, TError, TContext>, elseRule?: Rule<TInput, TError, TContext>, options?: SafetyOptions<TError>) => Rule<TInput, TError, TContext>;
+/**
+ * Pattern-matching combinator that selects a rule based on a key extracted from input.
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error (defaults to string)
+ * @template TContext - The type of the context object (optional)
+ * @template TKey - The type of the branch key (must be string | number | symbol)
+ * @param accessor - Function that extracts the match key from input
+ * @param cases - Object mapping keys to their corresponding rules
+ * @param defaultCase - Optional default rule or error when no match is found
+ * @param options - Configuration for error handling safety
+ * @param options.errorHandlingMode - Determines how errors are handled:
+ *   - 'safe': (default) Converts thrown errors to validation failures
+ *   - 'unsafe': Lets errors propagate (use only in performance-critical paths)
+ * @param options.errorTransform - Custom transformation for caught errors
+ * @returns A new rule that executes the matching case's rule
+ * @example
+ * // Basic usage with string error type
+ * const validatePayment = match(
+ *   (order) => order.paymentMethod,
+ *   {
+ *     credit: validateCreditCard,
+ *     paypal: validatePayPal,
+ *     crypto: validateCrypto
+ *   },
+ *   "Unsupported payment method"
+ * );
+ *
+ * @example
+ * // With custom error type
+ * interface ValidationError { code: number; message: string }
+ * const validateStatus = match<Order, ValidationError>(
+ *   (order) => order.status,
+ *   {
+ *     pending: validatePendingOrder,
+ *     completed: validateCompletedOrder
+ *   },
+ *   { code: 400, message: "Invalid status" }
+ * );
+ *
+ * @example
+ * // With default rule instead of error
+ * const validateProduct = match(
+ *   (product) => product.type,
+ *   {
+ *     book: validateBook,
+ *     digital: validateDigitalProduct
+ *   },
+ *   validateGenericProduct
+ * );
+ *
+ * @caveats
+ * - The accessor function should return a primitive value (string/number/symbol)
+ * - If no matching case is found and no default is provided, returns a failed result with:
+ *   - A string error when TError is string (default)
+ *   - A type-asserted error when TError is custom (may require type casting)
+ * - All case rules must have compatible input/context types
+ * - For conditional branching (true/false), consider using \`branch\` instead
+ */
+export declare const match: <TInput, TError = string, TContext = unknown, TKey extends string | number | symbol = string>(accessor: (input: TInput, context?: TContext) => TKey | Promise<TKey>, cases: Record<TKey, Rule<TInput, TError, TContext>>, defaultCase?: Rule<TInput, TError, TContext> | TError, options?: RuleSafetyOptions<TError>) => Rule<TInput, TError, TContext>;
+/**
+ * Inverts the logic of a rule - passes when original fails and vice versa.
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error (defaults to string)
+ * @template TContext - The type of the context object (optional, defaults to unknown)
+ * @param rule - The rule to invert
+ * @param error - The error to return when original rule passes
+ * @param options - Configuration for error handling safety
+ * @param options.errorHandlingMode - Determines how errors are handled:
+ *   - 'safe': (default) Converts thrown errors to validation failures
+ *   - 'unsafe': Lets errors propagate (use only in performance-critical paths)
+ * @param options.errorTransform - Custom transformation for caught errors
+ * @returns A new rule with inverted logic
+ * @example
+ * const isNotAdmin = not(isAdmin, "User must not be admin");
+ * @caveats
+ * - The original rule's error is discarded when it fails
+ * - Always uses the provided error when original passes
+ */
+export declare const not: <TInput, TError = string, TContext = unknown>(rule: Rule<TInput, TError, TContext>, error: TError, options?: RuleSafetyOptions<TError>) => Rule<TInput, TError, TContext>;
+/**
+ * Creates a rule that passes if any of the provided rules pass (short-circuiting).
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error (defaults to string)
+ * @template TContext - The type of the context object (optional)
+ * @param rules - Rules to try (in order)
+ * @param options - Configuration for error handling
+ * @param options.errorHandlingMode - Determines how errors are handled:
+ *   - 'safe': (default) Converts thrown errors to validation failures
+ *   - 'unsafe': Lets errors propagate (use only in performance-critical paths)
+ * @param options.errorTransform - Custom transformation for caught errors
+ * @returns A rule that passes if any rule passes, or fails with all errors
+ * @example
+ * const rule = oneOf(
+ *   validateEmail,
+ *   validatePhone,
+ *   validateUsername
+ * );
+ * @caveats
+ * - Rules are executed in sequence until one passes
+ * - Returns all errors if all rules fail
+ */
+export declare const oneOf: <TInput, TError = string, TContext = unknown>(rules: Rule<TInput, TError, TContext>[], options?: RuleSafetyOptions<TError>) => Rule<TInput, TError[], TContext>;
+/**
+ * Executes a rule only if the predicate returns false.
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error (defaults to string)
+ * @template TContext - The type of the context object (optional)
+ * @param predicate - Condition to check
+ * @param rule - Rule to execute when predicate is false
+ * @param options - Configuration for error handling and predicate safety
+ * @param options.errorHandlingMode - Determines how errors are handled:
+ *   - 'safe': (default) Converts thrown errors to validation failures
+ *   - 'unsafe': Lets errors propagate (use only in performance-critical paths)
+ * @param options.errorTransform - Custom transformation for caught errors
+ * @param options.predicateErrorTransform - Special error handler for predicate failures
+ * @returns A rule that conditionally executes based on the predicate
+ * @example
+ * const rule = unless(
+ *   (user) => user.isVerified,
+ *   requireVerification
+ * );
+ * @caveats
+ * - Opposite behavior of \`when\`
+ * - Automatically passes when predicate is true
+ */
+export declare const unless: <TInput, TError = string, TContext = unknown>(predicate: Predicate<TInput, TContext>, rule: Rule<TInput, TError, TContext>, options?: SafetyOptions<TError>) => Rule<TInput, TError, TContext>;
+/**
+ * Conditionally executes a rule based on a predicate.
+ * Similar to branch but without an else case.
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error (defaults to string)
+ * @param predicate - Function that determines whether to execute the rule
+ * @param rule - Rule to execute when predicate returns true
+ * @param options - Configuration for error handling and predicate safety
+ * @param options.errorHandlingMode - Determines how errors are handled:
+ *   - 'safe': (default) Converts thrown errors to validation failures
+ *   - 'unsafe': Lets errors propagate (use only in performance-critical paths)
+ * @param options.errorTransform - Custom transformation for caught errors
+ * @param options.predicateErrorTransform - Special error handler for predicate failures
+ * @returns A new rule that conditionally executes the input rule
+ * @example
+ * const rule = when(
+ *   (user) => user.role === "admin",
+ *   validateAdminPrivileges
+ * );
+ * @caveats
+ * - The predicate can be async
+ * - If predicate returns false, the rule automatically passes
+ */
+export declare const when: <TInput, TError = string, TContext = unknown>(predicate: Predicate<TInput, TContext>, rule: Rule<TInput, TError, TContext>, options?: SafetyOptions<TError>) => Rule<TInput, TError, TContext>;
+/**
+ * Creates a rule that falls back to an alternative rule if the main rule fails.
+ * @template TInput - Input type
+ * @template TError - Error type
+ * @template TContext - Context type
+ * @param mainRule - Primary rule to execute first
+ * @param fallbackRule - Rule to execute if main rule fails
+ * @param options - Configuration options
+ * @param options.onlyFallbackOn - Predicate to conditionally enable fallback
+ * @param options.errorHandlingMode - Determines how errors are handled:
+ *   - 'safe': (default) Converts thrown errors to validation failures
+ *   - 'unsafe': Lets errors propagate (use only in performance-critical paths)
+ * @param options.errorTransform - Custom transformation for caught errors
+ * @returns A new composite rule
+ * @example
+ * const rule = withFallback(
+ *   premiumValidation,
+ *   basicValidation,
+ *   { onlyFallbackOn: err => err.code !== 'FATAL' }
+ * );
+ */
+export declare const withFallback: <TInput, TError, TContext>(mainRule: Rule<TInput, TError, TContext>, fallbackRule: Rule<TInput, TError, TContext>, options?: RuleSafetyOptions<TError> & {
+  onlyFallbackOn?: (error: TError) => boolean;
+}) => Rule<TInput, TError, TContext>;
+/**
+ * Injects a dependency into a rule creation function, returning a configured rule.
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error
+ * @template TDep - The type of the dependency to inject
+ * @template TContext - The type of the context object (optional, defaults to unknown)
+ * @param dependency - The dependency to inject
+ * @param rule - A function that creates a rule when given the dependency
+ * @returns A configured rule that uses the injected dependency
+ * @example
+ * const createDbRule = (db: Database) => (input: string) =>
+ *   db.exists(input) ? pass() : fail("Not found");
+ *
+ * const dbRule = inject(database, createDbRule);
+ * @caveats
+ * - The dependency is injected at rule creation time, not execution time
+ * - The execution context is forwarded to the configured rule
+ */
+export declare const inject: <TInput, TError, TDep, TContext = unknown>(dependency: TDep, rule: (dep: TDep) => Rule<TInput, TError, TContext>) => Rule<TInput, TError, TContext>;
+/**
+ * Transforms the error of a rule using a mapping function.
+ * @template TInput - The type of the input to validate
+ * @template TError - The original error type
+ * @template TNewError - The new error type
+ * @template TContext - The type of the context object (optional, defaults to unknown)
+ * @param rule - The rule whose errors should be transformed
+ * @param transform - Function to transform the error
+ * @returns A new rule that produces transformed errors
+ * @example
+ * const rule = mapError(
+ *   validateEmail,
+ *   (error) => \`Validation failed: \${error}\`
+ * );
+ *
+ * // Can also change error types:
+ * const numericErrorRule = mapError(
+ *   stringErrorRule,
+ *   (error) => error.length // Convert string error to number
+ * );
+ * @caveats
+ * - The context type of the wrapped rule is preserved and forwarded to it
+ * - Only transforms failed results, passes successful results through unchanged
+ * - The transform function is not called for successful results
+ */
+export declare const mapError: <TInput, TError, TNewError, TContext = unknown>(rule: Rule<TInput, TError, TContext>, transform: (error: TError) => TNewError) => Rule<TInput, TNewError, TContext>;
+/**
+ * Creates a standalone tap effect for use in composition pipelines
+ * @template TInput - Input type
+ * @template TError - Error type
+ * @template TContext - Context type
+ * @param effect - Side effect function receiving (input, context)
+ * @returns A rule that passes through input unchanged
+ * @example
+ * pipeRules([
+ *   tap((input) => console.log('Processing:', input)),
+ *   validateInput
+ * ])
+ */
+export declare const tap: <TInput, TError = string, TContext = unknown>(effect: (input: TInput, context?: TContext) => Promise<void> | void) => Rule<TInput, TError, TContext>;
+/**
+ * Creates a rule that extracts a value using a getter function and validates it.
+ * @template TInput - The type of the input object
+ * @template TValue - The type of the extracted value
+ * @template TError - The type of the error
+ * @template TContext - The type of the context object
+ * @param getter - Function that extracts the value from input
+ * @param rule - Rule to apply to the extracted value
+ * @param defaultValue - Optional default value if getter returns undefined
+ * @param options - Configuration for error handling safety
+ * @param options.errorHandlingMode - Determines how errors are handled:
+ *   - 'safe': (default) Converts thrown errors to validation failures
+ *   - 'unsafe': Lets errors propagate (use only in performance-critical paths)
+ * @param options.errorTransform - Custom transformation for caught errors
+ * @returns A new rule that validates the extracted value
+ * @example
+ * const validateName = validateField(
+ *   (user: User) => user.profile.name,
+ *   (name) => name.length > 3 ? pass() : fail('Name too short')
+ * );
+ *
+ * const validateAge = validateField(
+ *   (user: User) => user.age,
+ *   (age) => age >= 18 ? pass() : fail('Must be adult'),
+ *   18 // default value
+ * );
+ *
+ * @caveats
+ * **Null/Undefined Handling**:
+ *    - The getter function should handle optional properties (use optional chaining)
+ *    - If getter returns undefined and no default is provided, the rule will fail
+ *
+ *  **Type Safety**:
+ *    - The rule's input type must match the getter's return type exactly
+ *    - No automatic type narrowing (e.g., string | undefined won't become string even with default)
+ *
+ *  **Default Values**:
+ *    - Defaults are applied before rule execution (the rule sees the default value)
+ *    - Default values aren't type-checked against potentially undefined returns
+ */
+export declare function validateField<TInput, TValue, TError = string, TContext = unknown>(getter: (input: TInput) => TValue | undefined, rule: Rule<TValue, TError, TContext>, defaultValue?: TValue, options?: RuleSafetyOptions<TError>): Rule<TInput, TError, TContext>;
+/**
+ * Wraps a rule with debugging capabilities.
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error
+ * @template TContext - The type of the context object
+ * @param rule - The rule to wrap with debug capabilities
+ * @param options - Debug configuration or simple name string
+ * @param options.name - Name for the debug output
+ * @param options.onStart - Callback when rule starts executing
+ * @param options.onEnd - Callback when rule completes successfully
+ * @param options.onError - Callback when rule throws an error
+ * @returns A new rule with debug capabilities
+ * @example
+ * const rule = withDebug(expensiveValidation, {
+ *   name: "Expensive Validation",
+ *   onStart: (input) => console.log(\`Starting with input: \${input}\`),
+ *   onEnd: (input, result, ctx, { duration }) => {
+ *     console.log(\`Completed in \${duration}ms\`);
+ *   }
+ * });
+ * @caveats
+ * - Debug callbacks are executed synchronously and may impact performance
+ * - Errors in callbacks will propagate and potentially mask rule errors
+ */
+export declare const withDebug: <TInput, TError, TContext>(rule: Rule<TInput, TError, TContext>, options: DebugOptions<TInput, TError, TContext> | string) => Rule<TInput, TError, TContext>;
+/**
+ * Creates a memoized version of a rule that caches results based on input keys.
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error (defaults to string)
+ * @template TContext - The type of the context object (optional)
+ * @param rule - The rule to memoize
+ * @param keyFn - Function that generates a cache key from the input and, optionally,
+ *   the context. Include every piece of context the verdict depends on (user,
+ *   tenant, permissions); otherwise one caller can be served another caller's result
+ * @param options - Memoization and safety options
+ * @param options.ttl - Time-to-live for cache entries in milliseconds
+ * @param options.maxSize - Maximum number of entries to keep in cache
+ * @param options.errorHandlingMode - Determines how errors are handled:
+ *   - 'safe': (default) Converts thrown errors to validation failures
+ *   - 'unsafe': Lets errors propagate (use only in performance-critical paths)
+ * @param options.errorTransform - Custom transformation for caught errors
+ * @returns A memoized version of the rule
+ * @example
+ * const memoizedRule = withMemoize(
+ *   expensiveValidationRule,
+ *   (input) => input.id,
+ *   { ttl: 60000, maxSize: 100 }
+ * );
+ *
+ * // verdict depends on who is asking: key by context too
+ * const perUser = withMemoize(
+ *   permissionRule,
+ *   (input, context) => JSON.stringify([context?.userId, input.id])
+ * );
+ * @caveats
+ * - The cache key is exactly what \`keyFn\` returns: a key that ignores context
+ *   shares entries across contexts, so a result cached for one user can be served
+ *   to another. Key by context whenever the result depends on it
+ * - Build keys unambiguously: joining values with a separator (\`\${a}:\${b}\`) can make
+ *   different callers produce the same key; serialize them (\`JSON.stringify([a, b])\`)
+ * - Cache cleanup happens during rule execution
+ * - Rejected promises are automatically evicted from cache
+ * - Successful results obey TTL rules
+ * - Each call to withMemoize creates its own cache; it is not shared across memoized rules
+ * - Entries are evicted oldest-inserted first (FIFO) once maxSize is reached; hits do not refresh recency
+ */
+export declare const withMemoize: <TInput, TError = string, TContext = unknown>(rule: Rule<TInput, TError, TContext>, keyFn: (input: TInput, context?: TContext) => string, options?: {
+  ttl?: number;
+  maxSize?: number;
+} & RuleSafetyOptions<TError>) => Rule<TInput, TError, TContext>;
+export type RetryOn = "failed" | "thrown" | "both";
+export type RetryStrategy = "fixed" | "linear" | "exponential" | ((attempt: number) => number);
+type WithRetryOptions<TError> = {
+  attempts?: number;
+  delayMs?: number;
+  retryStrategy?: RetryStrategy;
+  shouldRetry?: (error: TError | unknown, attempt: number) => boolean;
+  retryOn?: RetryOn;
+};
+/**
+ * Wraps a rule with retry logic for handling transient failures.
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error (defaults to string)
+ * @template TContext - The type of the context object (optional)
+ * @param rule - The rule to wrap with retry logic
+ * @param options - Retry configuration
+ * @param options.attempts - Maximum number of attempts (default: 3)
+ * @param options.delayMs - Delay between attempts in milliseconds (default: 100)
+ * @param options.shouldRetry - Function to determine if a failure should be retried
+ * @param options.retryOn - What to retry: "failed" results, "thrown" exceptions, or "both" (default)
+ * @param options.onExhausted - What to return when every attempt fails:
+ *   "max-retries" (default) returns "MAX_RETRIES_EXCEEDED"; "last-error"
+ *   returns the final error unchanged and keeps the error type as \`TError\`
+ * @returns A new rule with retry capability
+ * @example
+ * const rule = withRetry(apiCheckRule, {
+ *   attempts: 5,
+ *   delayMs: 500,
+ *   shouldRetry: (error) => error.statusCode === 503,
+ *   onExhausted: "last-error"
+ * });
+ * @caveats
+ * - Retries both failed RuleResults and thrown exceptions by default
+ * - A failed result is a deliberate decision, not a transient fault: do not retry
+ *   policy decisions. Use \`retryOn: "thrown"\` for guardrails and other rules
+ *   where a "no" must stay a "no"
+ * - A failure excluded by \`retryOn\` is returned immediately (a thrown exception
+ *   becomes a failed result carrying the thrown value)
+ * - \`retryOn\` and \`shouldRetry\` compose: an attempt is retried only if both allow it
+ * - By default the final error is "MAX_RETRIES_EXCEEDED" if all attempts fail,
+ *   which hides why the rule failed; use \`onExhausted: "last-error"\` to keep it
+ * - With "last-error" the final error may be a thrown value, as with \`shouldRetry\`
+ */
+export declare function withRetry<TInput, TError = string, TContext = unknown>(rule: Rule<TInput, TError, TContext>, options: WithRetryOptions<TError> & {
+  onExhausted: "last-error";
+}): Rule<TInput, TError, TContext>;
+export declare function withRetry<TInput, TError = string, TContext = unknown>(rule: Rule<TInput, TError, TContext>, options?: WithRetryOptions<TError> & {
+  onExhausted?: "max-retries";
+}): Rule<TInput, TError | "MAX_RETRIES_EXCEEDED", TContext>;
+export declare function withRetry<TInput, TError = string, TContext = unknown>(rule: Rule<TInput, TError, TContext>, options?: WithRetryOptions<TError> & {
+  onExhausted?: "max-retries" | "last-error";
+}): Rule<TInput, TError | "MAX_RETRIES_EXCEEDED", TContext>;
+/**
+ * Wraps a rule to catch errors and convert them to failed RuleResults
+ * @template TInput - The input type
+ * @template TError - The error type (defaults to string)
+ * @template TContext - The context type
+ * @param rule - The rule to protect
+ * @param errorMapper - Optional error transformation logic
+ * @returns A protected version of the rule
+ * @example
+ * // Basic usage with default error handling
+ * const safeRule = withSafeError(riskyRule);
+ *
+ * // With custom error transformation
+ * const customSafeRule = withSafeError(riskyRule, e => ({
+ *   code: 500,
+ *   message: String(e)
+ * }));
+ *
+ * @caveats
+ *
+ * - Generic parameters must be explicitly set for custom error types
+ * - Doesn't verify error types match TError at runtime
+ */
+export declare const withSafeError: <TInput, TError = string, TContext = unknown>(rule: Rule<TInput, TError, TContext>, errorTransform?: (error: unknown) => TError) => Rule<TInput, TError, TContext>;
+/**
+ * Wraps a predicate function with error handling and type safety.
+ * @template TInput - The input type
+ * @template TError - The error type (defaults to string)
+ * @template TContext - The context type
+ * @param predicate - The predicate function to wrap
+ * @param errorTransform - Optional function to transform errors
+ * @returns A safe predicate that never throws
+ *
+ * @example
+ * const safePredicate = withSafePredicate(
+ *   (input: string) => input.length > 5,
+ *   (err) => \`Predicate failed: \${String(err)}\`
+ * );
+ *
+ *  @caveats
+ *  **Error Handling Behavior**:
+ * - Will catch both synchronous throws and Promise rejections
+ * - Errors in the errorTransform itself will propagate (not caught)
+ * - The default transformer converts all errors to strings except Error objects
+ *
+ *  **Edge Cases**:
+ * - Returns failed result for non-boolean returns (including null/undefined)
+ * - Returns failed result for Promise<non-boolean> resolutions
+ * - Returns failed result for Promise rejections (transformed via errorTransform)
+ * - Returns failed result for thrown non-Error values (like \`throw "string"\`)
+ */
+export declare const withSafePredicate: <TInput, TError = string, TContext = unknown>(predicate: Predicate<TInput, TContext>, errorTransform?: (error: unknown) => TError) => PredicateSafe<TInput, TError, TContext>;
+/**
+ * Creates a rule wrapper that performs side effects without modifying the result.
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error (defaults to string)
+ * @template TContext - The type of the context object (optional)
+ * @param effect - Side effect function receiving input, result and context
+ * @param options - Configuration for error handling safety
+ * @param options.errorHandlingMode - Determines how errors are handled:
+ *   - 'safe': (default) Converts thrown errors to validation failures
+ *   - 'unsafe': Lets errors propagate (use only in performance-critical paths)
+ * @param options.errorTransform - Custom transformation for caught errors
+ * @returns A function that wraps a rule with the tap effect
+ * @example
+ * const withLogging = tap((input, result) => {
+ *   console.log(\`Validation result for \${input}:\`, result);
+ * });
+ *
+ * const rule = withLogging(validateInput);
+ * @caveats
+ * - Errors in the effect are caught and logged but don't affect rule execution
+ * - Doesn't modify the rule's result
+ */
+export declare const withTap: <TInput, TError = string, TContext = unknown>(effect: (input: TInput, result: RuleResult<TError>, context?: TContext) => Promise<void> | void, options?: RuleSafetyOptions<TError>) => ((rule: Rule<TInput, TError, TContext>) => Rule<TInput, TError, TContext>);
+/**
+ * Wraps a rule with timeout functionality.
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error
+ * @template TContext - The type of the context object
+ * @param rule - The rule to wrap with timeout
+ * @param timeoutMs - Timeout duration in milliseconds
+ * @param timeoutError - Error to return if timeout occurs
+ * @param options - Configuration for error handling safety
+ * @param options.errorHandlingMode - Determines how errors are handled:
+ *   - 'safe': (default) Converts thrown errors to validation failures
+ *   - 'unsafe': Lets errors propagate (use only in performance-critical paths)
+ * @param options.errorTransform - Custom transformation for caught errors
+ * @returns A new rule that fails with timeoutError if execution takes longer than timeoutMs
+ * @example
+ * const rule = withTimeout(
+ *   slowNetworkRequestRule,
+ *   5000, // 5 seconds
+ *   "Request timed out"
+ * );
+ * @caveats
+ * - The original rule's execution isn't aborted when timeout occurs
+ * - Only fails if the rule doesn't complete before timeout, not if it fails before timeout
+ */
+export declare const withTimeout: <TInput, TError, TContext>(rule: Rule<TInput, TError, TContext>, timeoutMs: number, timeoutError: TError, options?: RuleSafetyOptions<TError>) => Rule<TInput, TError, TContext>;
+/**
+ * Composes multiple rules into a single rule that runs them in right-to-left order (fail-fast).
+ * Stops at the first failure and returns the error.
+ *
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error (defaults to string)
+ * @template TContext - The type of the context object (optional)
+ * @param rules - Array of rules to compose
+ * @param options - Configuration options
+ * @param options.cloneContext - Whether to clone the context once per composed invocation (default: false)
+ * @param options.errorHandlingMode - Determines how errors are handled:
+ *   - 'safe': (default) Converts thrown errors to validation failures
+ *   - 'unsafe': Lets errors propagate (use only in performance-critical paths)
+ * @param options.errorTransform - Custom transformation for caught errors
+ * @returns A new rule that composes all input rules
+ *
+ * @example
+ * const rule = composeRules([
+ *   finalCheck,
+ *   normalizeInput,
+ *   validateBase
+ * ]);
+ *
+ * const result = await rule(input);
+ *
+ * @caveats
+ * - Rules are executed from **right to left**
+ * - Rules are executed sequentially (not in parallel)
+ * - Cloning behavior follows this priority:
+ *   1. Uses shallowClone if options.shallowClone = true
+ *   2. Uses structuredClone if available and options.structuredClone = true
+ *   3. Falls back to JSON clone otherwise
+ */
+export declare const composeRules: <TInput, TError = string, TContext = unknown>(rules: Rule<TInput, TError, TContext>[], options?: CompositionOptions<TError>) => Rule<TInput, TError, TContext>;
+/**
+ * Pipes a value through a series of functions (left-to-right composition).
+ * @template A - The input type
+ * @template B - The output type after first function
+ * @param value - The initial value
+ * @param fns - Functions to apply sequentially
+ * @returns The result of applying all functions to the initial value
+ * @example
+ * const result = pipe(
+ *   5,
+ *   (x) => x * 2,
+ *   (x) => x + 3,
+ *   (x) => \`Result: \${x}\`
+ * ); // "Result: 13"
+ * @caveats
+ * - Currently supports up to 10 functions with proper type inference
+ * - For more functions, type information will be lost
+ */
+export declare function pipe<A>(value: A): A;
+export declare function pipe<A, B>(value: A, fn1: (arg: A) => B): B;
+export declare function pipe<A, B, C>(value: A, fn1: (arg: A) => B, fn2: (arg: B) => C): C;
+export declare function pipe<A, B, C, D>(value: A, fn1: (arg: A) => B, fn2: (arg: B) => C, fn3: (arg: C) => D): D;
+export declare function pipe<A, B, C, D, E>(value: A, fn1: (arg: A) => B, fn2: (arg: B) => C, fn3: (arg: C) => D, fn4: (arg: D) => E): E;
+export declare function pipe<A, B, C, D, E, F>(value: A, fn1: (arg: A) => B, fn2: (arg: B) => C, fn3: (arg: C) => D, fn4: (arg: D) => E, fn5: (arg: E) => F): F;
+export declare function pipe<A, B, C, D, E, F, G>(value: A, fn1: (arg: A) => B, fn2: (arg: B) => C, fn3: (arg: C) => D, fn4: (arg: D) => E, fn5: (arg: E) => F, fn6: (arg: F) => G): G;
+export declare function pipe<A, B, C, D, E, F, G, H>(value: A, fn1: (arg: A) => B, fn2: (arg: B) => C, fn3: (arg: C) => D, fn4: (arg: D) => E, fn5: (arg: E) => F, fn6: (arg: F) => G, fn7: (arg: G) => H): H;
+export declare function pipe<A, B, C, D, E, F, G, H, I>(value: A, fn1: (arg: A) => B, fn2: (arg: B) => C, fn3: (arg: C) => D, fn4: (arg: D) => E, fn5: (arg: E) => F, fn6: (arg: F) => G, fn7: (arg: G) => H, fn8: (arg: H) => I): I;
+export declare function pipe<A, B, C, D, E, F, G, H, I, J>(value: A, fn1: (arg: A) => B, fn2: (arg: B) => C, fn3: (arg: C) => D, fn4: (arg: D) => E, fn5: (arg: E) => F, fn6: (arg: F) => G, fn7: (arg: G) => H, fn8: (arg: H) => I, fn9: (arg: I) => J): J;
+export declare function pipe<A, B, C, D, E, F, G, H, I, J, K>(value: A, fn1: (arg: A) => B, fn2: (arg: B) => C, fn3: (arg: C) => D, fn4: (arg: D) => E, fn5: (arg: E) => F, fn6: (arg: F) => G, fn7: (arg: G) => H, fn8: (arg: H) => I, fn9: (arg: I) => J, fn10: (arg: J) => K): K;
+/**
+ * Pipes multiple rules into a single rule that runs them sequentially (fail-fast).
+ * Stops at the first failure and returns the error.
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error (defaults to string)
+ * @template TContext - The type of the context object (optional)
+ * @param rules - Array of rules to compose
+ * @param options - Configuration options
+ * @param options.cloneContext - Whether to clone the context once per composed invocation (default: false)
+ * @param options.errorHandlingMode - Determines how errors are handled:
+ *   - 'safe': (default) Converts thrown errors to validation failures
+ *   - 'unsafe': Lets errors propagate (use only in performance-critical paths)
+ * @param options.errorTransform - Custom transformation for caught errors
+ * @returns A new rule that pipes all input rules
+ * @example
+ * const rule = pipeRules([
+ *   validateString,
+ *   validateLength,
+ *   validateFormat
+ * ]);
+ *
+ * const result = await rule("test@example.com");
+ * @caveats
+ * - Rules are execute from left to right
+ * - Rules are executed in sequence, not in parallel
+ * - Cloning behavior follows this priority:
+ *   1. Uses shallowClone if options.shallowClone = true
+ *   2. Uses structuredClone if available and options.structuredClone = true
+ *   3. Falls back to JSON clone otherwise
+ */
+export declare const pipeRules: <TInput, TError = string, TContext = unknown>(rules: Rule<TInput, TError, TContext>[], options?: CompositionOptions<TError>) => Rule<TInput, TError, TContext>;
+/**
+ * Graph node primitives.
+ *
+ * This module must not import from \`combinators/\` or \`helpers/\`: combinators
+ * import it, and \`helpers/\` and \`combinators/\` already depend on each other.
+ */
+/** Any function a combinator may hold as a child (rule, predicate, accessor). */
+type Fn = (...args: never[]) => unknown;
+/** Behavior a decorator adds around a rule without changing what it checks. */
+type DecoratorName = "timeout" | "retry" | "memoize" | "debug" | "tap" | "mapError" | "lazyContext";
+/** Public, JSON-serializable graph. Built by \`toGraph\`. */
+type GraphNode = {
+  id: string;
+  kind: "rule";
+  label: string;
+  params?: Record<string, unknown>;
+} | {
+  id: string;
+  kind: "sequence";
+  via: "pipeRules" | "composeRules";
+  steps: GraphNode[];
+} | {
+  id: string;
+  kind: "branch";
+  test: string;
+  ifTrue?: GraphNode;
+  ifFalse?: GraphNode;
+} | {
+  id: string;
+  kind: "switch";
+  selector: string;
+  /** In \`Reflect.ownKeys\` order; symbol keys appear as \`Symbol(desc)\`. */
+  cases: {
+    key: string;
+    node: GraphNode;
+  }[];
+  /** Absent \`default\` and \`defaultError\` mean "no match" fails. */
+  default?: GraphNode;
+  defaultError?: string;
+} | {
+  id: string;
+  kind: "all" | "any";
+  rules: GraphNode[];
+} | {
+  id: string;
+  kind: "not";
+  rule: GraphNode;
+} | {
+  id: string;
+  kind: "fallback";
+  main: GraphNode;
+  fallback: GraphNode;
+  guard?: string;
+} | {
+  id: string;
+  kind: "field";
+  getter: string;
+  rule: GraphNode;
+} | {
+  id: string;
+  kind: "effect";
+  label: string;
+} | {
+  id: string;
+  kind: "decorator";
+  decorator: DecoratorName;
+  params: Record<string, unknown>;
+  rule: GraphNode;
+};
+type RuleGraph = {
+  version: 1;
+  root: GraphNode;
+};
+/**
+ * Gives a rule (or predicate, accessor or getter) a readable name for
+ * \`toGraph\` and \`toMermaid\`. Behavior is unchanged: the returned function
+ * forwards its arguments and result as-is, and the function you pass in is
+ * not modified.
+ *
+ * @example
+ * const adult = named("Is adult", (user: User) => user.age >= 18);
+ * const minAge = (years: number) =>
+ *   named(\`Min age \${years}\`, ageRule(years), { params: { years } });
+ * @caveats
+ * - A named rule is described as a single box, even if it was built from
+ *   combinators. Use that to collapse a sub-pipeline in a diagram.
+ * - The wrapper adds one function call per invocation.
+ */
+export declare const named: <F extends Fn>(name: string, fn: F, options?: {
+  params?: Record<string, unknown>;
+}) => F;
+/**
+ * Describes a rule as a JSON-serializable graph, without running it.
+ *
+ * Rules built with this package's combinators are described structurally; any
+ * other function (including your own wrappers) is a single leaf rule.
+ *
+ * @example
+ * const graph = toGraph(pipeRules([hasItems, withinLimit]));
+ * // { version: 1, root: { kind: "sequence", steps: [...] } }
+ * @caveats
+ * - Nothing is executed: rules, predicates and accessors are never called.
+ * - Anonymous functions are labelled \`rule #n\`; use \`named\` for a real name.
+ */
+export declare const toGraph: <TInput, TError, TContext>(rule: Rule<TInput, TError, TContext>) => RuleGraph;
+/**
+ * Type guard to check if context exists and is of type T.
+ * @template T - The expected context type
+ * @param ctx - The context to check
+ * @returns Boolean indicating if context exists and matches type
+ * @example
+ * if (hasContext<AdminContext>(context)) {
+ *   // context is now typed as AdminContext
+ * }
+ */
+export declare const hasContext: <T>(ctx: T | undefined) => ctx is T;
+/**
+ * Creates a rule that requires specific context to be present.
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error
+ * @template TContext - The base context type
+ * @template TRequiredContext - The required context type
+ * @param error - Error to return if context is invalid
+ * @param rule - Rule that requires the specific context
+ * @param contextCheck - Optional type guard for context validation
+ * @returns A rule that validates context before execution
+ * @example
+ * const adminRule = requireContextRule(
+ *   "Admin context required",
+ *   (input, context: AdminContext) => { ... },
+ *   (ctx): ctx is AdminContext => ctx?.role === "admin"
+ * );
+ * @caveats
+ * - Fails immediately if context check fails
+ * - Provides type safety for context requirements
+ */
+export declare const requireContextRule: <TInput, TError, TContext, TRequiredContext extends TContext>(error: TError, rule: (input: TInput, context: TRequiredContext) => Promise<RuleResult<TError>> | RuleResult<TError>, contextCheck?: (context: TContext | undefined) => context is TRequiredContext) => Rule<TInput, TError, TContext>;
+/**
+ * const userRule = requireContextRule(
+  "User context required",
+  (input: string, ctx: { userId: string }) => {
+    return ctx.userId === "admin"
+      ? pass()
+      : fail("Unauthorized");
+  }
+);
+
+await userRule("action"); // fails with "User context required"
+await userRule("action", { userId: "user" }); // fails with "Unauthorized"
+await userRule("action", { userId: "admin" }); // passes
+ */
+/**
+ * Creates a rule that loads context lazily before execution.
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error
+ * @template TContext - The type of the context object
+ * @param loader - Function to load context from input
+ * @param rule - Rule that requires the context
+ * @returns A rule that loads context before execution
+ * @example
+ * const rule = withLazyContext(
+ *   async (userId) => await loadUserContext(userId),
+ *   validateUser
+ * );
+ * @caveats
+ * - Context loading failures are converted to validation failures
+ * - The loader is called for every rule execution
+ */
+export declare const withLazyContext: <TInput, TError, TContext>(loader: (input: TInput) => Promise<TContext> | TContext, rule: Rule<TInput, TError, TContext>) => Rule<TInput, TError>;
+/**
+ * Creates a failed RuleResult with the provided error.
+ * @template TError - The type of the error (defaults to string)
+ * @param error - The error to include in the failed result
+ * @returns A RuleResult with status "failed" and the provided error
+ * @example
+ * const result = fail("Invalid input"); // { status: "failed", error: "Invalid input" }
+ *
+ * // Used in rule implementations:
+ * const alwaysFails: Rule<string> = () => fail("Always fails");
+ */
+export declare const fail: <TError = string>(error: TError) => RuleResult<TError>;
+/**
+ * Creates a successful RuleResult with "passed" status.
+ * @template TError - The type of the error (defaults to string)
+ * @returns A RuleResult with status "passed"
+ * @example
+ * const result = pass(); // { status: "passed" }
+ *
+ * // Used in rule implementations:
+ * const alwaysPasses: Rule<string> = () => pass();
+ */
+export declare const pass: <TError = string>() => RuleResult<TError>;
+export declare const calculateDelay: (strategy: RetryStrategy | undefined, attempt: number, initialDelayMs: number) => number;
+export declare const getNormalizedRule: <TInput, TError, TContext>(rule: Rule<TInput, TError, TContext>, opts?: RuleSafetyOptions<TError>) => Rule<TInput, TError, TContext>;
+export declare const getNormalizedRules: <TInput, TError, TContext>(rules: Rule<TInput, TError, TContext>[], opts?: RuleSafetyOptions<TError>) => Rule<TInput, TError, TContext>[];
+export type { CompositionOptions, DebugOptions, GraphNode, Predicate, PredicateResult, PredicateSafe, Rule, RuleGraph, RuleResult, RuleSafetyOptions };
+//# sourceMappingURL=index.d.cts.map
+// ==== index.d.ts ====
+import { n as RuleResult, t as Rule } from "./rule-[hash].js";
+type Prettify<T> = { [K in keyof T]: T[K]; } & {};
+/**
+ * Configuration options for error handling behavior in rule combinators
+ * @template TError - The type of the error that will be caught and transformed (when safe)
+ *
+ * @property errorHandlingMode - Determines how the combinator handles thrown errors
+ *   - "safe": (default) Catches errors and converts them to failed RuleResults
+ *   - "unsafe": Lets errors propagate normally (for performance-critical cases)
+ *
+ * @property errorTransform - Optional custom error transformation function
+ *   Allows customizing how thrown errors are converted to the rule's error
+ *   type. Only valid when errorHandlingMode is "safe" (or omitted); combining
+ *   it with "unsafe" is a compile error because the transform would never run.
+ *
+ * @example
+ * // Basic usage with default safe handling
+ * const rule = every([rule1, rule2], { errorHandlingMode: "safe" });
+ *
+ * @example
+ * // Unsafe mode for performance
+ * const rule = every([rule1, rule2], { errorHandlingMode: "unsafe" });
+ *
+ * @example
+ * // Custom error transformation
+ * const rule = every([rule1, rule2], {
+ *   errorHandlingMode: "safe",
+ *   errorTransform: (err) => ({
+ *     code: 500,
+ *     message: String(err)
+ *   })
+ * });
+ */
+type RuleSafetyOptions<TError = unknown> = {
+  errorHandlingMode?: "safe";
+  errorTransform?: (error: unknown) => TError;
+} | {
+  errorHandlingMode: "unsafe";
+  errorTransform?: never;
+};
+/**
+ * Options for rule composition functions.
+ * @property cloneContext - Whether to clone the context once per composed invocation
+ * @property cloneStrategy - Which strategy to use when cloning the context
+ * @property errorHandlingMode - Determines how the combinator handles thrown errors
+ *   - "safe": (default) Catches errors and converts them to failed RuleResults
+ *   - "unsafe": Lets errors propagate normally (for performance-critical cases)
+ *
+ * @property errorTransform - Optional custom error transformation function
+ *   Allows customizing how thrown errors are converted to the rule's error
+ *   type. Only valid when errorHandlingMode is "safe" (or omitted).
+ *
+ *
+ *  @warn
+ * - Cloning behavior follows this priority:
+ *   1. Uses shallowClone if options.cloneStrategy = "shallow"
+ *   2. Uses structuredClone if available and options.cloneStrategy = "structured"
+ *   3. Falls back to JSON clone otherwise
+ * - structuredClone requires Node 17+ or modern browsers
+ * - JSON clone will lose special types (Date, Map, etc.)
+ * - All clones convert undefined/null to empty object {}
+ * - Circular references fail silently in JSON clone mode
+ */
+type CompositionOptions<TError = string> = Prettify<{
+  cloneContext?: boolean;
+  cloneStrategy?: "shallow" | "json" | "structured";
+} & RuleSafetyOptions<TError>>;
+/**
+ * Configuration options for debug functionality.
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error
+ * @template TContext - The type of the context object
+ * @property name - Unique identifier for the rule
+ * @property onStart - Called before rule execution
+ * @property onEnd - Called after rule completes
+ * @property onError - Called when rule throws
+ */
+type DebugOptions<TInput, TError, TContext> = {
+  /** Unique identifier for the rule */
+  name?: string;
+  /** Called before rule execution */
+  onStart?: (input: TInput, context?: TContext) => void;
+  /** Called after rule completes */
+  onEnd?: (input: TInput, result: RuleResult<TError>, context?: TContext, meta?: {
+    ruleName: string;
+    duration: number;
+    startTime: number;
+  }) => void;
+  /** Called when rule throws */
+  onError?: (error: unknown, input: TInput, context?: TContext, duration?: number) => void;
+};
+/**
+ * A predicate function that evaluates an input and returns a boolean result.
+ * Can be synchronous or asynchronous.
+ */
+type Predicate<TInput, TContext> = (input: TInput, context?: TContext) => boolean | Promise<boolean>;
+/**
+ * Represents the result of a predicate evaluation.
+ * @template TError - The type of the error (defaults to string)
+ * @example
+ * // Passed result, true value
+ * const passed: PredicateResult = { status: "passed", value: true };
+ *
+ * // Passed result, false value
+ * const passed: PredicateResult = { status: "passed", value: false };
+ *
+ *
+ * // Failed result
+ * const failed: PredicateResult = {
+ *   status: "failed",
+ *   error: "Validation failed"
+ * };
+ */
+type PredicateResult<TError = string> = {
+  readonly status: "passed";
+  value: boolean;
+} | {
+  readonly status: "failed";
+  readonly error: TError;
+};
+/**
+ * A predicate function that evaluates an input and returns a PredicateResult.
+ * Can be synchronous or asynchronous.
+ */
+type PredicateSafe<TInput, TError, TContext> = (input: TInput, context?: TContext) => PredicateResult<TError> | Promise<PredicateResult<TError>>;
+/**
+ * Composes multiple rules into a single rule that runs them all and collects all errors.
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error (defaults to string)
+ * @template TContext - The type of the context object (optional)
+ * @param rules - Array of rules to compose
+ * @param options - Configuration options
+ * @param options.cloneContext - Whether to clone the context once per composed invocation (default: false)
+ * @param options.cloneStrategy -Which strategy to use when cloning the context
+ * @param options.errorHandlingMode - Determines how errors are handled:
+ *   - 'safe': (default) Converts thrown errors to validation failures
+ *   - 'unsafe': Lets errors propagate (use only in performance-critical paths)
+ * @param options.errorTransform - Custom transformation for caught errors
+ * @returns A new rule that returns all errors from all failing rules
+ * @example
+ * const rule = every([
+ *   validatePresence,
+ *   validateEmail,
+ *   validateUnique
+ * ]);
+ *
+ * const result = await rule("invalid-email");
+ * if (result.status === "failed") {
+ *   console.log(result.error); // Array of all errors
+ * }
+ * @caveats
+ * - Rules are executed in parallel (using Promise.all)
+ * - All rules are executed even if some fail
+ * - Cloning behavior follows this priority:
+ *   1. Uses shallowClone if options.shallowClone = true
+ *   2. Uses structuredClone if available and options.structuredClone = true
+ *   3. Falls back to JSON clone otherwise
+ */
+export declare const every: <TInput, TError = string, TContext = unknown>(rules: Rule<TInput, TError, TContext>[], options?: CompositionOptions<TError>) => Rule<TInput, TError[], TContext>;
+/**
+ * Configuration options for error handling behavior in rule combinators
+ * @template TError - The type of the error that will be caught and transformed (when safe)
+ *
+ *
+ * @property predicateErrorTransform - Optional custom error transformation function
+ *   Allows customizing how thrown errors are converted to the rule's error
+ *   type. Only valid when errorHandlingMode is "safe" (or omitted).
+ *
+ *
+ * @example
+ * // Custom error transformation
+ * const rule = ifElse(
+ *   (user) => user.age >= 18,
+ *   validateAdultAccount,
+ *   validateMinorAccount,
+ *   {
+ *      predicateErrorTransform: (err) => ({
+ *           code: 500,
+ *           message: String(err)
+ *       })
+ *    }
+ * );
+ */
+type PredicateSafetyOptions<TError = unknown> = {
+  predicateErrorTransform?: (error: unknown) => TError;
+};
+type SafetyOptions<TError = unknown> = Prettify<RuleSafetyOptions<TError> & PredicateSafetyOptions<TError>>;
+/**
+ * Conditionally executes one of two rules based on a predicate
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error (defaults to string)
+ * @template TContext - The type of the context object (optional)
+ * @param predicate - Function that determines which rule to execute
+ * @param ifRule - Rule to execute when predicate returns true
+ * @param elseRule - Rule to execute when predicate returns false (optional)
+ * @param options - Configuration for error handling and predicate safety
+ * @param options.errorHandlingMode - Determines how errors are handled:
+ *   - 'safe': (default) Converts thrown errors to validation failures
+ *   - 'unsafe': Lets errors propagate (use only in performance-critical paths)
+ * @param options.errorTransform - Custom transformation for caught errors
+ * @param options.predicateErrorTransform - Special error handler for predicate failures
+ * @returns A new rule that conditionally executes one of two rules
+ * @example
+ * const rule = ifElse(
+ *   (user) => user.age >= 18,
+ *   validateAdultAccount,
+ *   validateMinorAccount
+ * );
+ *
+ * // Without elseRule (passes when predicate is false)
+ * const adultOnlyRule = ifElse(
+ *   (user) => user.age >= 18,
+ *   validateAdultAccount
+ * );
+ */
+export declare const ifElse: <TInput, TError = string, TContext = unknown>(predicate: Predicate<TInput, TContext>, ifRule: Rule<TInput, TError, TContext>, elseRule?: Rule<TInput, TError, TContext>, options?: SafetyOptions<TError>) => Rule<TInput, TError, TContext>;
+/**
+ * Pattern-matching combinator that selects a rule based on a key extracted from input.
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error (defaults to string)
+ * @template TContext - The type of the context object (optional)
+ * @template TKey - The type of the branch key (must be string | number | symbol)
+ * @param accessor - Function that extracts the match key from input
+ * @param cases - Object mapping keys to their corresponding rules
+ * @param defaultCase - Optional default rule or error when no match is found
+ * @param options - Configuration for error handling safety
+ * @param options.errorHandlingMode - Determines how errors are handled:
+ *   - 'safe': (default) Converts thrown errors to validation failures
+ *   - 'unsafe': Lets errors propagate (use only in performance-critical paths)
+ * @param options.errorTransform - Custom transformation for caught errors
+ * @returns A new rule that executes the matching case's rule
+ * @example
+ * // Basic usage with string error type
+ * const validatePayment = match(
+ *   (order) => order.paymentMethod,
+ *   {
+ *     credit: validateCreditCard,
+ *     paypal: validatePayPal,
+ *     crypto: validateCrypto
+ *   },
+ *   "Unsupported payment method"
+ * );
+ *
+ * @example
+ * // With custom error type
+ * interface ValidationError { code: number; message: string }
+ * const validateStatus = match<Order, ValidationError>(
+ *   (order) => order.status,
+ *   {
+ *     pending: validatePendingOrder,
+ *     completed: validateCompletedOrder
+ *   },
+ *   { code: 400, message: "Invalid status" }
+ * );
+ *
+ * @example
+ * // With default rule instead of error
+ * const validateProduct = match(
+ *   (product) => product.type,
+ *   {
+ *     book: validateBook,
+ *     digital: validateDigitalProduct
+ *   },
+ *   validateGenericProduct
+ * );
+ *
+ * @caveats
+ * - The accessor function should return a primitive value (string/number/symbol)
+ * - If no matching case is found and no default is provided, returns a failed result with:
+ *   - A string error when TError is string (default)
+ *   - A type-asserted error when TError is custom (may require type casting)
+ * - All case rules must have compatible input/context types
+ * - For conditional branching (true/false), consider using \`branch\` instead
+ */
+export declare const match: <TInput, TError = string, TContext = unknown, TKey extends string | number | symbol = string>(accessor: (input: TInput, context?: TContext) => TKey | Promise<TKey>, cases: Record<TKey, Rule<TInput, TError, TContext>>, defaultCase?: Rule<TInput, TError, TContext> | TError, options?: RuleSafetyOptions<TError>) => Rule<TInput, TError, TContext>;
+/**
+ * Inverts the logic of a rule - passes when original fails and vice versa.
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error (defaults to string)
+ * @template TContext - The type of the context object (optional, defaults to unknown)
+ * @param rule - The rule to invert
+ * @param error - The error to return when original rule passes
+ * @param options - Configuration for error handling safety
+ * @param options.errorHandlingMode - Determines how errors are handled:
+ *   - 'safe': (default) Converts thrown errors to validation failures
+ *   - 'unsafe': Lets errors propagate (use only in performance-critical paths)
+ * @param options.errorTransform - Custom transformation for caught errors
+ * @returns A new rule with inverted logic
+ * @example
+ * const isNotAdmin = not(isAdmin, "User must not be admin");
+ * @caveats
+ * - The original rule's error is discarded when it fails
+ * - Always uses the provided error when original passes
+ */
+export declare const not: <TInput, TError = string, TContext = unknown>(rule: Rule<TInput, TError, TContext>, error: TError, options?: RuleSafetyOptions<TError>) => Rule<TInput, TError, TContext>;
+/**
+ * Creates a rule that passes if any of the provided rules pass (short-circuiting).
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error (defaults to string)
+ * @template TContext - The type of the context object (optional)
+ * @param rules - Rules to try (in order)
+ * @param options - Configuration for error handling
+ * @param options.errorHandlingMode - Determines how errors are handled:
+ *   - 'safe': (default) Converts thrown errors to validation failures
+ *   - 'unsafe': Lets errors propagate (use only in performance-critical paths)
+ * @param options.errorTransform - Custom transformation for caught errors
+ * @returns A rule that passes if any rule passes, or fails with all errors
+ * @example
+ * const rule = oneOf(
+ *   validateEmail,
+ *   validatePhone,
+ *   validateUsername
+ * );
+ * @caveats
+ * - Rules are executed in sequence until one passes
+ * - Returns all errors if all rules fail
+ */
+export declare const oneOf: <TInput, TError = string, TContext = unknown>(rules: Rule<TInput, TError, TContext>[], options?: RuleSafetyOptions<TError>) => Rule<TInput, TError[], TContext>;
+/**
+ * Executes a rule only if the predicate returns false.
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error (defaults to string)
+ * @template TContext - The type of the context object (optional)
+ * @param predicate - Condition to check
+ * @param rule - Rule to execute when predicate is false
+ * @param options - Configuration for error handling and predicate safety
+ * @param options.errorHandlingMode - Determines how errors are handled:
+ *   - 'safe': (default) Converts thrown errors to validation failures
+ *   - 'unsafe': Lets errors propagate (use only in performance-critical paths)
+ * @param options.errorTransform - Custom transformation for caught errors
+ * @param options.predicateErrorTransform - Special error handler for predicate failures
+ * @returns A rule that conditionally executes based on the predicate
+ * @example
+ * const rule = unless(
+ *   (user) => user.isVerified,
+ *   requireVerification
+ * );
+ * @caveats
+ * - Opposite behavior of \`when\`
+ * - Automatically passes when predicate is true
+ */
+export declare const unless: <TInput, TError = string, TContext = unknown>(predicate: Predicate<TInput, TContext>, rule: Rule<TInput, TError, TContext>, options?: SafetyOptions<TError>) => Rule<TInput, TError, TContext>;
+/**
+ * Conditionally executes a rule based on a predicate.
+ * Similar to branch but without an else case.
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error (defaults to string)
+ * @param predicate - Function that determines whether to execute the rule
+ * @param rule - Rule to execute when predicate returns true
+ * @param options - Configuration for error handling and predicate safety
+ * @param options.errorHandlingMode - Determines how errors are handled:
+ *   - 'safe': (default) Converts thrown errors to validation failures
+ *   - 'unsafe': Lets errors propagate (use only in performance-critical paths)
+ * @param options.errorTransform - Custom transformation for caught errors
+ * @param options.predicateErrorTransform - Special error handler for predicate failures
+ * @returns A new rule that conditionally executes the input rule
+ * @example
+ * const rule = when(
+ *   (user) => user.role === "admin",
+ *   validateAdminPrivileges
+ * );
+ * @caveats
+ * - The predicate can be async
+ * - If predicate returns false, the rule automatically passes
+ */
+export declare const when: <TInput, TError = string, TContext = unknown>(predicate: Predicate<TInput, TContext>, rule: Rule<TInput, TError, TContext>, options?: SafetyOptions<TError>) => Rule<TInput, TError, TContext>;
+/**
+ * Creates a rule that falls back to an alternative rule if the main rule fails.
+ * @template TInput - Input type
+ * @template TError - Error type
+ * @template TContext - Context type
+ * @param mainRule - Primary rule to execute first
+ * @param fallbackRule - Rule to execute if main rule fails
+ * @param options - Configuration options
+ * @param options.onlyFallbackOn - Predicate to conditionally enable fallback
+ * @param options.errorHandlingMode - Determines how errors are handled:
+ *   - 'safe': (default) Converts thrown errors to validation failures
+ *   - 'unsafe': Lets errors propagate (use only in performance-critical paths)
+ * @param options.errorTransform - Custom transformation for caught errors
+ * @returns A new composite rule
+ * @example
+ * const rule = withFallback(
+ *   premiumValidation,
+ *   basicValidation,
+ *   { onlyFallbackOn: err => err.code !== 'FATAL' }
+ * );
+ */
+export declare const withFallback: <TInput, TError, TContext>(mainRule: Rule<TInput, TError, TContext>, fallbackRule: Rule<TInput, TError, TContext>, options?: RuleSafetyOptions<TError> & {
+  onlyFallbackOn?: (error: TError) => boolean;
+}) => Rule<TInput, TError, TContext>;
+/**
+ * Injects a dependency into a rule creation function, returning a configured rule.
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error
+ * @template TDep - The type of the dependency to inject
+ * @template TContext - The type of the context object (optional, defaults to unknown)
+ * @param dependency - The dependency to inject
+ * @param rule - A function that creates a rule when given the dependency
+ * @returns A configured rule that uses the injected dependency
+ * @example
+ * const createDbRule = (db: Database) => (input: string) =>
+ *   db.exists(input) ? pass() : fail("Not found");
+ *
+ * const dbRule = inject(database, createDbRule);
+ * @caveats
+ * - The dependency is injected at rule creation time, not execution time
+ * - The execution context is forwarded to the configured rule
+ */
+export declare const inject: <TInput, TError, TDep, TContext = unknown>(dependency: TDep, rule: (dep: TDep) => Rule<TInput, TError, TContext>) => Rule<TInput, TError, TContext>;
+/**
+ * Transforms the error of a rule using a mapping function.
+ * @template TInput - The type of the input to validate
+ * @template TError - The original error type
+ * @template TNewError - The new error type
+ * @template TContext - The type of the context object (optional, defaults to unknown)
+ * @param rule - The rule whose errors should be transformed
+ * @param transform - Function to transform the error
+ * @returns A new rule that produces transformed errors
+ * @example
+ * const rule = mapError(
+ *   validateEmail,
+ *   (error) => \`Validation failed: \${error}\`
+ * );
+ *
+ * // Can also change error types:
+ * const numericErrorRule = mapError(
+ *   stringErrorRule,
+ *   (error) => error.length // Convert string error to number
+ * );
+ * @caveats
+ * - The context type of the wrapped rule is preserved and forwarded to it
+ * - Only transforms failed results, passes successful results through unchanged
+ * - The transform function is not called for successful results
+ */
+export declare const mapError: <TInput, TError, TNewError, TContext = unknown>(rule: Rule<TInput, TError, TContext>, transform: (error: TError) => TNewError) => Rule<TInput, TNewError, TContext>;
+/**
+ * Creates a standalone tap effect for use in composition pipelines
+ * @template TInput - Input type
+ * @template TError - Error type
+ * @template TContext - Context type
+ * @param effect - Side effect function receiving (input, context)
+ * @returns A rule that passes through input unchanged
+ * @example
+ * pipeRules([
+ *   tap((input) => console.log('Processing:', input)),
+ *   validateInput
+ * ])
+ */
+export declare const tap: <TInput, TError = string, TContext = unknown>(effect: (input: TInput, context?: TContext) => Promise<void> | void) => Rule<TInput, TError, TContext>;
+/**
+ * Creates a rule that extracts a value using a getter function and validates it.
+ * @template TInput - The type of the input object
+ * @template TValue - The type of the extracted value
+ * @template TError - The type of the error
+ * @template TContext - The type of the context object
+ * @param getter - Function that extracts the value from input
+ * @param rule - Rule to apply to the extracted value
+ * @param defaultValue - Optional default value if getter returns undefined
+ * @param options - Configuration for error handling safety
+ * @param options.errorHandlingMode - Determines how errors are handled:
+ *   - 'safe': (default) Converts thrown errors to validation failures
+ *   - 'unsafe': Lets errors propagate (use only in performance-critical paths)
+ * @param options.errorTransform - Custom transformation for caught errors
+ * @returns A new rule that validates the extracted value
+ * @example
+ * const validateName = validateField(
+ *   (user: User) => user.profile.name,
+ *   (name) => name.length > 3 ? pass() : fail('Name too short')
+ * );
+ *
+ * const validateAge = validateField(
+ *   (user: User) => user.age,
+ *   (age) => age >= 18 ? pass() : fail('Must be adult'),
+ *   18 // default value
+ * );
+ *
+ * @caveats
+ * **Null/Undefined Handling**:
+ *    - The getter function should handle optional properties (use optional chaining)
+ *    - If getter returns undefined and no default is provided, the rule will fail
+ *
+ *  **Type Safety**:
+ *    - The rule's input type must match the getter's return type exactly
+ *    - No automatic type narrowing (e.g., string | undefined won't become string even with default)
+ *
+ *  **Default Values**:
+ *    - Defaults are applied before rule execution (the rule sees the default value)
+ *    - Default values aren't type-checked against potentially undefined returns
+ */
+export declare function validateField<TInput, TValue, TError = string, TContext = unknown>(getter: (input: TInput) => TValue | undefined, rule: Rule<TValue, TError, TContext>, defaultValue?: TValue, options?: RuleSafetyOptions<TError>): Rule<TInput, TError, TContext>;
+/**
+ * Wraps a rule with debugging capabilities.
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error
+ * @template TContext - The type of the context object
+ * @param rule - The rule to wrap with debug capabilities
+ * @param options - Debug configuration or simple name string
+ * @param options.name - Name for the debug output
+ * @param options.onStart - Callback when rule starts executing
+ * @param options.onEnd - Callback when rule completes successfully
+ * @param options.onError - Callback when rule throws an error
+ * @returns A new rule with debug capabilities
+ * @example
+ * const rule = withDebug(expensiveValidation, {
+ *   name: "Expensive Validation",
+ *   onStart: (input) => console.log(\`Starting with input: \${input}\`),
+ *   onEnd: (input, result, ctx, { duration }) => {
+ *     console.log(\`Completed in \${duration}ms\`);
+ *   }
+ * });
+ * @caveats
+ * - Debug callbacks are executed synchronously and may impact performance
+ * - Errors in callbacks will propagate and potentially mask rule errors
+ */
+export declare const withDebug: <TInput, TError, TContext>(rule: Rule<TInput, TError, TContext>, options: DebugOptions<TInput, TError, TContext> | string) => Rule<TInput, TError, TContext>;
+/**
+ * Creates a memoized version of a rule that caches results based on input keys.
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error (defaults to string)
+ * @template TContext - The type of the context object (optional)
+ * @param rule - The rule to memoize
+ * @param keyFn - Function that generates a cache key from the input and, optionally,
+ *   the context. Include every piece of context the verdict depends on (user,
+ *   tenant, permissions); otherwise one caller can be served another caller's result
+ * @param options - Memoization and safety options
+ * @param options.ttl - Time-to-live for cache entries in milliseconds
+ * @param options.maxSize - Maximum number of entries to keep in cache
+ * @param options.errorHandlingMode - Determines how errors are handled:
+ *   - 'safe': (default) Converts thrown errors to validation failures
+ *   - 'unsafe': Lets errors propagate (use only in performance-critical paths)
+ * @param options.errorTransform - Custom transformation for caught errors
+ * @returns A memoized version of the rule
+ * @example
+ * const memoizedRule = withMemoize(
+ *   expensiveValidationRule,
+ *   (input) => input.id,
+ *   { ttl: 60000, maxSize: 100 }
+ * );
+ *
+ * // verdict depends on who is asking: key by context too
+ * const perUser = withMemoize(
+ *   permissionRule,
+ *   (input, context) => JSON.stringify([context?.userId, input.id])
+ * );
+ * @caveats
+ * - The cache key is exactly what \`keyFn\` returns: a key that ignores context
+ *   shares entries across contexts, so a result cached for one user can be served
+ *   to another. Key by context whenever the result depends on it
+ * - Build keys unambiguously: joining values with a separator (\`\${a}:\${b}\`) can make
+ *   different callers produce the same key; serialize them (\`JSON.stringify([a, b])\`)
+ * - Cache cleanup happens during rule execution
+ * - Rejected promises are automatically evicted from cache
+ * - Successful results obey TTL rules
+ * - Each call to withMemoize creates its own cache; it is not shared across memoized rules
+ * - Entries are evicted oldest-inserted first (FIFO) once maxSize is reached; hits do not refresh recency
+ */
+export declare const withMemoize: <TInput, TError = string, TContext = unknown>(rule: Rule<TInput, TError, TContext>, keyFn: (input: TInput, context?: TContext) => string, options?: {
+  ttl?: number;
+  maxSize?: number;
+} & RuleSafetyOptions<TError>) => Rule<TInput, TError, TContext>;
+export type RetryOn = "failed" | "thrown" | "both";
+export type RetryStrategy = "fixed" | "linear" | "exponential" | ((attempt: number) => number);
+type WithRetryOptions<TError> = {
+  attempts?: number;
+  delayMs?: number;
+  retryStrategy?: RetryStrategy;
+  shouldRetry?: (error: TError | unknown, attempt: number) => boolean;
+  retryOn?: RetryOn;
+};
+/**
+ * Wraps a rule with retry logic for handling transient failures.
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error (defaults to string)
+ * @template TContext - The type of the context object (optional)
+ * @param rule - The rule to wrap with retry logic
+ * @param options - Retry configuration
+ * @param options.attempts - Maximum number of attempts (default: 3)
+ * @param options.delayMs - Delay between attempts in milliseconds (default: 100)
+ * @param options.shouldRetry - Function to determine if a failure should be retried
+ * @param options.retryOn - What to retry: "failed" results, "thrown" exceptions, or "both" (default)
+ * @param options.onExhausted - What to return when every attempt fails:
+ *   "max-retries" (default) returns "MAX_RETRIES_EXCEEDED"; "last-error"
+ *   returns the final error unchanged and keeps the error type as \`TError\`
+ * @returns A new rule with retry capability
+ * @example
+ * const rule = withRetry(apiCheckRule, {
+ *   attempts: 5,
+ *   delayMs: 500,
+ *   shouldRetry: (error) => error.statusCode === 503,
+ *   onExhausted: "last-error"
+ * });
+ * @caveats
+ * - Retries both failed RuleResults and thrown exceptions by default
+ * - A failed result is a deliberate decision, not a transient fault: do not retry
+ *   policy decisions. Use \`retryOn: "thrown"\` for guardrails and other rules
+ *   where a "no" must stay a "no"
+ * - A failure excluded by \`retryOn\` is returned immediately (a thrown exception
+ *   becomes a failed result carrying the thrown value)
+ * - \`retryOn\` and \`shouldRetry\` compose: an attempt is retried only if both allow it
+ * - By default the final error is "MAX_RETRIES_EXCEEDED" if all attempts fail,
+ *   which hides why the rule failed; use \`onExhausted: "last-error"\` to keep it
+ * - With "last-error" the final error may be a thrown value, as with \`shouldRetry\`
+ */
+export declare function withRetry<TInput, TError = string, TContext = unknown>(rule: Rule<TInput, TError, TContext>, options: WithRetryOptions<TError> & {
+  onExhausted: "last-error";
+}): Rule<TInput, TError, TContext>;
+export declare function withRetry<TInput, TError = string, TContext = unknown>(rule: Rule<TInput, TError, TContext>, options?: WithRetryOptions<TError> & {
+  onExhausted?: "max-retries";
+}): Rule<TInput, TError | "MAX_RETRIES_EXCEEDED", TContext>;
+export declare function withRetry<TInput, TError = string, TContext = unknown>(rule: Rule<TInput, TError, TContext>, options?: WithRetryOptions<TError> & {
+  onExhausted?: "max-retries" | "last-error";
+}): Rule<TInput, TError | "MAX_RETRIES_EXCEEDED", TContext>;
+/**
+ * Wraps a rule to catch errors and convert them to failed RuleResults
+ * @template TInput - The input type
+ * @template TError - The error type (defaults to string)
+ * @template TContext - The context type
+ * @param rule - The rule to protect
+ * @param errorMapper - Optional error transformation logic
+ * @returns A protected version of the rule
+ * @example
+ * // Basic usage with default error handling
+ * const safeRule = withSafeError(riskyRule);
+ *
+ * // With custom error transformation
+ * const customSafeRule = withSafeError(riskyRule, e => ({
+ *   code: 500,
+ *   message: String(e)
+ * }));
+ *
+ * @caveats
+ *
+ * - Generic parameters must be explicitly set for custom error types
+ * - Doesn't verify error types match TError at runtime
+ */
+export declare const withSafeError: <TInput, TError = string, TContext = unknown>(rule: Rule<TInput, TError, TContext>, errorTransform?: (error: unknown) => TError) => Rule<TInput, TError, TContext>;
+/**
+ * Wraps a predicate function with error handling and type safety.
+ * @template TInput - The input type
+ * @template TError - The error type (defaults to string)
+ * @template TContext - The context type
+ * @param predicate - The predicate function to wrap
+ * @param errorTransform - Optional function to transform errors
+ * @returns A safe predicate that never throws
+ *
+ * @example
+ * const safePredicate = withSafePredicate(
+ *   (input: string) => input.length > 5,
+ *   (err) => \`Predicate failed: \${String(err)}\`
+ * );
+ *
+ *  @caveats
+ *  **Error Handling Behavior**:
+ * - Will catch both synchronous throws and Promise rejections
+ * - Errors in the errorTransform itself will propagate (not caught)
+ * - The default transformer converts all errors to strings except Error objects
+ *
+ *  **Edge Cases**:
+ * - Returns failed result for non-boolean returns (including null/undefined)
+ * - Returns failed result for Promise<non-boolean> resolutions
+ * - Returns failed result for Promise rejections (transformed via errorTransform)
+ * - Returns failed result for thrown non-Error values (like \`throw "string"\`)
+ */
+export declare const withSafePredicate: <TInput, TError = string, TContext = unknown>(predicate: Predicate<TInput, TContext>, errorTransform?: (error: unknown) => TError) => PredicateSafe<TInput, TError, TContext>;
+/**
+ * Creates a rule wrapper that performs side effects without modifying the result.
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error (defaults to string)
+ * @template TContext - The type of the context object (optional)
+ * @param effect - Side effect function receiving input, result and context
+ * @param options - Configuration for error handling safety
+ * @param options.errorHandlingMode - Determines how errors are handled:
+ *   - 'safe': (default) Converts thrown errors to validation failures
+ *   - 'unsafe': Lets errors propagate (use only in performance-critical paths)
+ * @param options.errorTransform - Custom transformation for caught errors
+ * @returns A function that wraps a rule with the tap effect
+ * @example
+ * const withLogging = tap((input, result) => {
+ *   console.log(\`Validation result for \${input}:\`, result);
+ * });
+ *
+ * const rule = withLogging(validateInput);
+ * @caveats
+ * - Errors in the effect are caught and logged but don't affect rule execution
+ * - Doesn't modify the rule's result
+ */
+export declare const withTap: <TInput, TError = string, TContext = unknown>(effect: (input: TInput, result: RuleResult<TError>, context?: TContext) => Promise<void> | void, options?: RuleSafetyOptions<TError>) => ((rule: Rule<TInput, TError, TContext>) => Rule<TInput, TError, TContext>);
+/**
+ * Wraps a rule with timeout functionality.
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error
+ * @template TContext - The type of the context object
+ * @param rule - The rule to wrap with timeout
+ * @param timeoutMs - Timeout duration in milliseconds
+ * @param timeoutError - Error to return if timeout occurs
+ * @param options - Configuration for error handling safety
+ * @param options.errorHandlingMode - Determines how errors are handled:
+ *   - 'safe': (default) Converts thrown errors to validation failures
+ *   - 'unsafe': Lets errors propagate (use only in performance-critical paths)
+ * @param options.errorTransform - Custom transformation for caught errors
+ * @returns A new rule that fails with timeoutError if execution takes longer than timeoutMs
+ * @example
+ * const rule = withTimeout(
+ *   slowNetworkRequestRule,
+ *   5000, // 5 seconds
+ *   "Request timed out"
+ * );
+ * @caveats
+ * - The original rule's execution isn't aborted when timeout occurs
+ * - Only fails if the rule doesn't complete before timeout, not if it fails before timeout
+ */
+export declare const withTimeout: <TInput, TError, TContext>(rule: Rule<TInput, TError, TContext>, timeoutMs: number, timeoutError: TError, options?: RuleSafetyOptions<TError>) => Rule<TInput, TError, TContext>;
+/**
+ * Composes multiple rules into a single rule that runs them in right-to-left order (fail-fast).
+ * Stops at the first failure and returns the error.
+ *
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error (defaults to string)
+ * @template TContext - The type of the context object (optional)
+ * @param rules - Array of rules to compose
+ * @param options - Configuration options
+ * @param options.cloneContext - Whether to clone the context once per composed invocation (default: false)
+ * @param options.errorHandlingMode - Determines how errors are handled:
+ *   - 'safe': (default) Converts thrown errors to validation failures
+ *   - 'unsafe': Lets errors propagate (use only in performance-critical paths)
+ * @param options.errorTransform - Custom transformation for caught errors
+ * @returns A new rule that composes all input rules
+ *
+ * @example
+ * const rule = composeRules([
+ *   finalCheck,
+ *   normalizeInput,
+ *   validateBase
+ * ]);
+ *
+ * const result = await rule(input);
+ *
+ * @caveats
+ * - Rules are executed from **right to left**
+ * - Rules are executed sequentially (not in parallel)
+ * - Cloning behavior follows this priority:
+ *   1. Uses shallowClone if options.shallowClone = true
+ *   2. Uses structuredClone if available and options.structuredClone = true
+ *   3. Falls back to JSON clone otherwise
+ */
+export declare const composeRules: <TInput, TError = string, TContext = unknown>(rules: Rule<TInput, TError, TContext>[], options?: CompositionOptions<TError>) => Rule<TInput, TError, TContext>;
+/**
+ * Pipes a value through a series of functions (left-to-right composition).
+ * @template A - The input type
+ * @template B - The output type after first function
+ * @param value - The initial value
+ * @param fns - Functions to apply sequentially
+ * @returns The result of applying all functions to the initial value
+ * @example
+ * const result = pipe(
+ *   5,
+ *   (x) => x * 2,
+ *   (x) => x + 3,
+ *   (x) => \`Result: \${x}\`
+ * ); // "Result: 13"
+ * @caveats
+ * - Currently supports up to 10 functions with proper type inference
+ * - For more functions, type information will be lost
+ */
+export declare function pipe<A>(value: A): A;
+export declare function pipe<A, B>(value: A, fn1: (arg: A) => B): B;
+export declare function pipe<A, B, C>(value: A, fn1: (arg: A) => B, fn2: (arg: B) => C): C;
+export declare function pipe<A, B, C, D>(value: A, fn1: (arg: A) => B, fn2: (arg: B) => C, fn3: (arg: C) => D): D;
+export declare function pipe<A, B, C, D, E>(value: A, fn1: (arg: A) => B, fn2: (arg: B) => C, fn3: (arg: C) => D, fn4: (arg: D) => E): E;
+export declare function pipe<A, B, C, D, E, F>(value: A, fn1: (arg: A) => B, fn2: (arg: B) => C, fn3: (arg: C) => D, fn4: (arg: D) => E, fn5: (arg: E) => F): F;
+export declare function pipe<A, B, C, D, E, F, G>(value: A, fn1: (arg: A) => B, fn2: (arg: B) => C, fn3: (arg: C) => D, fn4: (arg: D) => E, fn5: (arg: E) => F, fn6: (arg: F) => G): G;
+export declare function pipe<A, B, C, D, E, F, G, H>(value: A, fn1: (arg: A) => B, fn2: (arg: B) => C, fn3: (arg: C) => D, fn4: (arg: D) => E, fn5: (arg: E) => F, fn6: (arg: F) => G, fn7: (arg: G) => H): H;
+export declare function pipe<A, B, C, D, E, F, G, H, I>(value: A, fn1: (arg: A) => B, fn2: (arg: B) => C, fn3: (arg: C) => D, fn4: (arg: D) => E, fn5: (arg: E) => F, fn6: (arg: F) => G, fn7: (arg: G) => H, fn8: (arg: H) => I): I;
+export declare function pipe<A, B, C, D, E, F, G, H, I, J>(value: A, fn1: (arg: A) => B, fn2: (arg: B) => C, fn3: (arg: C) => D, fn4: (arg: D) => E, fn5: (arg: E) => F, fn6: (arg: F) => G, fn7: (arg: G) => H, fn8: (arg: H) => I, fn9: (arg: I) => J): J;
+export declare function pipe<A, B, C, D, E, F, G, H, I, J, K>(value: A, fn1: (arg: A) => B, fn2: (arg: B) => C, fn3: (arg: C) => D, fn4: (arg: D) => E, fn5: (arg: E) => F, fn6: (arg: F) => G, fn7: (arg: G) => H, fn8: (arg: H) => I, fn9: (arg: I) => J, fn10: (arg: J) => K): K;
+/**
+ * Pipes multiple rules into a single rule that runs them sequentially (fail-fast).
+ * Stops at the first failure and returns the error.
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error (defaults to string)
+ * @template TContext - The type of the context object (optional)
+ * @param rules - Array of rules to compose
+ * @param options - Configuration options
+ * @param options.cloneContext - Whether to clone the context once per composed invocation (default: false)
+ * @param options.errorHandlingMode - Determines how errors are handled:
+ *   - 'safe': (default) Converts thrown errors to validation failures
+ *   - 'unsafe': Lets errors propagate (use only in performance-critical paths)
+ * @param options.errorTransform - Custom transformation for caught errors
+ * @returns A new rule that pipes all input rules
+ * @example
+ * const rule = pipeRules([
+ *   validateString,
+ *   validateLength,
+ *   validateFormat
+ * ]);
+ *
+ * const result = await rule("test@example.com");
+ * @caveats
+ * - Rules are execute from left to right
+ * - Rules are executed in sequence, not in parallel
+ * - Cloning behavior follows this priority:
+ *   1. Uses shallowClone if options.shallowClone = true
+ *   2. Uses structuredClone if available and options.structuredClone = true
+ *   3. Falls back to JSON clone otherwise
+ */
+export declare const pipeRules: <TInput, TError = string, TContext = unknown>(rules: Rule<TInput, TError, TContext>[], options?: CompositionOptions<TError>) => Rule<TInput, TError, TContext>;
+/**
+ * Graph node primitives.
+ *
+ * This module must not import from \`combinators/\` or \`helpers/\`: combinators
+ * import it, and \`helpers/\` and \`combinators/\` already depend on each other.
+ */
+/** Any function a combinator may hold as a child (rule, predicate, accessor). */
+type Fn = (...args: never[]) => unknown;
+/** Behavior a decorator adds around a rule without changing what it checks. */
+type DecoratorName = "timeout" | "retry" | "memoize" | "debug" | "tap" | "mapError" | "lazyContext";
+/** Public, JSON-serializable graph. Built by \`toGraph\`. */
+type GraphNode = {
+  id: string;
+  kind: "rule";
+  label: string;
+  params?: Record<string, unknown>;
+} | {
+  id: string;
+  kind: "sequence";
+  via: "pipeRules" | "composeRules";
+  steps: GraphNode[];
+} | {
+  id: string;
+  kind: "branch";
+  test: string;
+  ifTrue?: GraphNode;
+  ifFalse?: GraphNode;
+} | {
+  id: string;
+  kind: "switch";
+  selector: string;
+  /** In \`Reflect.ownKeys\` order; symbol keys appear as \`Symbol(desc)\`. */
+  cases: {
+    key: string;
+    node: GraphNode;
+  }[];
+  /** Absent \`default\` and \`defaultError\` mean "no match" fails. */
+  default?: GraphNode;
+  defaultError?: string;
+} | {
+  id: string;
+  kind: "all" | "any";
+  rules: GraphNode[];
+} | {
+  id: string;
+  kind: "not";
+  rule: GraphNode;
+} | {
+  id: string;
+  kind: "fallback";
+  main: GraphNode;
+  fallback: GraphNode;
+  guard?: string;
+} | {
+  id: string;
+  kind: "field";
+  getter: string;
+  rule: GraphNode;
+} | {
+  id: string;
+  kind: "effect";
+  label: string;
+} | {
+  id: string;
+  kind: "decorator";
+  decorator: DecoratorName;
+  params: Record<string, unknown>;
+  rule: GraphNode;
+};
+type RuleGraph = {
+  version: 1;
+  root: GraphNode;
+};
+/**
+ * Gives a rule (or predicate, accessor or getter) a readable name for
+ * \`toGraph\` and \`toMermaid\`. Behavior is unchanged: the returned function
+ * forwards its arguments and result as-is, and the function you pass in is
+ * not modified.
+ *
+ * @example
+ * const adult = named("Is adult", (user: User) => user.age >= 18);
+ * const minAge = (years: number) =>
+ *   named(\`Min age \${years}\`, ageRule(years), { params: { years } });
+ * @caveats
+ * - A named rule is described as a single box, even if it was built from
+ *   combinators. Use that to collapse a sub-pipeline in a diagram.
+ * - The wrapper adds one function call per invocation.
+ */
+export declare const named: <F extends Fn>(name: string, fn: F, options?: {
+  params?: Record<string, unknown>;
+}) => F;
+/**
+ * Describes a rule as a JSON-serializable graph, without running it.
+ *
+ * Rules built with this package's combinators are described structurally; any
+ * other function (including your own wrappers) is a single leaf rule.
+ *
+ * @example
+ * const graph = toGraph(pipeRules([hasItems, withinLimit]));
+ * // { version: 1, root: { kind: "sequence", steps: [...] } }
+ * @caveats
+ * - Nothing is executed: rules, predicates and accessors are never called.
+ * - Anonymous functions are labelled \`rule #n\`; use \`named\` for a real name.
+ */
+export declare const toGraph: <TInput, TError, TContext>(rule: Rule<TInput, TError, TContext>) => RuleGraph;
+/**
+ * Type guard to check if context exists and is of type T.
+ * @template T - The expected context type
+ * @param ctx - The context to check
+ * @returns Boolean indicating if context exists and matches type
+ * @example
+ * if (hasContext<AdminContext>(context)) {
+ *   // context is now typed as AdminContext
+ * }
+ */
+export declare const hasContext: <T>(ctx: T | undefined) => ctx is T;
+/**
+ * Creates a rule that requires specific context to be present.
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error
+ * @template TContext - The base context type
+ * @template TRequiredContext - The required context type
+ * @param error - Error to return if context is invalid
+ * @param rule - Rule that requires the specific context
+ * @param contextCheck - Optional type guard for context validation
+ * @returns A rule that validates context before execution
+ * @example
+ * const adminRule = requireContextRule(
+ *   "Admin context required",
+ *   (input, context: AdminContext) => { ... },
+ *   (ctx): ctx is AdminContext => ctx?.role === "admin"
+ * );
+ * @caveats
+ * - Fails immediately if context check fails
+ * - Provides type safety for context requirements
+ */
+export declare const requireContextRule: <TInput, TError, TContext, TRequiredContext extends TContext>(error: TError, rule: (input: TInput, context: TRequiredContext) => Promise<RuleResult<TError>> | RuleResult<TError>, contextCheck?: (context: TContext | undefined) => context is TRequiredContext) => Rule<TInput, TError, TContext>;
+/**
+ * const userRule = requireContextRule(
+  "User context required",
+  (input: string, ctx: { userId: string }) => {
+    return ctx.userId === "admin"
+      ? pass()
+      : fail("Unauthorized");
+  }
+);
+
+await userRule("action"); // fails with "User context required"
+await userRule("action", { userId: "user" }); // fails with "Unauthorized"
+await userRule("action", { userId: "admin" }); // passes
+ */
+/**
+ * Creates a rule that loads context lazily before execution.
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error
+ * @template TContext - The type of the context object
+ * @param loader - Function to load context from input
+ * @param rule - Rule that requires the context
+ * @returns A rule that loads context before execution
+ * @example
+ * const rule = withLazyContext(
+ *   async (userId) => await loadUserContext(userId),
+ *   validateUser
+ * );
+ * @caveats
+ * - Context loading failures are converted to validation failures
+ * - The loader is called for every rule execution
+ */
+export declare const withLazyContext: <TInput, TError, TContext>(loader: (input: TInput) => Promise<TContext> | TContext, rule: Rule<TInput, TError, TContext>) => Rule<TInput, TError>;
+/**
+ * Creates a failed RuleResult with the provided error.
+ * @template TError - The type of the error (defaults to string)
+ * @param error - The error to include in the failed result
+ * @returns A RuleResult with status "failed" and the provided error
+ * @example
+ * const result = fail("Invalid input"); // { status: "failed", error: "Invalid input" }
+ *
+ * // Used in rule implementations:
+ * const alwaysFails: Rule<string> = () => fail("Always fails");
+ */
+export declare const fail: <TError = string>(error: TError) => RuleResult<TError>;
+/**
+ * Creates a successful RuleResult with "passed" status.
+ * @template TError - The type of the error (defaults to string)
+ * @returns A RuleResult with status "passed"
+ * @example
+ * const result = pass(); // { status: "passed" }
+ *
+ * // Used in rule implementations:
+ * const alwaysPasses: Rule<string> = () => pass();
+ */
+export declare const pass: <TError = string>() => RuleResult<TError>;
+export declare const calculateDelay: (strategy: RetryStrategy | undefined, attempt: number, initialDelayMs: number) => number;
+export declare const getNormalizedRule: <TInput, TError, TContext>(rule: Rule<TInput, TError, TContext>, opts?: RuleSafetyOptions<TError>) => Rule<TInput, TError, TContext>;
+export declare const getNormalizedRules: <TInput, TError, TContext>(rules: Rule<TInput, TError, TContext>[], opts?: RuleSafetyOptions<TError>) => Rule<TInput, TError, TContext>[];
+export type { CompositionOptions, DebugOptions, GraphNode, Predicate, PredicateResult, PredicateSafe, Rule, RuleGraph, RuleResult, RuleSafetyOptions };
+//# sourceMappingURL=index.d.ts.map
+// ==== mermaid.d.cts ====
+import { t as Rule } from "./rule-[hash].cjs";
+type MermaidOptions = {
+  /** Flow direction. Default \`"TD"\`. */
+  direction?: "TD" | "LR";
+  /** Draw dotted edges from steps that can fail to \`failed\`. Default \`false\`: they roughly double the edges and bury the happy path. */
+  failEdges?: boolean;
+  /** Also show \`withDebug\`, \`withTap\` and \`mapError\` decorators. Default \`false\`. */
+  verbose?: boolean;
+  /** Longest label text, cut with \`…\`. Default \`40\`. Badges are never cut. */
+  maxLabelLength?: number;
+};
+/**
+ * Renders a rule as Mermaid flowchart source, without running it.
+ *
+ * Draws every node kind. Timeout, retry and memoize show as badges on the
+ * wrapped rule; debug, tap and mapError only with \`verbose\`.
+ *
+ * @example
+ * const text = toMermaid(pipeRules([hasItems, withinLimit]), {
+ *   direction: "LR",
+ *   failEdges: true,
+ * });
+ * @caveats
+ * - Nothing is executed: rules, predicates and accessors are never called.
+ * - Anonymous functions print as \`rule #n\`; use \`named\` for a real name.
+ * - \`failEdges\` defaults to \`false\`; pass \`true\` for dotted edges to \`failed\`.
+ */
+export declare const toMermaid: <TInput, TError, TContext>(rule: Rule<TInput, TError, TContext>, options?: MermaidOptions) => string;
+export type { MermaidOptions };
+//# sourceMappingURL=mermaid.d.cts.map
+// ==== mermaid.d.ts ====
+import { t as Rule } from "./rule-[hash].js";
+type MermaidOptions = {
+  /** Flow direction. Default \`"TD"\`. */
+  direction?: "TD" | "LR";
+  /** Draw dotted edges from steps that can fail to \`failed\`. Default \`false\`: they roughly double the edges and bury the happy path. */
+  failEdges?: boolean;
+  /** Also show \`withDebug\`, \`withTap\` and \`mapError\` decorators. Default \`false\`. */
+  verbose?: boolean;
+  /** Longest label text, cut with \`…\`. Default \`40\`. Badges are never cut. */
+  maxLabelLength?: number;
+};
+/**
+ * Renders a rule as Mermaid flowchart source, without running it.
+ *
+ * Draws every node kind. Timeout, retry and memoize show as badges on the
+ * wrapped rule; debug, tap and mapError only with \`verbose\`.
+ *
+ * @example
+ * const text = toMermaid(pipeRules([hasItems, withinLimit]), {
+ *   direction: "LR",
+ *   failEdges: true,
+ * });
+ * @caveats
+ * - Nothing is executed: rules, predicates and accessors are never called.
+ * - Anonymous functions print as \`rule #n\`; use \`named\` for a real name.
+ * - \`failEdges\` defaults to \`false\`; pass \`true\` for dotted edges to \`failed\`.
+ */
+export declare const toMermaid: <TInput, TError, TContext>(rule: Rule<TInput, TError, TContext>, options?: MermaidOptions) => string;
+export type { MermaidOptions };
+//# sourceMappingURL=mermaid.d.ts.map
+// ==== rule-[hash].d.cts ====
+/**
+ * Represents the result of a rule evaluation.
+ * @template TError - The type of the error (defaults to string)
+ * @example
+ * // Passed result
+ * const passed: RuleResult = { status: "passed" };
+ *
+ * // Failed result
+ * const failed: RuleResult = {
+ *   status: "failed",
+ *   error: "Validation failed"
+ * };
+ */
+type RuleResult<TError = string> = {
+  readonly status: "passed";
+} | {
+  readonly status: "failed";
+  readonly error: TError;
+};
+/**
+ * A function that validates an input and returns a RuleResult.
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error (defaults to string)
+ * @template TContext - The type of the context object (optional)
+ * @param input - The input value to validate
+ * @param context - Optional context object that can be used during validation
+ * @returns Either a Promise of RuleResult or RuleResult directly
+ * @example
+ * const isEven: Rule<number> = (input) => {
+ *   return input % 2 === 0
+ *     ? { status: "passed" }
+ *     : { status: "failed", error: "Number must be even" };
+ * };
+ */
+type Rule<TInput, TError = string, TContext = unknown> = (input: TInput, context?: TContext) => Promise<RuleResult<TError>> | RuleResult<TError>;
+export { RuleResult as n, Rule as t };
+//# sourceMappingURL=rule-[hash].d.cts.map
+// ==== rule-[hash].d.ts ====
+/**
+ * Represents the result of a rule evaluation.
+ * @template TError - The type of the error (defaults to string)
+ * @example
+ * // Passed result
+ * const passed: RuleResult = { status: "passed" };
+ *
+ * // Failed result
+ * const failed: RuleResult = {
+ *   status: "failed",
+ *   error: "Validation failed"
+ * };
+ */
+type RuleResult<TError = string> = {
+  readonly status: "passed";
+} | {
+  readonly status: "failed";
+  readonly error: TError;
+};
+/**
+ * A function that validates an input and returns a RuleResult.
+ * @template TInput - The type of the input to validate
+ * @template TError - The type of the error (defaults to string)
+ * @template TContext - The type of the context object (optional)
+ * @param input - The input value to validate
+ * @param context - Optional context object that can be used during validation
+ * @returns Either a Promise of RuleResult or RuleResult directly
+ * @example
+ * const isEven: Rule<number> = (input) => {
+ *   return input % 2 === 0
+ *     ? { status: "passed" }
+ *     : { status: "failed", error: "Number must be even" };
+ * };
+ */
+type Rule<TInput, TError = string, TContext = unknown> = (input: TInput, context?: TContext) => Promise<RuleResult<TError>> | RuleResult<TError>;
+export { RuleResult as n, Rule as t };
+//# sourceMappingURL=rule-[hash].d.ts.map"
+`;
