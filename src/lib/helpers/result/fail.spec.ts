@@ -18,6 +18,7 @@ describe("fail", () => {
   it("infers the error type from the argument", () => {
     type MyError = { code: number };
     expectTypeOf(fail("e")).toEqualTypeOf<RuleResult<string>>();
+    expectTypeOf(fail({ code: 1 })).toEqualTypeOf<RuleResult<MyError>>();
     expectTypeOf(fail<MyError>({ code: 1 })).toEqualTypeOf<
       RuleResult<MyError>
     >();
