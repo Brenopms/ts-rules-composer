@@ -3,12 +3,17 @@ import type { Rule } from "../../types";
 import { match } from "./match";
 
 describe("match combinator", () => {
-  // Mock rules for testing
-  const mockPass = vi.fn().mockResolvedValue({ outcome: "passed" });
+  // Typed so each mocked result is checked against RuleResult. Passing
+  // mocks use `never` as the error type so they fit any rule's error type.
+  const mockPass = vi
+    .fn<Rule<unknown, never>>()
+    .mockResolvedValue({ outcome: "passed" });
   const mockFail = vi
-    .fn()
+    .fn<Rule<unknown>>()
     .mockResolvedValue({ outcome: "failed", error: "error" });
-  const mockAsyncPass = vi.fn().mockResolvedValue({ outcome: "passed" });
+  const mockAsyncPass = vi
+    .fn<Rule<unknown, never>>()
+    .mockResolvedValue({ outcome: "passed" });
 
   it("should execute the matching rule based on accessor", async () => {
     const rules = {
