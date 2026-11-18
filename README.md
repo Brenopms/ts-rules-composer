@@ -1036,7 +1036,7 @@ const custom: RuleResult = { outcome: "passed" };
 
 If you only build results with `pass()` and `fail()` and never read the field yourself, you have nothing to change.
 
-**Find and replace.** Search for `status` next to `"passed"` or `"failed"`, for example with the regex `status(\s*(?::|===?|!==?)\s*)(["'])(passed|failed)` and the replacement `outcome$1$2$3`. Review each match: don't rename domain fields that happen to be called `status`, such as `order.status` or an HTTP `status`. In TypeScript, run your typecheck afterwards; it flags every read or write of the old field that the regex missed, such as `switch (result.status)`.
+**Find and replace.** Search for `status` next to `"passed"` or `"failed"`, for example with the regex `\bstatus(\s*(?::|===?|!==?)\s*)(["'])(passed|failed)\2` and the replacement `outcome$1$2$3$2`. Review each match: don't rename domain fields that happen to be called `status`, such as `order.status` or an HTTP `status`. In TypeScript, run your typecheck afterwards; it flags the uses the regex missed, such as `switch (result.status)`, on values typed as `RuleResult` or `PredicateResult`. It can't flag values typed `any` (for example from `JSON.parse`) or forced with `as`.
 
 **Error for 1.x results.** In the default `safe` mode, a rule that still returns `{ status: ... }` fails with:
 
@@ -1044,7 +1044,7 @@ If you only build results with `pass()` and `fail()` and never read the field yo
 Invalid rule - returned a 1.x result ({ status }); 2.0 results use { outcome }
 ```
 
-**Unsafe mode does not check results. With `errorHandlingMode: "unsafe"`, a rule that still returns a 1.x `{ status: "failed" }` is read as passed, so the check fails open.** TypeScript users get a compile error instead. If you write rules in plain JavaScript, finish the rename before you use unsafe mode.
+**Unsafe mode does not check results. With `errorHandlingMode: "unsafe"`, a `pipeRules`, `composeRules` or `every` pipeline skips a 1.x `{ status: "failed" }` result and can return a pass, so the check fails open.** The compiler catches this only for results it can type-check. If a rule is plain JavaScript, or returns a value typed `any` or forced with `as`, finish the rename before you use unsafe mode.
 
 ## Contributing
 
