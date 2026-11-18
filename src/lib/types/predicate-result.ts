@@ -3,18 +3,18 @@
  * @template TError - The type of the error (defaults to string)
  * @example
  * // Passed result, true value
- * const passed: PredicateResult = { status: "passed", value: true };
+ * const passed: PredicateResult = { outcome: "passed", value: true };
  *
  * // Passed result, false value
- * const passed: PredicateResult = { status: "passed", value: false };
+ * const passed: PredicateResult = { outcome: "passed", value: false };
  *
  *
  * // Failed result
  * const failed: PredicateResult = {
- *   status: "failed",
+ *   outcome: "failed",
  *   error: "Validation failed"
  * };
  */
 export type PredicateResult<TError = string> =
-  | { readonly status: "passed"; value: boolean }
-  | { readonly status: "failed"; readonly error: TError };
+  | { readonly outcome: "passed"; value: boolean }
+  | { readonly outcome: "failed"; readonly error: TError };

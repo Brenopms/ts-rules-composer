@@ -47,7 +47,7 @@ export const ifElse = <TInput, TError = string, TContext = unknown>(
       const safePredicateResult = await safePredicate(input, context);
 
       // Predicate fail to run or returned invalid result
-      if (safePredicateResult.status === "failed") {
+      if (safePredicateResult.outcome === "failed") {
         return fail(safePredicateResult.error);
       }
 
