@@ -69,6 +69,7 @@ describe("withSafeError", () => {
     ['"failed" without an error key', { outcome: "failed" }],
     ["null", null],
     ["an object without outcome", { ok: true }],
+    ["status and an undefined outcome", { status: "passed", outcome: undefined }],
   ])("should reject a result with %s as not a RuleResult", async (_, value) => {
     const safeRule = withSafeError(() => value as unknown as RuleResult);
     const result = await safeRule({});
