@@ -33,7 +33,7 @@ describe("withDebug", () => {
         duration: expect.any(Number),
       }),
     );
-    expect(result.status).toBe("passed");
+    expect(result.outcome).toBe("passed");
   });
 
   it("should handle errors with onError callback", async () => {

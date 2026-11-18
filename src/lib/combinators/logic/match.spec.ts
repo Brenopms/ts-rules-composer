@@ -3,12 +3,17 @@ import type { Rule } from "../../types";
 import { match } from "./match";
 
 describe("match combinator", () => {
-  // Mock rules for testing
-  const mockPass = vi.fn().mockResolvedValue({ status: "passed" });
+  // Typed so each mocked result is checked against RuleResult. Passing
+  // mocks use `never` as the error type so they fit any rule's error type.
+  const mockPass = vi
+    .fn<Rule<unknown, never>>()
+    .mockResolvedValue({ outcome: "passed" });
   const mockFail = vi
-    .fn()
-    .mockResolvedValue({ status: "failed", error: "error" });
-  const mockAsyncPass = vi.fn().mockResolvedValue({ status: "passed" });
+    .fn<Rule<unknown>>()
+    .mockResolvedValue({ outcome: "failed", error: "error" });
+  const mockAsyncPass = vi
+    .fn<Rule<unknown, never>>()
+    .mockResolvedValue({ outcome: "passed" });
 
   it("should execute the matching rule based on accessor", async () => {
     const rules = {
@@ -30,7 +35,7 @@ describe("match combinator", () => {
     const matcher = match((user: { role: string }) => user.role, rules);
     const result = await matcher({ role: "admin" });
 
-    expect(result).toEqual({ status: "passed" });
+    expect(result).toEqual({ outcome: "passed" });
   });
 
   it("should use default case when no match found", async () => {
@@ -55,7 +60,7 @@ describe("match combinator", () => {
     const result = await matcher({ role: "guest" });
 
     expect(result).toEqual({
-      status: "failed",
+      outcome: "failed",
       error: "No matching rule for key: guest",
     });
   });
@@ -77,7 +82,7 @@ describe("match combinator", () => {
 
     const result = await matcher({ id: 50 });
     expect(result).toEqual({
-      status: "failed",
+      outcome: "failed",
       error: customError,
     });
   });
@@ -140,7 +145,7 @@ describe("match combinator", () => {
     const result = await matcher({ role: "guest" });
 
     expect(result).toEqual({
-      status: "failed",
+      outcome: "failed",
       error: "Invalid role",
     });
   });
@@ -168,7 +173,7 @@ describe("match combinator", () => {
     }
 
     const complexRule: Rule<ComplexInput> = () =>
-      Promise.resolve({ status: "passed" });
+      Promise.resolve({ outcome: "passed" });
 
     const matcher = match((input: ComplexInput) => input.nested.value, {
       test: complexRule,
@@ -181,6 +186,6 @@ describe("match combinator", () => {
       },
     });
 
-    expect(result.status).toBe("passed");
+    expect(result.outcome).toBe("passed");
   });
 });

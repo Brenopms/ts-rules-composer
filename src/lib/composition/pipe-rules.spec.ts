@@ -228,6 +228,6 @@ it("should handle circular Rule error values", async () => {
   obj.self = obj;
   const validator = pipeRules([() => fail(obj)]);
   const result = await validator({});
-  expect(result.status).toBe("failed");
+  expect(result.outcome).toBe("failed");
   expect((result as any).error.self).toBe((result as any).error);
 });

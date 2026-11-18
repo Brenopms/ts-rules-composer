@@ -32,7 +32,7 @@ export const not = <TInput, TError = string, TContext = unknown>(
       const normalizedRule = getNormalizedRule(rule, options);
 
       const result = await normalizedRule(input, context);
-      return result.status === "passed" ? fail(error) : pass();
+      return result.outcome === "passed" ? fail(error) : pass();
     },
     { kind: "not", rule },
   );

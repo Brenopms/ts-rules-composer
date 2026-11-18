@@ -58,7 +58,7 @@ describe("withSafeError", () => {
   it("should handle rules that return invalid results", async () => {
     const safeRule = withSafeError(invalidRule);
     const result = await safeRule({});
-    expect(result.status).toBe("failed");
+    expect(result.outcome).toBe("failed");
     expect((result as any).error).toEqual(
       new Error("Invalid rule - did not return RuleResult"),
     );

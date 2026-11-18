@@ -52,7 +52,7 @@ describe("getNormalizedRules", () => {
       const normalized = getNormalizedRules(rules, defaultOptions);
 
       const result = await normalized[0]("test");
-      expect(result.status).toBe("failed");
+      expect(result.outcome).toBe("failed");
       expect((result as any).error.message).toBe("Boom!");
     });
 
@@ -101,7 +101,7 @@ describe("getNormalizedRules", () => {
 
       // Test behavior instead of function reference
       const result = await normalized[0]("test");
-      expect(result.status).toBe("failed");
+      expect(result.outcome).toBe("failed");
       expect((result as any).error).toEqual({
         code: 500,
         message: "Error: Boom!",

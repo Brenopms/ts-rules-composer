@@ -8,12 +8,12 @@ describe.each<Entry>(["esm", "cjs"])(
       runInConsumer<T>(inject("projectDir"), entry, body);
 
     it("pass() returns a passed result", () => {
-      expect(run(`return m.pass();`)).toEqual({ status: "passed" });
+      expect(run(`return m.pass();`)).toEqual({ outcome: "passed" });
     });
 
     it("fail() returns a failed result carrying the error", () => {
       expect(run(`return m.fail("x");`)).toEqual({
-        status: "failed",
+        outcome: "failed",
         error: "x",
       });
     });
@@ -26,7 +26,7 @@ describe.each<Entry>(["esm", "cjs"])(
       const result = run(
         `return await m.every([async () => m.pass(), () => m.fail("e")])(1);`,
       );
-      expect(result).toEqual({ status: "failed", error: ["e"] });
+      expect(result).toEqual({ outcome: "failed", error: ["e"] });
     });
   },
 );

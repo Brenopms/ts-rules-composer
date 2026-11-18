@@ -23,7 +23,7 @@ const sequenceNode = (steps: Fn[] = []): RawNode => ({
 
 describe("attachNode / readNode", () => {
   it("returns the identical function it was given", () => {
-    const rule = () => ({ status: "passed" as const });
+    const rule = () => ({ outcome: "passed" as const });
 
     expect(attachNode(rule, sequenceNode([]))).toBe(rule);
   });

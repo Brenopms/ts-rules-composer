@@ -34,7 +34,7 @@ export function prepareRuleExecution<TInput, TError, TContext>(
         normalizedRules.map((rule) => rule(input, currentContext)),
       );
       const errors = results.flatMap((result) =>
-        result.status === "failed" ? [result.error] : [],
+        result.outcome === "failed" ? [result.error] : [],
       );
       return errors.length > 0 ? fail(errors) : pass();
     }
@@ -46,7 +46,7 @@ export function prepareRuleExecution<TInput, TError, TContext>(
 
     for (const rule of rulesInOrder) {
       const result = await rule(input, currentContext);
-      if (result.status === "failed") {
+      if (result.outcome === "failed") {
         return result;
       }
     }

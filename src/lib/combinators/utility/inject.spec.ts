@@ -20,13 +20,13 @@ describe("inject (basic)", () => {
   it("injects dependencies into rule factory", async () => {
     const rule = inject({ prefix: "test_" }, mockFactory);
     const result = await rule("test_valid");
-    expect(result.status).toBe("passed");
+    expect(result.outcome).toBe("passed");
   });
 
   it("passes through failures", async () => {
     const rule = inject({ prefix: "test_" }, mockFactory);
     const result = await rule("invalid");
-    expect(result.status).toBe("failed");
+    expect(result.outcome).toBe("failed");
     expect(result).toEqual(fail("Missing prefix"));
   });
 
@@ -35,7 +35,7 @@ describe("inject (basic)", () => {
     const validResult = await rule("valid");
     const invalidResult = await rule("invalid");
 
-    expect(validResult.status).toBe("passed");
+    expect(validResult.outcome).toBe("passed");
     expect(invalidResult).toEqual(fail("Invalid input"));
     expect(mockRule).toHaveBeenCalledTimes(2);
   });
@@ -68,6 +68,6 @@ describe("inject (basic)", () => {
 
     const rule = inject(Promise.resolve({ timeout: 10 }), asyncFactory);
     const result = await rule("any");
-    expect(result.status).toBe("passed");
+    expect(result.outcome).toBe("passed");
   });
 });
