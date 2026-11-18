@@ -74,6 +74,20 @@ describe("every", () => {
     expect(rule1).toHaveBeenCalledWith(input, context);
     expect(rule2).toHaveBeenCalledWith(input, context);
   });
+
+  it("should fail when a rule returns an unknown outcome value", async () => {
+    const deniedRule = (() => ({ outcome: "denied" })) as unknown as Rule<
+      unknown,
+      unknown
+    >;
+    const validator = every([() => pass(), deniedRule]);
+
+    const result = await validator({});
+
+    expect(result).toEqual(
+      fail([new Error("Invalid rule - did not return RuleResult")]),
+    );
+  });
 });
 
 describe("Niche errors", () => {
