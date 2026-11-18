@@ -48,7 +48,7 @@ describe("getNormalizedRule", () => {
       const normalized = getNormalizedRule(errorThrowingRule, defaultOptions);
       const result = await normalized("test");
 
-      expect(result.status).toBe("failed");
+      expect(result.outcome).toBe("failed");
       expect((result as any).error.message).toBe("Boom!");
     });
   });
@@ -153,7 +153,7 @@ describe("getNormalizedRule", () => {
       const normalized = getNormalizedRule(invalidRule, {});
       const result = await normalized("test");
 
-      expect(result.status).toBe("failed");
+      expect(result.outcome).toBe("failed");
       expect((result as any).error.message).toContain(
         "Invalid rule - did not return RuleResult",
       );
@@ -201,7 +201,7 @@ describe("getNormalizedRule", () => {
       });
 
       const result = await normalized("test");
-      expect(result.status).toBe("failed");
+      expect(result.outcome).toBe("failed");
       expect((result as any).error).toMatchObject({
         code: expect.any(Number),
         details: expect.any(String),

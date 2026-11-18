@@ -24,7 +24,7 @@ import type { CompositionOptions, Rule } from "../../types";
  * ]);
  *
  * const result = await rule("invalid-email");
- * if (result.status === "failed") {
+ * if (result.outcome === "failed") {
  *   console.log(result.error); // Array of all errors
  * }
  * @caveats

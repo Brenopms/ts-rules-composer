@@ -11,8 +11,8 @@ import type { RuleResult } from "./rule-result";
  * @example
  * const isEven: Rule<number> = (input) => {
  *   return input % 2 === 0
- *     ? { status: "passed" }
- *     : { status: "failed", error: "Number must be even" };
+ *     ? { outcome: "passed" }
+ *     : { outcome: "failed", error: "Number must be even" };
  * };
  */
 export type Rule<TInput, TError = string, TContext = unknown> = (

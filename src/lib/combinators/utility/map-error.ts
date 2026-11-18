@@ -34,7 +34,7 @@ export const mapError = <TInput, TError, TNewError, TContext = unknown>(
   return attachNode<Rule<TInput, TNewError, TContext>>(
     async (input: TInput, context?: TContext) => {
       const result = await rule(input, context);
-      return result.status === "failed"
+      return result.outcome === "failed"
         ? fail(transform(result.error))
         : pass();
     },

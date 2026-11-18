@@ -215,7 +215,7 @@ describe("Full Integration Test", () => {
 
     const result = await validateUserRegistration(user);
 
-    if (result.status === "failed") {
+    if (result.outcome === "failed") {
       const error = getRuleError(result);
       console.log(error);
       expect(error).toMatch("Unverified");
@@ -237,7 +237,7 @@ describe("Full Integration Test", () => {
 
     const result = await validateUserRegistration(user);
 
-    if (result.status === "failed") {
+    if (result.outcome === "failed") {
       expect(getRuleError(result)).toBe("Payment system unavailable");
     } else {
       expect.fail("Expected fallback to trigger");
@@ -259,7 +259,7 @@ describe("Full Integration Test", () => {
 
     const result = await validateUserRegistration(user);
 
-    if (result.status === "failed") {
+    if (result.outcome === "failed") {
       expect(getRuleError(result)).toBe("Paypal timeout");
     } else {
       expect.fail("Expected timeout to trigger");

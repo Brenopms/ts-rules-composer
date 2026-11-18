@@ -39,7 +39,7 @@ export const oneOf = <TInput, TError = string, TContext = unknown>(
 
       for (const rule of normalizedRules) {
         const result = await rule(input, context);
-        if (result.status === "passed") {
+        if (result.outcome === "passed") {
           return pass();
         }
         errors.push(result.error);

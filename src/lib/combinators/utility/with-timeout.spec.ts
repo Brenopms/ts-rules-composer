@@ -45,7 +45,7 @@ describe("withTimeout", () => {
     vi.advanceTimersByTime(0);
 
     const result = await resultPromise;
-    expect(result.status).toBe("passed");
+    expect(result.outcome).toBe("passed");
     expect(mockPassingRule).toHaveBeenCalledWith("input", undefined);
   });
 
@@ -57,7 +57,7 @@ describe("withTimeout", () => {
     vi.advanceTimersByTime(0);
 
     const result = await resultPromise;
-    expect(result.status).toBe("failed");
+    expect(result.outcome).toBe("failed");
     expect(getRuleError(result)).toBe("Expected error");
   });
 
@@ -69,7 +69,7 @@ describe("withTimeout", () => {
     vi.advanceTimersByTime(100); // Trigger timeout
 
     const result = await resultPromise;
-    expect(result.status).toBe("failed");
+    expect(result.outcome).toBe("failed");
 
     expect(getRuleError(result)).toBe("Timeout exceeded");
   });
@@ -82,7 +82,7 @@ describe("withTimeout", () => {
     vi.advanceTimersByTime(50); // Rule completes
 
     const result = await resultPromise;
-    expect(result.status).toBe("passed");
+    expect(result.outcome).toBe("passed");
   });
 
   it("should handle context correctly", async () => {
@@ -97,7 +97,7 @@ describe("withTimeout", () => {
     vi.advanceTimersByTime(0);
 
     const result = await resultPromise;
-    expect(result.status).toBe("passed");
+    expect(result.outcome).toBe("passed");
     expect(contextRule).toHaveBeenCalledWith("input", { id: 1 });
   });
 
@@ -109,7 +109,7 @@ describe("withTimeout", () => {
     vi.advanceTimersByTime(0); // Trigger immediate timeout
 
     const result = await resultPromise;
-    expect(result.status).toBe("failed");
+    expect(result.outcome).toBe("failed");
     expect(getRuleError(result)).toBe("Instant error");
   });
 });

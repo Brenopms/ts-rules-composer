@@ -218,7 +218,7 @@ describe("composeRules", () => {
 
     const validator = composeRules([() => fail(obj)]);
     const result = await validator({});
-    expect(result.status).toBe("failed");
+    expect(result.outcome).toBe("failed");
     expect((result as any).error.self).toBe((result as any).error);
   });
 });

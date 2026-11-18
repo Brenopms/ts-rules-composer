@@ -3,14 +3,14 @@
  * @template TError - The type of the error (defaults to string)
  * @example
  * // Passed result
- * const passed: RuleResult = { status: "passed" };
+ * const passed: RuleResult = { outcome: "passed" };
  *
  * // Failed result
  * const failed: RuleResult = {
- *   status: "failed",
+ *   outcome: "failed",
  *   error: "Validation failed"
  * };
  */
 export type RuleResult<TError = string> =
-  | { readonly status: "passed" }
-  | { readonly status: "failed"; readonly error: TError };
+  | { readonly outcome: "passed" }
+  | { readonly outcome: "failed"; readonly error: TError };

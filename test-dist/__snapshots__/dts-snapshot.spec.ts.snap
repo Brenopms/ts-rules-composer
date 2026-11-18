@@ -149,7 +149,7 @@ type PredicateSafe<TInput, TError, TContext> = (input: TInput, context?: TContex
  * ]);
  *
  * const result = await rule("invalid-email");
- * if (result.status === "failed") {
+ * if (result.outcome === "failed") {
  *   console.log(result.error); // Array of all errors
  * }
  * @caveats
@@ -981,20 +981,20 @@ export declare const withLazyContext: <TInput, TError, TContext>(loader: (input:
  * Creates a failed RuleResult with the provided error.
  * @template TError - The type of the error (defaults to string)
  * @param error - The error to include in the failed result
- * @returns A RuleResult with status "failed" and the provided error
+ * @returns A RuleResult with outcome "failed" and the provided error
  * @example
- * const result = fail("Invalid input"); // { status: "failed", error: "Invalid input" }
+ * const result = fail("Invalid input"); // { outcome: "failed", error: "Invalid input" }
  *
  * // Used in rule implementations:
  * const alwaysFails: Rule<string> = () => fail("Always fails");
  */
 export declare const fail: <TError = string>(error: TError) => RuleResult<TError>;
 /**
- * Creates a successful RuleResult with "passed" status.
+ * Creates a successful RuleResult with outcome "passed".
  * @template TError - The type of the error (defaults to string)
- * @returns A RuleResult with status "passed"
+ * @returns A RuleResult with outcome "passed"
  * @example
- * const result = pass(); // { status: "passed" }
+ * const result = pass(); // { outcome: "passed" }
  *
  * // Used in rule implementations:
  * const alwaysPasses: Rule<string> = () => pass();
@@ -1153,7 +1153,7 @@ type PredicateSafe<TInput, TError, TContext> = (input: TInput, context?: TContex
  * ]);
  *
  * const result = await rule("invalid-email");
- * if (result.status === "failed") {
+ * if (result.outcome === "failed") {
  *   console.log(result.error); // Array of all errors
  * }
  * @caveats
@@ -1985,20 +1985,20 @@ export declare const withLazyContext: <TInput, TError, TContext>(loader: (input:
  * Creates a failed RuleResult with the provided error.
  * @template TError - The type of the error (defaults to string)
  * @param error - The error to include in the failed result
- * @returns A RuleResult with status "failed" and the provided error
+ * @returns A RuleResult with outcome "failed" and the provided error
  * @example
- * const result = fail("Invalid input"); // { status: "failed", error: "Invalid input" }
+ * const result = fail("Invalid input"); // { outcome: "failed", error: "Invalid input" }
  *
  * // Used in rule implementations:
  * const alwaysFails: Rule<string> = () => fail("Always fails");
  */
 export declare const fail: <TError = string>(error: TError) => RuleResult<TError>;
 /**
- * Creates a successful RuleResult with "passed" status.
+ * Creates a successful RuleResult with outcome "passed".
  * @template TError - The type of the error (defaults to string)
- * @returns A RuleResult with status "passed"
+ * @returns A RuleResult with outcome "passed"
  * @example
- * const result = pass(); // { status: "passed" }
+ * const result = pass(); // { outcome: "passed" }
  *
  * // Used in rule implementations:
  * const alwaysPasses: Rule<string> = () => pass();
@@ -2077,18 +2077,18 @@ export type { MermaidOptions };
  * @template TError - The type of the error (defaults to string)
  * @example
  * // Passed result
- * const passed: RuleResult = { status: "passed" };
+ * const passed: RuleResult = { outcome: "passed" };
  *
  * // Failed result
  * const failed: RuleResult = {
- *   status: "failed",
+ *   outcome: "failed",
  *   error: "Validation failed"
  * };
  */
 type RuleResult<TError = string> = {
-  readonly status: "passed";
+  readonly outcome: "passed";
 } | {
-  readonly status: "failed";
+  readonly outcome: "failed";
   readonly error: TError;
 };
 /**
@@ -2102,8 +2102,8 @@ type RuleResult<TError = string> = {
  * @example
  * const isEven: Rule<number> = (input) => {
  *   return input % 2 === 0
- *     ? { status: "passed" }
- *     : { status: "failed", error: "Number must be even" };
+ *     ? { outcome: "passed" }
+ *     : { outcome: "failed", error: "Number must be even" };
  * };
  */
 type Rule<TInput, TError = string, TContext = unknown> = (input: TInput, context?: TContext) => Promise<RuleResult<TError>> | RuleResult<TError>;
@@ -2115,18 +2115,18 @@ export { RuleResult as n, Rule as t };
  * @template TError - The type of the error (defaults to string)
  * @example
  * // Passed result
- * const passed: RuleResult = { status: "passed" };
+ * const passed: RuleResult = { outcome: "passed" };
  *
  * // Failed result
  * const failed: RuleResult = {
- *   status: "failed",
+ *   outcome: "failed",
  *   error: "Validation failed"
  * };
  */
 type RuleResult<TError = string> = {
-  readonly status: "passed";
+  readonly outcome: "passed";
 } | {
-  readonly status: "failed";
+  readonly outcome: "failed";
   readonly error: TError;
 };
 /**
@@ -2140,8 +2140,8 @@ type RuleResult<TError = string> = {
  * @example
  * const isEven: Rule<number> = (input) => {
  *   return input % 2 === 0
- *     ? { status: "passed" }
- *     : { status: "failed", error: "Number must be even" };
+ *     ? { outcome: "passed" }
+ *     : { outcome: "failed", error: "Number must be even" };
  * };
  */
 type Rule<TInput, TError = string, TContext = unknown> = (input: TInput, context?: TContext) => Promise<RuleResult<TError>> | RuleResult<TError>;

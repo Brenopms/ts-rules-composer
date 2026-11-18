@@ -50,6 +50,6 @@ describe("requireContextRule", () => {
     // Test with full context
     expect(
       await rule({}, { userId: "123", db: { query: () => "USER" } }),
-    ).toEqual({ status: "passed" });
+    ).toEqual({ outcome: "passed" });
   });
 });

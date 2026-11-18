@@ -41,7 +41,7 @@ export const withSafeError = <TInput, TError = string, TContext = unknown>(
       const result = await rule(input, context);
 
       // Preserve existing RuleResults
-      if (result && typeof result === "object" && "status" in result) {
+      if (result && typeof result === "object" && "outcome" in result) {
         return result;
       }
 

@@ -38,7 +38,7 @@ export const withFallback = <TInput, TError, TContext>(
       );
       const result = await mainSafeRule(input, context);
       if (
-        result.status === "failed" &&
+        result.outcome === "failed" &&
         (!options.onlyFallbackOn || options.onlyFallbackOn(result.error))
       ) {
         return fallbackSafeRule(input, context);

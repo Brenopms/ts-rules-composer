@@ -24,7 +24,7 @@ describe("branch", () => {
   it("should execute ifRule when predicate returns true", async () => {
     const rule = ifElse(mockTruePredicate, passingRule);
     const result = await rule("input");
-    expect(result.status).toBe("passed");
+    expect(result.outcome).toBe("passed");
     expect(mockTruePredicate).toHaveBeenCalledWith("input", undefined);
     expect(passingRule).toHaveBeenCalled();
   });
@@ -32,21 +32,21 @@ describe("branch", () => {
   it("should execute elseRule when provided and predicate returns false", async () => {
     const rule = ifElse(mockFalsePredicate, failingRule, passingRule);
     const result = await rule("input");
-    expect(result.status).toBe("passed");
+    expect(result.outcome).toBe("passed");
     expect(passingRule).toHaveBeenCalled();
   });
 
   it("should return pass() when no elseRule provided and predicate returns false", async () => {
     const rule = ifElse(mockFalsePredicate, failingRule);
     const result = await rule("input");
-    expect(result.status).toBe("passed");
+    expect(result.outcome).toBe("passed");
     expect(failingRule).not.toHaveBeenCalled();
   });
 
   it("should work with async predicates", async () => {
     const rule = ifElse(asyncTruePredicate, passingRule);
     const result = await rule("input");
-    expect(result.status).toBe("passed");
+    expect(result.outcome).toBe("passed");
     expect(asyncTruePredicate).toHaveBeenCalled();
     expect(passingRule).toHaveBeenCalled();
   });
@@ -55,28 +55,28 @@ describe("branch", () => {
     const context = { mode: "test" };
     const rule = ifElse((_, ctx) => ctx?.mode === "test", contextAwareRule);
     const result = await rule("input", context);
-    expect(result.status).toBe("passed");
+    expect(result.outcome).toBe("passed");
     expect(contextAwareRule).toHaveBeenCalledWith("input", context);
   });
 
   it("should handle failing ifRule", async () => {
     const rule = ifElse(mockTruePredicate, failingRule);
     const result = await rule("input");
-    expect(result.status).toBe("failed");
+    expect(result.outcome).toBe("failed");
     expect(result).toEqual(fail("Failed rule"));
   });
 
   it("should handle failing elseRule", async () => {
     const rule = ifElse(mockFalsePredicate, passingRule, failingRule);
     const result = await rule("input");
-    expect(result.status).toBe("failed");
+    expect(result.outcome).toBe("failed");
     expect(result).toEqual(fail("Failed rule"));
   });
 
   it("should handle throwing predicate", async () => {
     const rule = ifElse(mockThrowingPredicate, passingRule, failingRule);
     const result = await rule("input");
-    expect(result.status).toBe("failed");
+    expect(result.outcome).toBe("failed");
     expect(result).toEqual(fail(new Error("Boom!")));
   });
 });

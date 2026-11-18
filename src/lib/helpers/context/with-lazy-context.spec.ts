@@ -42,7 +42,7 @@ describe("withLazyContext", () => {
     );
 
     const result = await lazyRule({});
-    expect(result.status).toBe("passed");
+    expect(result.outcome).toBe("passed");
   });
 
   it("should convert loader errors to failed results", async () => {

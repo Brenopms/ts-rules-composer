@@ -8,7 +8,7 @@ import type { RuleResult } from "../../lib/types";
  * @throws {Error} When called on a passed result
  * @example
  * const result = await validate(input);
- * if (result.status === "failed") {
+ * if (result.outcome === "failed") {
  *   const error = getError(result);
  *   // Handle error
  * }
@@ -16,7 +16,7 @@ import type { RuleResult } from "../../lib/types";
  * - Throws an error if called on a passed result
  */
 export const getRuleError = <TError>(result: RuleResult<TError>): TError => {
-  if (result.status !== "failed") {
+  if (result.outcome !== "failed") {
     throw new Error("Cannot get error from passed result");
   }
   return result.error;

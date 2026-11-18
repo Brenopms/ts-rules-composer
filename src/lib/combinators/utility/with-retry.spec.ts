@@ -88,7 +88,7 @@ describe("withRetry combinator", () => {
 
     await vi.advanceTimersByTimeAsync(150);
     const result = await resultPromise;
-    expect(result.status).toBe("failed");
+    expect(result.outcome).toBe("failed");
   });
 
   it("should use custom strategy function", async () => {
@@ -118,7 +118,7 @@ describe("withRetry combinator", () => {
 
     await vi.advanceTimersByTimeAsync(75);
     const result = await resultPromise;
-    expect(result.status).toBe("failed");
+    expect(result.outcome).toBe("failed");
     expect(customStrategy).toHaveBeenCalledTimes(2); // Called for attempts 1 and 2
   });
   it("should fail after max attempts", async () => {
@@ -208,7 +208,7 @@ describe("withRetry combinator", () => {
     });
 
     const result = await rule({});
-    expect(result.status).toBe("failed");
+    expect(result.outcome).toBe("failed");
     expect((result as any).error.message).toBe("Fatal");
   });
 
@@ -245,7 +245,7 @@ describe("withRetry combinator", () => {
         .mockImplementationOnce(() => pass());
       const rule = withRetry(noThenYes, { retryOn: "thrown" });
 
-      expect((await rule({})).status).toBe("failed");
+      expect((await rule({})).outcome).toBe("failed");
       expect(noThenYes).toHaveBeenCalledTimes(1);
     });
 
@@ -323,7 +323,7 @@ describe("withRetry combinator", () => {
       })({});
 
       expect(rule).toHaveBeenCalledTimes(3);
-      expect(result.status).toBe("failed");
+      expect(result.outcome).toBe("failed");
       expect((result as { error: unknown }).error).toBe(errors[2]);
     });
 

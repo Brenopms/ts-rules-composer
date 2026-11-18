@@ -255,7 +255,7 @@ it("should handle circular reference errors", async () => {
   const validator = every([() => fail(obj), () => pass()]);
   const result = await validator({});
 
-  expect(result.status).toBe("failed");
+  expect(result.outcome).toBe("failed");
   // Check circular reference is preserved
   const errors = (result as any).error;
   expect(errors[0].self).toBe(errors[0]); // Verify circularity
