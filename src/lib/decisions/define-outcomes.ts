@@ -1,10 +1,20 @@
 import type { Decision, DecisionResult, Predicate, Resolver } from "../types";
 import { branch } from "./branch";
 import { foldSequential } from "./combine";
+import { display, isObject, toList } from "./guards";
+import {
+  checkMode,
+  localOnError,
+  notDeclared,
+  type OutcomeSet,
+  toCaseTable,
+  toChildren,
+  toDecision,
+  toResolver,
+} from "./inputs";
 import { byPrecedence } from "./precedence";
 import {
   type ErrorHook,
-  ignoreRejection,
   notify,
   runSafely,
   toBoolean,
@@ -13,15 +23,15 @@ import {
 import { switchCase } from "./switch";
 
 /** A declared outcome (constant decision) or a decision to run. */
-type Branch<TInput, O extends string, TContext> =
+export type Branch<TInput, O extends string, TContext> =
   | O
   | Decision<TInput, O, TContext>;
 
 /** Per-combinator override of the toolkit's `onError`. */
-type Override<O extends string> = { readonly onError?: O };
+export type Override<O extends string> = { readonly onError?: O };
 
 /** A non-empty list of decisions, for `combine`. */
-type Decisions<TInput, O extends string, TContext> = readonly [
+export type Decisions<TInput, O extends string, TContext> = readonly [
   Decision<TInput, O, TContext>,
   ...Decision<TInput, O, TContext>[],
 ];
@@ -136,41 +146,27 @@ export interface OutcomeToolkit<O extends string> {
 export type OutcomeOf<T> = T extends OutcomeToolkit<infer O> ? O : never;
 
 /**
- * A label for an error message. Never converts a non-string: an object's
- * `toString` may throw and replace the `TypeError` being built.
+ * Checks the declared outcomes and returns a frozen copy. Each entry is
+ * checked in order, so a duplicate is reported before a later bad entry.
  */
-const display = (value: unknown): string =>
-  typeof value === "string"
-    ? `"${value}"`
-    : `(${value === null ? "null" : typeof value})`;
-
 const validateOutcomes = (outcomes: unknown): readonly string[] => {
-  if (!Array.isArray(outcomes)) {
-    throw new TypeError("defineOutcomes: outcomes must be an array");
-  }
-  const length = outcomes.length;
-  if (length === 0) {
-    throw new TypeError("defineOutcomes: outcomes must not be empty");
-  }
-  // An indexed loop over the length read once, not forEach (which skips the
-  // holes of a sparse array). A hole never reads through to the prototype.
-  const declared: string[] = [];
-  for (let index = 0; index < length; index++) {
-    const outcome: unknown = Object.hasOwn(outcomes, index)
-      ? outcomes[index]
-      : undefined;
-    if (typeof outcome !== "string" || outcome === "") {
-      throw new TypeError(
-        `defineOutcomes: outcomes[${index}] must be a non-empty string`,
-      );
-    }
-    if (declared.includes(outcome)) {
-      throw new TypeError(
-        `defineOutcomes: duplicate outcome ${display(outcome)}`,
-      );
-    }
-    declared.push(outcome);
-  }
+  const seen = new Set<string>();
+  const declared = toList(
+    outcomes,
+    "defineOutcomes: outcomes",
+    (outcome, at) => {
+      if (typeof outcome !== "string" || outcome === "") {
+        throw new TypeError(`${at} must be a non-empty string`);
+      }
+      if (seen.has(outcome)) {
+        throw new TypeError(
+          `defineOutcomes: duplicate outcome ${display(outcome)}`,
+        );
+      }
+      seen.add(outcome);
+      return outcome;
+    },
+  );
   return Object.freeze(declared);
 };
 
@@ -220,39 +216,12 @@ export const defineOutcomes = <const T extends readonly [string, ...string[]]>(
 
   const hook: ErrorHook | undefined = options.onErrorCaught;
 
-  const notDeclared = (where: string, value: unknown) =>
-    new TypeError(`${where} ${display(value)} is not a declared outcome`);
-
-  /** The combinator's `onError`: its override (validated now), else the toolkit's. */
-  const localOnError = (combinator: string, override?: Override<O>): O => {
-    const value = override?.onError;
-    if (value === undefined) return onError;
-    if (!isDeclared(value)) throw notDeclared(`${combinator}: onError`, value);
-    return value;
-  };
-
-  /** A bare-string branch becomes a constant decision, validated now. */
-  const toDecision = <TInput, TContext>(
-    where: string,
-    value: Branch<TInput, O, TContext>,
-  ): Decision<TInput, O, TContext> => {
-    if (typeof value === "function") return value;
-    if (typeof value !== "string") {
-      throw new TypeError(
-        `${where} must be a declared outcome or a decision function`,
-      );
-    }
-    if (!isDeclared(value)) throw notDeclared(where, value);
-    return () => ({ outcome: value });
-  };
+  const set: OutcomeSet<O> = { onError, isDeclared };
+  const precedence = byPrecedence(declared);
 
   /** Check for child decisions: an own `outcome` key holding a declared label. */
   const toLabel = (value: unknown): O => {
-    if (
-      typeof value !== "object" ||
-      value === null ||
-      !Object.hasOwn(value, "outcome")
-    ) {
+    if (!isObject(value) || !Object.hasOwn(value, "outcome")) {
       throw new TypeError("decision must return an object with an own outcome");
     }
     const { outcome } = value as { outcome: unknown };
@@ -279,101 +248,6 @@ export const defineOutcomes = <const T extends readonly [string, ...string[]]>(
     return { outcome: result.ok ? result.value : fallback };
   };
 
-  /**
-   * Validates every own case (symbol keys included) and copies them into a
-   * null-prototype table, so later changes to `cases` change nothing.
-   */
-  const toCaseTable = <TInput, TContext>(
-    cases: Partial<Record<PropertyKey, Branch<TInput, O, TContext>>>,
-  ): Record<PropertyKey, Decision<TInput, O, TContext>> => {
-    if (typeof cases !== "object" || cases === null) {
-      throw new TypeError("match: cases must be an object");
-    }
-    const table: Record<
-      PropertyKey,
-      Decision<TInput, O, TContext>
-    > = Object.create(null);
-    for (const key of Reflect.ownKeys(cases)) {
-      table[key] = toDecision(
-        `match: cases[${display(key)}]`,
-        cases[key] as Branch<TInput, O, TContext>,
-      );
-    }
-    return table;
-  };
-
-  /**
-   * Copies `decisions` over the length read once, checking each own entry is
-   * a function. A hole never reads through to the prototype.
-   */
-  const toChildren = <TInput, TContext>(
-    decisions: Decisions<TInput, O, TContext>,
-  ): Decisions<TInput, O, TContext> => {
-    if (!Array.isArray(decisions)) {
-      throw new TypeError("combine: decisions must be an array");
-    }
-    const length = decisions.length;
-    if (length === 0) {
-      throw new TypeError("combine: decisions must not be empty");
-    }
-    const children: Decision<TInput, O, TContext>[] = [];
-    for (let index = 0; index < length; index++) {
-      const decision: unknown = Object.hasOwn(decisions, index)
-        ? decisions[index]
-        : undefined;
-      if (typeof decision !== "function") {
-        throw new TypeError(
-          `combine: decisions[${index}] must be a decision function`,
-        );
-      }
-      children.push(decision as Decision<TInput, O, TContext>);
-    }
-    return children as unknown as Decisions<TInput, O, TContext>;
-  };
-
-  const precedence = byPrecedence(declared);
-
-  /**
-   * The default resolver, or a custom one whose methods are read once now
-   * and called with the resolver as `this`. Each result is checked
-   * synchronously: a malformed one throws a `TypeError`.
-   */
-  const toResolver = (resolver: Resolver<O> | undefined): Resolver<O> => {
-    if (resolver === undefined) return precedence;
-    const combine: unknown =
-      typeof resolver === "object" && resolver !== null
-        ? resolver.combine
-        : undefined;
-    const isFinal: unknown =
-      typeof combine === "function" ? resolver.isFinal : undefined;
-    if (typeof combine !== "function" || typeof isFinal !== "function") {
-      throw new TypeError(
-        "combine: resolver must be an object with combine and isFinal functions",
-      );
-    }
-    return {
-      combine: (current, next) => {
-        const merged: unknown = Reflect.apply(combine, resolver, [
-          current,
-          next,
-        ]);
-        if (isDeclared(merged)) return merged;
-        ignoreRejection(merged);
-        throw new TypeError(
-          `resolver.combine returned ${display(merged)}, which is not a declared outcome`,
-        );
-      },
-      isFinal: (current) => {
-        const final: unknown = Reflect.apply(isFinal, resolver, [current]);
-        if (typeof final === "boolean") return final;
-        ignoreRejection(final);
-        throw new TypeError(
-          `resolver.isFinal must return a boolean, got ${final === null ? "null" : typeof final}`,
-        );
-      },
-    };
-  };
-
   const toolkit: OutcomeToolkit<O> = {
     outcomes: declared,
     onError,
@@ -382,9 +256,9 @@ export const defineOutcomes = <const T extends readonly [string, ...string[]]>(
       return { outcome };
     },
     ifElse: (predicate, whenTrue, whenFalse, override) => {
-      const yes = toDecision("ifElse: whenTrue", whenTrue);
-      const no = toDecision("ifElse: whenFalse", whenFalse);
-      const fallback = localOnError("ifElse", override);
+      const yes = toDecision(set, "ifElse: whenTrue", whenTrue);
+      const no = toDecision(set, "ifElse: whenFalse", whenFalse);
+      const fallback = localOnError(set, "ifElse", override);
       return async (input, context) => {
         const condition = await runSafely(
           () => predicate(input, context),
@@ -401,9 +275,9 @@ export const defineOutcomes = <const T extends readonly [string, ...string[]]>(
       };
     },
     match: (accessor, cases, defaultCase, override) => {
-      const table = toCaseTable(cases);
-      const otherwise = toDecision("match: defaultCase", defaultCase);
-      const fallback = localOnError("match", override);
+      const table = toCaseTable(set, cases);
+      const otherwise = toDecision(set, "match: defaultCase", defaultCase);
+      const fallback = localOnError(set, "match", override);
       return async (input, context) => {
         const key = await runSafely(
           () => accessor(input, context),
@@ -425,12 +299,9 @@ export const defineOutcomes = <const T extends readonly [string, ...string[]]>(
     },
     combine: (decisions, options) => {
       const children = toChildren(decisions);
-      const mode = options?.mode;
-      if (mode !== undefined && mode !== "sequential") {
-        throw new TypeError('combine: mode must be "sequential"');
-      }
-      const resolver = toResolver(options?.resolver);
-      const fallback = localOnError("combine", options);
+      checkMode(options?.mode);
+      const resolver = toResolver(set, options?.resolver, precedence);
+      const fallback = localOnError(set, "combine", options);
       return async (input, context) => {
         const run = async (child: (typeof children)[number]) =>
           (await runDecision(child, input, context, fallback)).outcome;

@@ -2,6 +2,7 @@
  * The failure contract for the async callbacks a decision combinator calls
  * (predicates, accessors, child decisions, a mapped rule). Internal.
  */
+import { expectBoolean, typeName } from "./guards";
 
 /** Called with every failure that was turned into an onError outcome. */
 export type ErrorHook = (error: unknown) => void;
@@ -54,12 +55,7 @@ export const runSafely = async <T>(
 };
 
 /** Check for predicates: a boolean, no truthiness coercion. */
-export const toBoolean: Check<boolean> = (value) => {
-  if (typeof value !== "boolean") {
-    throw new TypeError(`predicate must return a boolean, got ${typeof value}`);
-  }
-  return value;
-};
+export const toBoolean: Check<boolean> = expectBoolean("predicate");
 
 /** Check for accessors: a property key, no conversion. */
 export const toKey: Check<PropertyKey> = (value) => {
@@ -69,7 +65,7 @@ export const toKey: Check<PropertyKey> = (value) => {
     typeof value !== "symbol"
   ) {
     throw new TypeError(
-      `accessor must return a string, number or symbol, got ${value === null ? "null" : typeof value}`,
+      `accessor must return a string, number or symbol, got ${typeName(value)}`,
     );
   }
   return value;
