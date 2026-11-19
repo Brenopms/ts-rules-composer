@@ -1,7 +1,7 @@
 import type { Decision, DecisionResult, Predicate, Resolver } from "../types";
 import { branch } from "./branch";
 import { foldParallel, foldSequential } from "./combine";
-import { display, isObject, toList } from "./guards";
+import { checkFunction, display, isObject, toList } from "./guards";
 import {
   localOnError,
   notDeclared,
@@ -62,11 +62,12 @@ export interface OutcomeToolkit<O extends string> {
 
   /**
    * Picks an outcome from a yes/no question: `true` runs `whenTrue`, `false`
-   * runs `whenFalse`. A bare-string branch is a constant outcome, checked
-   * when `ifElse` is called (`TypeError` for an unknown one). While running,
-   * a predicate that throws, rejects or returns a non-boolean, or a branch
-   * that fails or returns a malformed result, gives `onError` (the override,
-   * else the toolkit's). Never throws or rejects.
+   * runs `whenFalse`. A bare-string branch is a constant outcome. The
+   * predicate must be a function and each branch a declared outcome or a
+   * decision, checked when `ifElse` is called (`TypeError` otherwise).
+   * While running, a predicate that throws, rejects or returns a
+   * non-boolean, or a branch that fails or returns a malformed result, gives
+   * `onError` (the override, else the toolkit's). Never throws or rejects.
    * @example
    * const affordability = credit.ifElse(
    *   (app: CreditApplication) => app.monthlyDebt / app.monthlyIncome > 0.5,
@@ -84,9 +85,10 @@ export interface OutcomeToolkit<O extends string> {
   /**
    * Picks an outcome by key: the accessor's key selects its own case
    * (`Object.hasOwn`, so an inherited `toString` is a miss), and any other
-   * key runs `defaultCase`. Every supplied case and `defaultCase` must be a
-   * declared outcome or a decision, checked when `match` is called
-   * (`TypeError` otherwise, even for a case set to `undefined`). While
+   * key runs `defaultCase`. The accessor must be a function, and every
+   * supplied case and `defaultCase` a declared outcome or a decision,
+   * checked when `match` is called (`TypeError` otherwise, even for a case
+   * set to `undefined`). While
    * running, an accessor that throws, rejects or returns anything but a
    * string, number or symbol gives `onError` and runs no case; so does a
    * case that fails or returns a malformed result. Never throws or rejects.
@@ -267,6 +269,7 @@ export const defineOutcomes = <const T extends readonly [string, ...string[]]>(
       return { outcome };
     },
     ifElse: (predicate, whenTrue, whenFalse, override) => {
+      checkFunction(predicate, "ifElse: predicate");
       const yes = toDecision(set, "ifElse: whenTrue", whenTrue);
       const no = toDecision(set, "ifElse: whenFalse", whenFalse);
       const fallback = localOnError(set, "ifElse", override);
@@ -286,6 +289,7 @@ export const defineOutcomes = <const T extends readonly [string, ...string[]]>(
       };
     },
     match: (accessor, cases, defaultCase, override) => {
+      checkFunction(accessor, "match: accessor");
       const table = toCaseTable(set, cases);
       const otherwise = toDecision(set, "match: defaultCase", defaultCase);
       const fallback = localOnError(set, "match", override);

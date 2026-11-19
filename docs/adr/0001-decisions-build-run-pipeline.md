@@ -15,12 +15,10 @@ contract:
   failure (a throw, a rejection, a malformed result) becomes the
   combinator's `onError` outcome.
 - **Bad configuration fails early.** Every argument a builder checks
-  (outcome labels, branches, cases, `decisions`, `mode`, `resolver`, an
-  `onError` override, `onErrorCaught`) throws a `TypeError` with a fixed
-  message when the combinator is built, never when it runs. Predicates and
-  accessors are not checked at build time yet: they are only called when
-  the decision runs, so a non-function fails there and gives `onError`.
-  (Build-time function checks for them are planned with D7.)
+  (outcome labels, predicates, accessors, branches, cases, `decisions`,
+  `mode`, `resolver`, an `onError` override, `onErrorCaught`) throws a
+  `TypeError` with a fixed message when the combinator is built, never when
+  it runs.
 - **Read once.** Each user object, property and array entry is read once,
   so getters and later mutation can't change what was checked.
 - **Shared routing.** Rule `ifElse`/`match` reuse the same routing engines
@@ -48,7 +46,7 @@ stay pure.**
 
 | Layer | Job | Files |
 |---|---|---|
-| Value checks | Small checks that know nothing about outcomes: `isObject`, `typeName`, `display`, `toList` (array, not empty, length read once, own entries only), `expectBoolean`. Imports nothing. | `guards.ts` |
+| Value checks | Small checks that know nothing about outcomes: `isObject`, `typeName`, `display`, `checkFunction`, `toList` (array, not empty, length read once, own entries only), `expectBoolean`. Imports nothing. | `guards.ts` |
 | Trusted arguments (build) | Turn raw builder arguments into trusted values or throw a fixed `TypeError` (`<method>: <where> …`): `localOnError`, `toDecision`, `toCaseTable`, `toChildren`, `toMode`, `toResolver`. | `inputs.ts`, plus `validateOutcomes` in `define-outcomes.ts` |
 | Safe calls (run) | Async callbacks go through `runSafely`: catch throw or rejection, check the awaited value (`toBoolean`, `toKey`, `toLabel`), notify `onErrorCaught` once, return `{ ok: false }`. Resolver methods are synchronous: `toResolver` wraps them at build time, and the wrapper checks each result when called and throws on a malformed one. | `run-safely.ts`, `toResolver` in `inputs.ts`, `toLabel`/`runDecision` in `define-outcomes.ts` |
 | Engines (run) | Choose what runs next. No checks, no failure policy. Shared with rule combinators where it applies. | `branch.ts`, `switch.ts`, `combine.ts` (`foldSequential`, `foldParallel`), `precedence.ts` (default resolver) |

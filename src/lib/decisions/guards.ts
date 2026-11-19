@@ -16,6 +16,13 @@ export const typeName = (value: unknown): string =>
 export const display = (value: unknown): string =>
   typeof value === "string" ? `"${value}"` : `(${typeName(value)})`;
 
+/** Checks a callback argument. Throws `TypeError` (`<where> must be a function`). */
+export const checkFunction = (value: unknown, where: string): void => {
+  if (typeof value !== "function") {
+    throw new TypeError(`${where} must be a function`);
+  }
+};
+
 /**
  * Checks a list argument and copies it: an array, not empty, each entry
  * passed to `checkEntry` with its position (`where[index]`). The length is
