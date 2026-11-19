@@ -299,10 +299,6 @@ describe("toolkit.combine custom resolvers", () => {
       },
     };
     const options = {
-      get mode() {
-        reads.push("mode");
-        return "sequential" as const;
-      },
       get resolver() {
         reads.push("resolver");
         return resolver;
@@ -321,7 +317,6 @@ describe("toolkit.combine custom resolvers", () => {
     await decide(app);
 
     expect([...reads].sort()).toEqual([
-      "mode",
       "onError",
       "resolver",
       "resolver.combine",
@@ -444,7 +439,7 @@ describe("toolkit.combine resolver failures", () => {
   });
 });
 
-describe("toolkit.combine parallel mode", () => {
+describe("toolkit.combineAll (parallel)", () => {
   const deferred = <T>() => {
     let resolve!: (value: T) => void;
     const promise = new Promise<T>((r) => {
@@ -462,11 +457,11 @@ describe("toolkit.combine parallel mode", () => {
     const third = vi.fn(decisionOf("review"));
     const combine = vi.fn(strongest);
     const isFinal = vi.fn(() => true);
+    const resolver: Resolver<CreditOutcome> = { combine, isFinal };
 
-    const pending = credit.combine([first, second, third], {
-      mode: "parallel",
-      resolver: { combine, isFinal },
-    })(app);
+    const pending = credit.combineAll([first, second, third], { resolver })(
+      app,
+    );
     await settle();
 
     expect(first).toHaveBeenCalledOnce();
@@ -485,9 +480,9 @@ describe("toolkit.combine parallel mode", () => {
     const credit = makeCredit();
     const second = vi.fn(decisionOf("approved"));
 
-    const result = await credit.combine([decisionOf("declined"), second], {
-      mode: "parallel",
-    })(app);
+    const result = await credit.combineAll([decisionOf("declined"), second])(
+      app,
+    );
 
     expect(result).toStrictEqual({ outcome: "declined" });
     expect(second).toHaveBeenCalledOnce();
@@ -510,13 +505,13 @@ describe("toolkit.combine parallel mode", () => {
       };
     const combine = vi.fn((_: CreditOutcome, next: CreditOutcome) => next);
 
-    const pending = credit.combine(
+    const pending = credit.combineAll(
       [
         child("a", "approved", later.promise),
         child("b", "review", later.promise.then(settle)),
         child("c", "declined", Promise.resolve()),
       ],
-      { mode: "parallel", resolver: { combine, isFinal: () => false } },
+      { resolver: { combine } },
     )(app);
     await settle();
     later.resolve();
@@ -536,14 +531,11 @@ describe("toolkit.combine parallel mode", () => {
     const first = new Error("first");
     const second = new Error("second");
 
-    const result = await credit.combine(
-      [
-        () => Promise.reject(first),
-        decisionOf("approved"),
-        () => Promise.reject(second),
-      ],
-      { mode: "parallel" },
-    )(app);
+    const result = await credit.combineAll([
+      () => Promise.reject(first),
+      decisionOf("approved"),
+      () => Promise.reject(second),
+    ])(app);
 
     expect(result).toStrictEqual({ outcome: "review" });
     expect(hook).toHaveBeenCalledTimes(2);
@@ -555,15 +547,13 @@ describe("toolkit.combine parallel mode", () => {
     const credit = makeCredit(hook);
     const boom = new Error("boom");
 
-    const result = await credit.combine(
+    const result = await credit.combineAll(
       [decisionOf("approved"), decisionOf("declined")],
       {
-        mode: "parallel",
         resolver: {
           combine: () => {
             throw boom;
           },
-          isFinal: () => false,
         },
       },
     )(app);
@@ -572,13 +562,61 @@ describe("toolkit.combine parallel mode", () => {
     expect(hook).toHaveBeenCalledExactlyOnceWith(boom);
   });
 
+  it("uses the onError override for a failing child", async () => {
+    const credit = makeCredit();
+
+    const result = await credit.combineAll(
+      [() => Promise.reject(new Error("down")), decisionOf("approved")],
+      { onError: "declined" },
+    )(app);
+
+    expect(result).toStrictEqual({ outcome: "declined" });
+  });
+
+  it("reads each option and resolver.combine once, and never reads isFinal", async () => {
+    const credit = makeCredit();
+    const reads: string[] = [];
+    const resolver = {
+      get combine() {
+        reads.push("resolver.combine");
+        return strongest;
+      },
+      get isFinal() {
+        reads.push("resolver.isFinal");
+        return () => false;
+      },
+    };
+    const options = {
+      get resolver() {
+        reads.push("resolver");
+        return resolver;
+      },
+      get onError() {
+        reads.push("onError");
+        return "declined" as const;
+      },
+    };
+
+    const decide = credit.combineAll(
+      [decisionOf("approved"), decisionOf("review")],
+      options,
+    );
+    await decide(app);
+    await decide(app);
+
+    expect([...reads].sort()).toEqual([
+      "onError",
+      "resolver",
+      "resolver.combine",
+    ]);
+  });
+
   it("returns a single child's outcome without calling the resolver", async () => {
     const credit = makeCredit();
     const combine = vi.fn(strongest);
 
-    const result = await credit.combine([decisionOf("approved")], {
-      mode: "parallel",
-      resolver: { combine, isFinal: () => false },
+    const result = await credit.combineAll([decisionOf("approved")], {
+      resolver: { combine },
     })(app);
 
     expect(result).toStrictEqual({ outcome: "approved" });
@@ -661,11 +699,6 @@ describe("toolkit.combine construction", () => {
       "combine: resolver must be an object with combine and isFinal functions",
     ],
     [
-      "mode is neither sequential nor parallel",
-      () => credit.combine([approved], { mode: "race" as never }),
-      'combine: mode must be "sequential" or "parallel"',
-    ],
-    [
       "the onError override is not a declared outcome",
       () => credit.combine([approved], { onError: "unknown" as never }),
       'combine: onError "unknown" is not a declared outcome',
@@ -675,5 +708,57 @@ describe("toolkit.combine construction", () => {
 
     expect(error).toBeInstanceOf(TypeError);
     expect((error as TypeError).message).toBe(message);
+  });
+});
+
+describe("toolkit.combineAll construction", () => {
+  const credit = makeCredit();
+  const approved = decisionOf("approved");
+
+  it.each<[string, () => unknown, string]>([
+    [
+      "decisions is not an array",
+      () => credit.combineAll(approved as never),
+      "combineAll: decisions must be an array",
+    ],
+    [
+      "decisions is empty",
+      () => credit.combineAll([] as never),
+      "combineAll: decisions must not be empty",
+    ],
+    [
+      "a decision is not a function",
+      () => credit.combineAll([approved, "approved"] as never),
+      "combineAll: decisions[1] must be a decision function",
+    ],
+    [
+      "the resolver is not an object",
+      () => credit.combineAll([approved], { resolver: null as never }),
+      "combineAll: resolver must be an object with a combine function",
+    ],
+    [
+      "the resolver's combine is not a function",
+      () =>
+        credit.combineAll([approved], {
+          resolver: { combine: "declined" } as never,
+        }),
+      "combineAll: resolver must be an object with a combine function",
+    ],
+    [
+      "the onError override is not a declared outcome",
+      () => credit.combineAll([approved], { onError: "unknown" as never }),
+      'combineAll: onError "unknown" is not a declared outcome',
+    ],
+  ])("throws a TypeError when %s", (_, build, message) => {
+    const error = thrownBy(build);
+
+    expect(error).toBeInstanceOf(TypeError);
+    expect((error as TypeError).message).toBe(message);
+  });
+
+  it("accepts a resolver without isFinal", () => {
+    expect(() =>
+      credit.combineAll([approved], { resolver: { combine: strongest } }),
+    ).not.toThrow();
   });
 });

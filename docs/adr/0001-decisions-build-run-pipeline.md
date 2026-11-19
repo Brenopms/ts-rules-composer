@@ -6,7 +6,8 @@
 
 ## Context
 
-Decision combinators (`ifElse`, `match`, `combine`, later `mapOutcome`) take
+Decision combinators (`ifElse`, `match`, `combine`, `combineAll`, later
+`mapOutcome`) take
 user input from TypeScript and plain JavaScript callers, and they call user
 callbacks (predicates, accessors, child decisions, resolvers). The module's
 contract:
@@ -16,7 +17,7 @@ contract:
   combinator's `onError` outcome.
 - **Bad configuration fails early.** Every argument a builder checks
   (outcome labels, predicates, accessors, branches, cases, `decisions`,
-  `mode`, `resolver`, an `onError` override, `onErrorCaught`) throws a
+  `resolver`, an `onError` override, `onErrorCaught`) throws a
   `TypeError` with a fixed message when the combinator is built, never when
   it runs.
 - **Read once.** Each user object, property and array entry is read once,
@@ -47,10 +48,10 @@ stay pure.**
 | Layer | Job | Files |
 |---|---|---|
 | Value checks | Small checks that know nothing about outcomes: `isObject`, `typeName`, `display`, `checkFunction`, `toList` (array, not empty, length read once, own entries only), `expectBoolean`. Imports nothing. | `guards.ts` |
-| Trusted arguments (build) | Turn raw builder arguments into trusted values or throw a fixed `TypeError` (`<method>: <where> …`): `localOnError`, `toDecision`, `toCaseTable`, `toChildren`, `toMode`, `toResolver`. | `inputs.ts`, plus `validateOutcomes` in `define-outcomes.ts` |
+| Trusted arguments (build) | Turn raw builder arguments into trusted values or throw a fixed `TypeError` (`<method>: <where> …`): `localOnError`, `toDecision`, `toCaseTable`, `toChildren`, `toResolver`, `toMerger` (a `combine`-only resolver for `combineAll`). | `inputs.ts`, plus `validateOutcomes` in `define-outcomes.ts` |
 | Safe calls (run) | Async callbacks go through `runSafely`: catch throw or rejection, check the awaited value (`toBoolean`, `toKey`, `toLabel`), notify `onErrorCaught` once, return `{ ok: false }`. Resolver methods are synchronous: `toResolver` wraps them at build time, and the wrapper checks each result when called and throws on a malformed one. | `run-safely.ts`, `toResolver` in `inputs.ts`, `toLabel`/`runDecision` in `define-outcomes.ts` |
-| Engines (run) | Choose what runs next. No checks, no failure policy. Shared with rule combinators where it applies. | `branch.ts`, `switch.ts`, `combine.ts` (`foldSequential`, `foldParallel`), `precedence.ts` (default resolver) |
-| Wrapper semantics (run) | The function each builder returns decides what a failure means: failure ⇒ local `onError`, the hook called once, a fresh `{ outcome }`. In `combine`, a child failure joins the merge as `onError`, while a resolver failure ends the whole `combine`. Rule wrappers keep their own policy. | the toolkit methods in `define-outcomes.ts` |
+| Engines (run) | Choose what runs next. No checks, no failure policy. Shared with rule combinators where it applies. | `branch.ts`, `switch.ts`, `combine.ts` (`foldSequential` for `combine`, `foldParallel` for `combineAll`), `precedence.ts` (default resolver) |
+| Wrapper semantics (run) | The function each builder returns decides what a failure means: failure ⇒ local `onError`, the hook called once, a fresh `{ outcome }`. In `combine` and `combineAll` (shared `folding` wrapper), a child failure joins the merge as `onError`, while a resolver failure ends the whole combinator. Rule wrappers keep their own policy. | the toolkit methods in `define-outcomes.ts` |
 
 A new builder answers three questions: what does it check at build time,
 which calls does it make safe, and which engine does it route through.

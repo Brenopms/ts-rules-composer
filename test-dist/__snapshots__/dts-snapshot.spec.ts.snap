@@ -150,9 +150,9 @@ type PredicateResult<TError = string> = {
  */
 type PredicateSafe<TInput, TError, TContext> = (input: TInput, context?: TContext) => PredicateResult<TError> | Promise<PredicateResult<TError>>;
 /**
- * How \`combine\` merges outcomes. Both methods are synchronous: a method that
- * throws, returns a promise or returns a malformed value ends the whole
- * \`combine\` with \`onError\`.
+ * How \`combine\` merges outcomes (\`combineAll\` uses only \`combine\`). Both
+ * methods are synchronous: a method that throws, returns a promise or
+ * returns a malformed value ends the whole \`combine\` with \`onError\`.
  * @template O - The outcome labels
  * @example
  * // The strongest outcome wins, but every decision runs (e.g. for auditing).
@@ -170,7 +170,7 @@ type PredicateSafe<TInput, TError, TContext> = (input: TInput, context?: TContex
 type Resolver<O extends string> = {
   /** Merge the outcome so far with the next one. Returns a declared outcome. */
   readonly combine: (current: O, next: O) => O;
-  /** True when no later outcome can change the result (sequential stops). */
+  /** True when no later outcome can change the result (\`combine\` stops). */
   readonly isFinal: (current: O) => boolean;
 };
 /**
@@ -923,25 +923,18 @@ interface OutcomeToolkit<O extends string> {
    */
   match<TInput, TKey extends PropertyKey, TContext = unknown>(accessor: (input: TInput, context?: TContext) => TKey | Promise<TKey>, cases: Partial<Record<TKey, Branch<TInput, O, TContext>>>, defaultCase: Branch<TInput, O, TContext>, options?: Override<O>): Decision<TInput, O, TContext>;
   /**
-   * Runs decisions and merges their outcomes with the resolver (default:
-   * precedence, so the outcome declared first wins and the first declared
-   * outcome is final).
-   * - \`"sequential"\` (default): runs them one at a time, in order. Starts
-   *   from the first decision's outcome and stops as soon as
-   *   \`resolver.isFinal\` is true; later decisions are not called.
-   * - \`"parallel"\`: starts them all at once, waits for every one, then
-   *   merges in declaration order (not completion order). \`isFinal\` is never
-   *   called, so every decision runs.
-   *
-   * A decision that fails or returns a malformed result becomes \`onError\`
-   * and joins the merge. A resolver method that throws, returns a promise or
-   * returns a malformed value ends the whole \`combine\` with \`onError\`.
-   * \`decisions\`, \`mode\`, \`resolver\` and the \`onError\` override are checked
-   * when \`combine\` is called (\`TypeError\`). Never throws or rejects.
-   *
-   * No timeouts: a decision that never settles keeps the \`combine\` pending
-   * (in parallel mode too, since it waits for every decision). \`withTimeout\`
-   * is for rules only; put any time limit inside the decision itself.
+   * Runs decisions one at a time, in order, and merges their outcomes with
+   * the resolver (default: precedence, so the outcome declared first wins and
+   * the first declared outcome is final). Starts from the first decision's
+   * outcome and stops as soon as \`resolver.isFinal\` is true; later decisions
+   * are not called. To run every decision at once, use
+   * {@link OutcomeToolkit.combineAll}. A decision that fails or returns a
+   * malformed result becomes \`onError\` and joins the merge. A resolver
+   * method that throws, returns a promise or returns a malformed value ends
+   * the whole \`combine\` with \`onError\`. \`decisions\`, \`resolver\` and the
+   * \`onError\` override are checked when \`combine\` is called (\`TypeError\`).
+   * Never throws or rejects. No timeouts: a decision that never settles
+   * keeps the \`combine\` pending (\`withTimeout\` is for rules only).
    * @example
    * // Stops at the first "declined"; otherwise the strongest outcome wins.
    * const creditPolicy = credit.combine([
@@ -949,18 +942,37 @@ interface OutcomeToolkit<O extends string> {
    *   employment,
    *   bureauScore,
    * ]);
-   * @example
-   * // Runs all checks at once; the strongest outcome wins.
-   * const fastPolicy = credit.combine(
-   *   [affordability, employment, bureauScore],
-   *   { mode: "parallel" },
-   * );
    */
   combine<TInput, TContext = unknown>(decisions: Decisions<TInput, O, TContext>, options?: Override<O> & {
-    /** Default \`"sequential"\`. */
-    readonly mode?: "sequential" | "parallel";
     /** Default: precedence (declaration order). */
     readonly resolver?: Resolver<O>;
+  }): Decision<TInput, O, TContext>;
+  /**
+   * Runs every decision at once, waits for all of them, then merges their
+   * outcomes with \`resolver.combine\` in declaration order (not the order
+   * they finished in). Default: precedence, so the outcome declared first
+   * wins. Nothing stops early, so the resolver needs only \`combine\`
+   * (\`isFinal\` is never read; a full {@link Resolver} works too). A decision
+   * that fails or returns a malformed result becomes \`onError\` and joins the
+   * merge. A \`resolver.combine\` that throws, returns a promise or returns a
+   * malformed value ends the whole \`combineAll\` with \`onError\`.
+   * \`decisions\`, \`resolver\` and the \`onError\` override are checked when
+   * \`combineAll\` is called (\`TypeError\`). Never throws or rejects.
+   *
+   * No timeouts: a decision that never settles keeps the \`combineAll\`
+   * pending, since it waits for every decision. \`withTimeout\` is for rules
+   * only; put any time limit inside the decision itself.
+   * @example
+   * // Runs all checks at once; the strongest outcome wins.
+   * const fastPolicy = credit.combineAll([
+   *   affordability,
+   *   employment,
+   *   bureauScore,
+   * ]);
+   */
+  combineAll<TInput, TContext = unknown>(decisions: Decisions<TInput, O, TContext>, options?: Override<O> & {
+    /** Default: precedence (declaration order). Only \`combine\` is used. */
+    readonly resolver?: Pick<Resolver<O>, "combine">;
   }): Decision<TInput, O, TContext>;
 }
 /**
@@ -1333,9 +1345,9 @@ type PredicateResult<TError = string> = {
  */
 type PredicateSafe<TInput, TError, TContext> = (input: TInput, context?: TContext) => PredicateResult<TError> | Promise<PredicateResult<TError>>;
 /**
- * How \`combine\` merges outcomes. Both methods are synchronous: a method that
- * throws, returns a promise or returns a malformed value ends the whole
- * \`combine\` with \`onError\`.
+ * How \`combine\` merges outcomes (\`combineAll\` uses only \`combine\`). Both
+ * methods are synchronous: a method that throws, returns a promise or
+ * returns a malformed value ends the whole \`combine\` with \`onError\`.
  * @template O - The outcome labels
  * @example
  * // The strongest outcome wins, but every decision runs (e.g. for auditing).
@@ -1353,7 +1365,7 @@ type PredicateSafe<TInput, TError, TContext> = (input: TInput, context?: TContex
 type Resolver<O extends string> = {
   /** Merge the outcome so far with the next one. Returns a declared outcome. */
   readonly combine: (current: O, next: O) => O;
-  /** True when no later outcome can change the result (sequential stops). */
+  /** True when no later outcome can change the result (\`combine\` stops). */
   readonly isFinal: (current: O) => boolean;
 };
 /**
@@ -2106,25 +2118,18 @@ interface OutcomeToolkit<O extends string> {
    */
   match<TInput, TKey extends PropertyKey, TContext = unknown>(accessor: (input: TInput, context?: TContext) => TKey | Promise<TKey>, cases: Partial<Record<TKey, Branch<TInput, O, TContext>>>, defaultCase: Branch<TInput, O, TContext>, options?: Override<O>): Decision<TInput, O, TContext>;
   /**
-   * Runs decisions and merges their outcomes with the resolver (default:
-   * precedence, so the outcome declared first wins and the first declared
-   * outcome is final).
-   * - \`"sequential"\` (default): runs them one at a time, in order. Starts
-   *   from the first decision's outcome and stops as soon as
-   *   \`resolver.isFinal\` is true; later decisions are not called.
-   * - \`"parallel"\`: starts them all at once, waits for every one, then
-   *   merges in declaration order (not completion order). \`isFinal\` is never
-   *   called, so every decision runs.
-   *
-   * A decision that fails or returns a malformed result becomes \`onError\`
-   * and joins the merge. A resolver method that throws, returns a promise or
-   * returns a malformed value ends the whole \`combine\` with \`onError\`.
-   * \`decisions\`, \`mode\`, \`resolver\` and the \`onError\` override are checked
-   * when \`combine\` is called (\`TypeError\`). Never throws or rejects.
-   *
-   * No timeouts: a decision that never settles keeps the \`combine\` pending
-   * (in parallel mode too, since it waits for every decision). \`withTimeout\`
-   * is for rules only; put any time limit inside the decision itself.
+   * Runs decisions one at a time, in order, and merges their outcomes with
+   * the resolver (default: precedence, so the outcome declared first wins and
+   * the first declared outcome is final). Starts from the first decision's
+   * outcome and stops as soon as \`resolver.isFinal\` is true; later decisions
+   * are not called. To run every decision at once, use
+   * {@link OutcomeToolkit.combineAll}. A decision that fails or returns a
+   * malformed result becomes \`onError\` and joins the merge. A resolver
+   * method that throws, returns a promise or returns a malformed value ends
+   * the whole \`combine\` with \`onError\`. \`decisions\`, \`resolver\` and the
+   * \`onError\` override are checked when \`combine\` is called (\`TypeError\`).
+   * Never throws or rejects. No timeouts: a decision that never settles
+   * keeps the \`combine\` pending (\`withTimeout\` is for rules only).
    * @example
    * // Stops at the first "declined"; otherwise the strongest outcome wins.
    * const creditPolicy = credit.combine([
@@ -2132,18 +2137,37 @@ interface OutcomeToolkit<O extends string> {
    *   employment,
    *   bureauScore,
    * ]);
-   * @example
-   * // Runs all checks at once; the strongest outcome wins.
-   * const fastPolicy = credit.combine(
-   *   [affordability, employment, bureauScore],
-   *   { mode: "parallel" },
-   * );
    */
   combine<TInput, TContext = unknown>(decisions: Decisions<TInput, O, TContext>, options?: Override<O> & {
-    /** Default \`"sequential"\`. */
-    readonly mode?: "sequential" | "parallel";
     /** Default: precedence (declaration order). */
     readonly resolver?: Resolver<O>;
+  }): Decision<TInput, O, TContext>;
+  /**
+   * Runs every decision at once, waits for all of them, then merges their
+   * outcomes with \`resolver.combine\` in declaration order (not the order
+   * they finished in). Default: precedence, so the outcome declared first
+   * wins. Nothing stops early, so the resolver needs only \`combine\`
+   * (\`isFinal\` is never read; a full {@link Resolver} works too). A decision
+   * that fails or returns a malformed result becomes \`onError\` and joins the
+   * merge. A \`resolver.combine\` that throws, returns a promise or returns a
+   * malformed value ends the whole \`combineAll\` with \`onError\`.
+   * \`decisions\`, \`resolver\` and the \`onError\` override are checked when
+   * \`combineAll\` is called (\`TypeError\`). Never throws or rejects.
+   *
+   * No timeouts: a decision that never settles keeps the \`combineAll\`
+   * pending, since it waits for every decision. \`withTimeout\` is for rules
+   * only; put any time limit inside the decision itself.
+   * @example
+   * // Runs all checks at once; the strongest outcome wins.
+   * const fastPolicy = credit.combineAll([
+   *   affordability,
+   *   employment,
+   *   bureauScore,
+   * ]);
+   */
+  combineAll<TInput, TContext = unknown>(decisions: Decisions<TInput, O, TContext>, options?: Override<O> & {
+    /** Default: precedence (declaration order). Only \`combine\` is used. */
+    readonly resolver?: Pick<Resolver<O>, "combine">;
   }): Decision<TInput, O, TContext>;
 }
 /**

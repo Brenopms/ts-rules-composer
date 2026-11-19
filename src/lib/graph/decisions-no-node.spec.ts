@@ -27,4 +27,10 @@ describe("decision combinators attach no graph node", () => {
       undefined,
     );
   });
+
+  it("combineAll", () => {
+    expect(readNode(credit.combineAll([() => ({ outcome: "review" })]))).toBe(
+      undefined,
+    );
+  });
 });
