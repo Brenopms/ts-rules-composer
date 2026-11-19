@@ -73,6 +73,33 @@ export const toCaseTable = <O extends string, TInput, TContext>(
   return table;
 };
 
+/**
+ * `mapOutcome` mapping: `failed` is required, `passed` defaults to
+ * `lastOutcome`. Each property is read once, so later changes to `mapping`
+ * change nothing.
+ */
+export const toMapping = <O extends string>(
+  set: OutcomeSet<O>,
+  mapping: { readonly failed: O; readonly passed?: O },
+  lastOutcome: O,
+): { readonly failed: O; readonly passed: O } => {
+  if (!isObject(mapping)) {
+    throw new TypeError("mapOutcome: mapping must be an object");
+  }
+  const { failed, passed } = mapping;
+  if (failed === undefined) {
+    throw new TypeError("mapOutcome: mapping.failed is required");
+  }
+  if (!set.isDeclared(failed)) {
+    throw notDeclared("mapOutcome: mapping.failed", failed);
+  }
+  if (passed === undefined) return { failed, passed: lastOutcome };
+  if (!set.isDeclared(passed)) {
+    throw notDeclared("mapOutcome: mapping.passed", passed);
+  }
+  return { failed, passed };
+};
+
 /** `combine`/`combineAll` children: a non-empty copy holding only decision functions. */
 export const toChildren = <O extends string, TInput, TContext>(
   combinator: string,
