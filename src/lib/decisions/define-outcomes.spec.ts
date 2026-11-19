@@ -57,6 +57,36 @@ describe("defineOutcomes", () => {
       "defineOutcomes: outcomes[1] must be a non-empty string",
     ],
     [
+      "a hole is backed by a string on the array's prototype",
+      () => {
+        const outcomes = withHole();
+        Object.setPrototypeOf(
+          outcomes,
+          Object.assign(Object.create(Array.prototype), { 1: "approved" }),
+        );
+        return defineOutcomes(outcomes as never, {
+          onError: "declined" as never,
+        });
+      },
+      "defineOutcomes: outcomes[1] must be a non-empty string",
+    ],
+    [
+      "reading an outcome shrinks the array",
+      () => {
+        const outcomes = ["declined", "approved"];
+        Object.defineProperty(outcomes, 0, {
+          get: () => {
+            outcomes.length = 1;
+            return "declined";
+          },
+        });
+        return defineOutcomes(outcomes as never, {
+          onError: "declined" as never,
+        });
+      },
+      "defineOutcomes: outcomes[1] must be a non-empty string",
+    ],
+    [
       "an outcome is declared twice",
       () =>
         defineOutcomes(["declined", "review", "declined"], {

@@ -13,9 +13,9 @@ export const foldSequential = async <TChild, O extends string>(
   resolver: Resolver<O>,
 ): Promise<O> => {
   let current = await run(children[0]);
-  for (const child of children.slice(1)) {
+  for (let index = 1; index < children.length; index++) {
     if (resolver.isFinal(current)) break;
-    current = resolver.combine(current, await run(child));
+    current = resolver.combine(current, await run(children[index]));
   }
   return current;
 };

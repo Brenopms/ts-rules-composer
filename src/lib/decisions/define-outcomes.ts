@@ -148,13 +148,17 @@ const validateOutcomes = (outcomes: unknown): readonly string[] => {
   if (!Array.isArray(outcomes)) {
     throw new TypeError("defineOutcomes: outcomes must be an array");
   }
-  if (outcomes.length === 0) {
+  const length = outcomes.length;
+  if (length === 0) {
     throw new TypeError("defineOutcomes: outcomes must not be empty");
   }
-  // An indexed loop, not forEach: forEach skips the holes of a sparse array.
+  // An indexed loop over the length read once, not forEach (which skips the
+  // holes of a sparse array). A hole never reads through to the prototype.
   const declared: string[] = [];
-  for (let index = 0; index < outcomes.length; index++) {
-    const outcome: unknown = outcomes[index];
+  for (let index = 0; index < length; index++) {
+    const outcome: unknown = Object.hasOwn(outcomes, index)
+      ? outcomes[index]
+      : undefined;
     if (typeof outcome !== "string" || outcome === "") {
       throw new TypeError(
         `defineOutcomes: outcomes[${index}] must be a non-empty string`,
@@ -298,19 +302,25 @@ export const defineOutcomes = <const T extends readonly [string, ...string[]]>(
     return table;
   };
 
-  /** Copies `decisions`, checking each entry (holes included) is a function. */
+  /**
+   * Copies `decisions` over the length read once, checking each own entry is
+   * a function. A hole never reads through to the prototype.
+   */
   const toChildren = <TInput, TContext>(
     decisions: Decisions<TInput, O, TContext>,
   ): Decisions<TInput, O, TContext> => {
     if (!Array.isArray(decisions)) {
       throw new TypeError("combine: decisions must be an array");
     }
-    if (decisions.length === 0) {
+    const length = decisions.length;
+    if (length === 0) {
       throw new TypeError("combine: decisions must not be empty");
     }
     const children: Decision<TInput, O, TContext>[] = [];
-    for (let index = 0; index < decisions.length; index++) {
-      const decision: unknown = decisions[index];
+    for (let index = 0; index < length; index++) {
+      const decision: unknown = Object.hasOwn(decisions, index)
+        ? decisions[index]
+        : undefined;
       if (typeof decision !== "function") {
         throw new TypeError(
           `combine: decisions[${index}] must be a decision function`,

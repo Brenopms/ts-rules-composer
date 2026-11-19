@@ -472,6 +472,32 @@ describe("toolkit.combine construction", () => {
       "combine: decisions[1] must be a decision function",
     ],
     [
+      "a hole is backed by a function on the array's prototype",
+      () => {
+        const decisions = Object.assign(new Array(2), { 0: approved });
+        Object.setPrototypeOf(
+          decisions,
+          Object.assign(Object.create(Array.prototype), { 1: approved }),
+        );
+        return credit.combine(decisions as never);
+      },
+      "combine: decisions[1] must be a decision function",
+    ],
+    [
+      "reading an entry shrinks the array",
+      () => {
+        const decisions = [approved, decisionOf("declined")];
+        Object.defineProperty(decisions, 0, {
+          get: () => {
+            decisions.length = 1;
+            return approved;
+          },
+        });
+        return credit.combine(decisions as never);
+      },
+      "combine: decisions[1] must be a decision function",
+    ],
+    [
       "the resolver is not an object",
       () => credit.combine([approved], { resolver: null as never }),
       "combine: resolver must be an object with combine and isFinal functions",
