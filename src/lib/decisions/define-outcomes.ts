@@ -1,15 +1,15 @@
 import type { Decision, DecisionResult, Predicate, Resolver } from "../types";
 import { branch } from "./branch";
-import { foldSequential } from "./combine";
+import { foldParallel, foldSequential } from "./combine";
 import { display, isObject, toList } from "./guards";
 import {
-  checkMode,
   localOnError,
   notDeclared,
   type OutcomeSet,
   toCaseTable,
   toChildren,
   toDecision,
+  toMode,
   toResolver,
 } from "./inputs";
 import { byPrecedence } from "./precedence";
@@ -109,16 +109,25 @@ export interface OutcomeToolkit<O extends string> {
   ): Decision<TInput, O, TContext>;
 
   /**
-   * Runs decisions one at a time, in order, and merges their outcomes with
-   * the resolver (default: precedence, so the outcome declared first wins and
-   * the first declared outcome is final). Starts from the first decision's
-   * outcome and stops as soon as `resolver.isFinal` is true; later decisions
-   * are not called. A decision that fails or returns a malformed result
-   * becomes `onError` and joins the merge. A resolver method that throws,
-   * returns a promise or returns a malformed value ends the whole `combine`
-   * with `onError`. `decisions`, `mode`, `resolver` and the `onError`
-   * override are checked when `combine` is called (`TypeError`). Never
-   * throws or rejects.
+   * Runs decisions and merges their outcomes with the resolver (default:
+   * precedence, so the outcome declared first wins and the first declared
+   * outcome is final).
+   * - `"sequential"` (default): runs them one at a time, in order. Starts
+   *   from the first decision's outcome and stops as soon as
+   *   `resolver.isFinal` is true; later decisions are not called.
+   * - `"parallel"`: starts them all at once, waits for every one, then
+   *   merges in declaration order (not completion order). `isFinal` is never
+   *   called, so every decision runs.
+   *
+   * A decision that fails or returns a malformed result becomes `onError`
+   * and joins the merge. A resolver method that throws, returns a promise or
+   * returns a malformed value ends the whole `combine` with `onError`.
+   * `decisions`, `mode`, `resolver` and the `onError` override are checked
+   * when `combine` is called (`TypeError`). Never throws or rejects.
+   *
+   * No timeouts: a decision that never settles keeps the `combine` pending
+   * (in parallel mode too, since it waits for every decision). `withTimeout`
+   * is for rules only; put any time limit inside the decision itself.
    * @example
    * // Stops at the first "declined"; otherwise the strongest outcome wins.
    * const creditPolicy = credit.combine([
@@ -126,12 +135,18 @@ export interface OutcomeToolkit<O extends string> {
    *   employment,
    *   bureauScore,
    * ]);
+   * @example
+   * // Runs all checks at once; the strongest outcome wins.
+   * const fastPolicy = credit.combine(
+   *   [affordability, employment, bureauScore],
+   *   { mode: "parallel" },
+   * );
    */
   combine<TInput, TContext = unknown>(
     decisions: Decisions<TInput, O, TContext>,
     options?: Override<O> & {
       /** Default `"sequential"`. */
-      readonly mode?: "sequential";
+      readonly mode?: "sequential" | "parallel";
       /** Default: precedence (declaration order). */
       readonly resolver?: Resolver<O>;
     },
@@ -295,14 +310,15 @@ export const defineOutcomes = <const T extends readonly [string, ...string[]]>(
     },
     combine: (decisions, options) => {
       const children = toChildren(decisions);
-      checkMode(options?.mode);
+      const fold =
+        toMode(options?.mode) === "parallel" ? foldParallel : foldSequential;
       const resolver = toResolver(set, options?.resolver, precedence);
       const fallback = localOnError(set, "combine", options);
       return async (input, context) => {
         const run = async (child: (typeof children)[number]) =>
           (await runDecision(child, input, context, fallback)).outcome;
         try {
-          return { outcome: await foldSequential(children, run, resolver) };
+          return { outcome: await fold(children, run, resolver) };
         } catch (error) {
           // Only a resolver method throws here: it ends the whole combine.
           notify(hook, error);

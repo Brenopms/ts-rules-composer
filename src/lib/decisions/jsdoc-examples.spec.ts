@@ -116,6 +116,14 @@ describe("JSDoc examples", () => {
     ]);
 
     expect(await creditPolicy(application)).toEqual({ outcome: "review" });
+
+    // Runs all checks at once; the strongest outcome wins.
+    const fastPolicy = credit.combine(
+      [affordability, employment, bureauScore],
+      { mode: "parallel" },
+    );
+
+    expect(await fastPolicy(application)).toEqual({ outcome: "review" });
   });
 
   it("Resolver", async () => {

@@ -444,6 +444,148 @@ describe("toolkit.combine resolver failures", () => {
   });
 });
 
+describe("toolkit.combine parallel mode", () => {
+  const deferred = <T>() => {
+    let resolve!: (value: T) => void;
+    const promise = new Promise<T>((r) => {
+      resolve = r;
+    });
+    return { promise, resolve };
+  };
+  const settle = () => new Promise<void>((r) => setTimeout(r, 0));
+
+  it("starts every child before any fold and never calls isFinal", async () => {
+    const credit = makeCredit();
+    const held = deferred<{ outcome: CreditOutcome }>();
+    const first = vi.fn(() => held.promise);
+    const second = vi.fn(decisionOf("approved"));
+    const third = vi.fn(decisionOf("review"));
+    const combine = vi.fn(strongest);
+    const isFinal = vi.fn(() => true);
+
+    const pending = credit.combine([first, second, third], {
+      mode: "parallel",
+      resolver: { combine, isFinal },
+    })(app);
+    await settle();
+
+    expect(first).toHaveBeenCalledOnce();
+    expect(second).toHaveBeenCalledOnce();
+    expect(third).toHaveBeenCalledOnce();
+    expect(combine).not.toHaveBeenCalled();
+
+    held.resolve({ outcome: "approved" });
+
+    expect(await pending).toStrictEqual({ outcome: "review" });
+    expect(combine).toHaveBeenCalledTimes(2);
+    expect(isFinal).not.toHaveBeenCalled();
+  });
+
+  it("runs every child even when the first returns the top outcome", async () => {
+    const credit = makeCredit();
+    const second = vi.fn(decisionOf("approved"));
+
+    const result = await credit.combine([decisionOf("declined"), second], {
+      mode: "parallel",
+    })(app);
+
+    expect(result).toStrictEqual({ outcome: "declined" });
+    expect(second).toHaveBeenCalledOnce();
+  });
+
+  it("folds in declaration order when completion order is reversed", async () => {
+    const credit = makeCredit();
+    const completed: string[] = [];
+    const later = deferred<void>();
+    const child =
+      (
+        name: string,
+        outcome: CreditOutcome,
+        wait: Promise<void>,
+      ): Decision<App, CreditOutcome> =>
+      async () => {
+        await wait;
+        completed.push(name);
+        return { outcome };
+      };
+    const combine = vi.fn((_: CreditOutcome, next: CreditOutcome) => next);
+
+    const pending = credit.combine(
+      [
+        child("a", "approved", later.promise),
+        child("b", "review", later.promise.then(settle)),
+        child("c", "declined", Promise.resolve()),
+      ],
+      { mode: "parallel", resolver: { combine, isFinal: () => false } },
+    )(app);
+    await settle();
+    later.resolve();
+
+    // "last one wins" is not commutative: declaration order decides.
+    expect(await pending).toStrictEqual({ outcome: "declined" });
+    expect(completed).toEqual(["c", "a", "b"]);
+    expect(combine.mock.calls).toEqual([
+      ["approved", "review"],
+      ["review", "declined"],
+    ]);
+  });
+
+  it("turns two rejecting children into onError without rejecting", async () => {
+    const hook = vi.fn();
+    const credit = makeCredit(hook);
+    const first = new Error("first");
+    const second = new Error("second");
+
+    const result = await credit.combine(
+      [
+        () => Promise.reject(first),
+        decisionOf("approved"),
+        () => Promise.reject(second),
+      ],
+      { mode: "parallel" },
+    )(app);
+
+    expect(result).toStrictEqual({ outcome: "review" });
+    expect(hook).toHaveBeenCalledTimes(2);
+    expect(hook.mock.calls.map(([error]) => error)).toEqual([first, second]);
+  });
+
+  it("ends the whole combine with onError when the resolver fails", async () => {
+    const hook = vi.fn();
+    const credit = makeCredit(hook);
+    const boom = new Error("boom");
+
+    const result = await credit.combine(
+      [decisionOf("approved"), decisionOf("declined")],
+      {
+        mode: "parallel",
+        resolver: {
+          combine: () => {
+            throw boom;
+          },
+          isFinal: () => false,
+        },
+      },
+    )(app);
+
+    expect(result).toStrictEqual({ outcome: "review" });
+    expect(hook).toHaveBeenCalledExactlyOnceWith(boom);
+  });
+
+  it("returns a single child's outcome without calling the resolver", async () => {
+    const credit = makeCredit();
+    const combine = vi.fn(strongest);
+
+    const result = await credit.combine([decisionOf("approved")], {
+      mode: "parallel",
+      resolver: { combine, isFinal: () => false },
+    })(app);
+
+    expect(result).toStrictEqual({ outcome: "approved" });
+    expect(combine).not.toHaveBeenCalled();
+  });
+});
+
 describe("toolkit.combine construction", () => {
   const credit = makeCredit();
   const approved = decisionOf("approved");
@@ -519,9 +661,9 @@ describe("toolkit.combine construction", () => {
       "combine: resolver must be an object with combine and isFinal functions",
     ],
     [
-      "mode is not sequential",
-      () => credit.combine([approved], { mode: "parallel" as never }),
-      'combine: mode must be "sequential"',
+      "mode is neither sequential nor parallel",
+      () => credit.combine([approved], { mode: "race" as never }),
+      'combine: mode must be "sequential" or "parallel"',
     ],
     [
       "the onError override is not a declared outcome",

@@ -84,11 +84,11 @@ export const toChildren = <O extends string, TInput, TContext>(
     return decision as Decision<TInput, O, TContext>;
   }) as unknown as Decisions<TInput, O, TContext>;
 
-/** `combine` mode: only `"sequential"` for now. */
-export const checkMode = (mode: unknown): void => {
-  if (mode !== undefined && mode !== "sequential") {
-    throw new TypeError('combine: mode must be "sequential"');
-  }
+/** `combine` mode: `"sequential"` (the default) or `"parallel"`. */
+export const toMode = (mode: unknown): "sequential" | "parallel" => {
+  if (mode === undefined || mode === "sequential") return "sequential";
+  if (mode === "parallel") return mode;
+  throw new TypeError('combine: mode must be "sequential" or "parallel"');
 };
 
 /** A promise is malformed here; its rejection is marked handled. */

@@ -191,7 +191,7 @@ describe("combine types", () => {
     ).toThrow(TypeError);
   });
 
-  it("rejects a resolver for another outcome set and parallel mode (until D7)", () => {
+  it("rejects a resolver for another outcome set and an unknown mode", () => {
     const binaryResolver: Resolver<"failed" | "passed"> = {
       combine: (current) => current,
       isFinal: () => false,
@@ -205,10 +205,11 @@ describe("combine types", () => {
     ).not.toThrow();
     expect(() =>
       credit.combine([approve], {
-        // @ts-expect-error only "sequential" is supported
-        mode: "parallel",
+        // @ts-expect-error only "sequential" and "parallel" are modes
+        mode: "race",
       }),
     ).toThrow(TypeError);
+    expect(() => credit.combine([approve], { mode: "parallel" })).not.toThrow();
   });
 });
 

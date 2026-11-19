@@ -22,3 +22,25 @@ export const foldSequential = async <TChild, O extends string>(
   }
   return current;
 };
+
+/**
+ * Parallel fold for `toolkit.combine`: starts every child at once, waits for
+ * all of them, then merges the outcomes with `resolver.combine` in
+ * declaration order (whatever order they finished in). Never calls
+ * `resolver.isFinal`. `run` never rejects; a resolver method that fails
+ * throws, and the caller ends the whole `combine` with `onError`. Internal.
+ */
+export const foldParallel = async <TChild, O extends string>(
+  children: readonly [TChild, ...TChild[]],
+  run: (child: TChild) => Promise<O>,
+  resolver: Resolver<O>,
+): Promise<O> => {
+  const [first, ...rest] = await Promise.all([
+    run(children[0]),
+    ...children.slice(1).map(run),
+  ]);
+  return rest.reduce<O>(
+    (current, next) => resolver.combine(current, next),
+    first,
+  );
+};
