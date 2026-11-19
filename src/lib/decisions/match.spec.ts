@@ -349,8 +349,23 @@ describe("toolkit.match construction", () => {
       'match: cases["retired"] must be a declared outcome or a decision function',
     ],
     [
-      "cases is not an object",
+      "cases is null",
       () => credit.match(accessor, null as never, "review"),
+      "match: cases must be an object",
+    ],
+    [
+      "cases is a string",
+      () => credit.match(accessor, "x" as never, "review"),
+      "match: cases must be an object",
+    ],
+    [
+      "cases is a number",
+      () => credit.match(accessor, 1 as never, "review"),
+      "match: cases must be an object",
+    ],
+    [
+      "cases is a function",
+      () => credit.match(accessor, (() => {}) as never, "review"),
       "match: cases must be an object",
     ],
     [

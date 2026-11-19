@@ -9,6 +9,7 @@ import {
   toCaseTable,
   toChildren,
   toDecision,
+  toMapping,
   toMerger,
   toResolver,
 } from "./inputs";
@@ -19,6 +20,7 @@ import {
   runSafely,
   toBoolean,
   toKey,
+  toRuleOutcome,
 } from "./run-safely";
 import { switchCase } from "./switch";
 
@@ -168,6 +170,33 @@ export interface OutcomeToolkit<O extends string> {
       /** Default: precedence (declaration order). Only `combine` is used. */
       readonly resolver?: Pick<Resolver<O>, "combine">;
     },
+  ): Decision<TInput, O, TContext>;
+
+  /**
+   * Turns a rule (or any `"passed"`/`"failed"` decision) into a decision of
+   * this toolkit: `failed` gives `mapping.failed`, `passed` gives
+   * `mapping.passed`, else the last declared outcome. The rule's `error` is
+   * dropped. The rule runs without `withSafeError`, so a rule that throws,
+   * rejects or returns anything but an object with an own `outcome` of
+   * `"passed"` or `"failed"` gives `onError` (the override, else the
+   * toolkit's): an outage is never read as a failure. The rule must be a
+   * function and each mapping value a declared outcome, checked when
+   * `mapOutcome` is called (`TypeError` otherwise).
+   * Never throws or rejects.
+   * @example
+   * // A listed applicant is declined; a service outage gives onError ("review").
+   * const isNotSanctioned: Rule<CreditApplication> = async (app) =>
+   *   (await sanctionsService.isListed(app.applicantId))
+   *     ? fail("Applicant is on a sanctions list")
+   *     : pass();
+   * const sanctions = credit.mapOutcome(isNotSanctioned, {
+   *   failed: "declined",
+   * });
+   */
+  mapOutcome<TInput, TContext = unknown>(
+    rule: Decision<TInput, "passed" | "failed", TContext>,
+    mapping: { readonly failed: O; readonly passed?: O },
+    options?: Override<O>,
   ): Decision<TInput, O, TContext>;
 }
 
@@ -367,6 +396,24 @@ export const defineOutcomes = <const T extends readonly [string, ...string[]]>(
       const resolver = toMerger(set, options?.resolver, precedence);
       const fallback = localOnError(set, "combineAll", options);
       return folding(children, foldParallel, resolver, fallback);
+    },
+    mapOutcome: (rule, mapping, override) => {
+      checkFunction(rule, "mapOutcome: rule");
+      const target = toMapping(
+        set,
+        mapping,
+        declared[declared.length - 1] as O,
+      );
+      const fallback = localOnError(set, "mapOutcome", override);
+      return async (input, context) => {
+        const source = await runSafely(
+          () => rule(input, context),
+          toRuleOutcome,
+          hook,
+        );
+        if (!source.ok) return { outcome: fallback };
+        return { outcome: target[source.value] };
+      };
     },
   };
   return Object.freeze(toolkit);

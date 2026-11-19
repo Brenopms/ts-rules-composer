@@ -5,7 +5,8 @@
  * copying, not paraphrasing.
  */
 import { describe, expect, it } from "vitest";
-import type { Decision, DecisionResult, Resolver } from "../types";
+import { fail, pass } from "../helpers";
+import type { Decision, DecisionResult, Resolver, Rule } from "../types";
 import { defineOutcomes, type OutcomeOf } from "./define-outcomes";
 
 // Shared setup for the credit-domain examples.
@@ -150,6 +151,26 @@ describe("JSDoc examples", () => {
     ]);
 
     expect(await fastPolicy(application)).toEqual({ outcome: "review" });
+  });
+
+  it("OutcomeToolkit.mapOutcome", async () => {
+    const credit = defineOutcomes(["declined", "review", "approved"], {
+      onError: "review",
+    });
+    const sanctionsService = {
+      isListed: async (_applicantId: string) => false,
+    };
+
+    // A listed applicant is declined; a service outage gives onError ("review").
+    const isNotSanctioned: Rule<CreditApplication> = async (app) =>
+      (await sanctionsService.isListed(app.applicantId))
+        ? fail("Applicant is on a sanctions list")
+        : pass();
+    const sanctions = credit.mapOutcome(isNotSanctioned, {
+      failed: "declined",
+    });
+
+    expect(await sanctions(application)).toEqual({ outcome: "approved" });
   });
 
   it("Resolver", async () => {

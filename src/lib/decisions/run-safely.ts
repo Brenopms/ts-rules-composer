@@ -2,7 +2,7 @@
  * The failure contract for the async callbacks a decision combinator calls
  * (predicates, accessors, child decisions, a mapped rule). Internal.
  */
-import { expectBoolean, typeName } from "./guards";
+import { display, expectBoolean, isObject, typeName } from "./guards";
 
 /** Called with every failure that was turned into an onError outcome. */
 export type ErrorHook = (error: unknown) => void;
@@ -71,4 +71,22 @@ export const toKey: Check<PropertyKey> = (value) => {
     );
   }
   return value;
+};
+
+/**
+ * Check for a rule mapped by `mapOutcome`: an own `outcome` key holding
+ * `"passed"` or `"failed"`, checked before mapping. A destination label
+ * (e.g. `"approved"`) is malformed here.
+ */
+export const toRuleOutcome: Check<"passed" | "failed"> = (value) => {
+  if (!isObject(value) || !Object.hasOwn(value, "outcome")) {
+    throw new TypeError("rule must return an object with an own outcome");
+  }
+  const { outcome } = value as { outcome: unknown };
+  if (outcome !== "passed" && outcome !== "failed") {
+    throw new TypeError(
+      `rule returned ${display(outcome)}, which is not "passed" or "failed"`,
+    );
+  }
+  return outcome;
 };

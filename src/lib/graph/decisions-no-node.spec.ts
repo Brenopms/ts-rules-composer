@@ -33,4 +33,14 @@ describe("decision combinators attach no graph node", () => {
       undefined,
     );
   });
+
+  it("mapOutcome", () => {
+    expect(
+      readNode(
+        credit.mapOutcome(() => ({ outcome: "passed" }), {
+          failed: "declined",
+        }),
+      ),
+    ).toBe(undefined);
+  });
 });

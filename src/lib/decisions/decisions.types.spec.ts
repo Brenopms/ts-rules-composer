@@ -254,6 +254,46 @@ describe("combineAll types", () => {
   });
 });
 
+describe("mapOutcome types", () => {
+  it("maps a Rule with an object error and context to the toolkit's outcomes", () => {
+    const rule: Rule<App, DomainError, Ctx> = () => ({ outcome: "passed" });
+
+    const decide = credit.mapOutcome(rule, { failed: "declined" });
+
+    expectTypeOf(decide).toEqualTypeOf<Decision<App, CreditOutcome, Ctx>>();
+  });
+
+  it("maps a plain Rule to a two-parameter Decision", () => {
+    const rule: Rule<App> = () => ({ outcome: "passed" });
+
+    expectTypeOf(
+      credit.mapOutcome(rule, { failed: "declined", passed: "review" }),
+    ).toEqualTypeOf<Decision<App, CreditOutcome>>();
+  });
+
+  it("rejects out-of-set mapping labels and a credit decision as the rule", () => {
+    const rule: Rule<App> = () => ({ outcome: "passed" });
+    const approve: Decision<App, CreditOutcome> = () => ({
+      outcome: "approved",
+    });
+
+    expect(() =>
+      // @ts-expect-error "decline" is not a credit outcome
+      credit.mapOutcome(rule, { failed: "decline" }),
+    ).toThrow(TypeError);
+    expect(() =>
+      // @ts-expect-error "passed" is not a credit outcome
+      credit.mapOutcome(rule, { failed: "declined", passed: "passed" }),
+    ).toThrow(TypeError);
+    expect(() =>
+      // @ts-expect-error failed is required
+      credit.mapOutcome(rule, {}),
+    ).toThrow(TypeError);
+    // @ts-expect-error the source must be a passed/failed decision
+    credit.mapOutcome(approve, { failed: "declined" });
+  });
+});
+
 describe("Rule as a binary Decision", () => {
   it("assigns a plain Rule to Decision<App, passed | failed>", () => {
     expectTypeOf<Rule<App>>().toExtend<Decision<App, "passed" | "failed">>();
