@@ -205,16 +205,12 @@ export const defineOutcomes = <const T extends readonly [string, ...string[]]>(
       `defineOutcomes: onError ${display(onError)} is not a declared outcome`,
     );
   }
-  if (
-    options.onErrorCaught !== undefined &&
-    typeof options.onErrorCaught !== "function"
-  ) {
+  const hook: ErrorHook | undefined = options.onErrorCaught;
+  if (hook !== undefined && typeof hook !== "function") {
     throw new TypeError(
       "defineOutcomes: options.onErrorCaught must be a function",
     );
   }
-
-  const hook: ErrorHook | undefined = options.onErrorCaught;
 
   const set: OutcomeSet<O> = { onError, isDeclared };
   const precedence = byPrecedence(declared);
