@@ -1,4 +1,14 @@
-import type { DecisionResult } from "../types";
+import type { Decision, DecisionResult, Predicate } from "../types";
+import { branch } from "./branch";
+import { type ErrorHook, runSafely, toBoolean } from "./run-safely";
+
+/** A declared outcome (constant decision) or a decision to run. */
+type Branch<TInput, O extends string, TContext> =
+  | O
+  | Decision<TInput, O, TContext>;
+
+/** Per-combinator override of the toolkit's `onError`. */
+type Override<O extends string> = { readonly onError?: O };
 
 /**
  * A declared outcome set and the decision builders bound to it, returned by
@@ -23,6 +33,27 @@ export interface OutcomeToolkit<O extends string> {
    * };
    */
   outcome(outcome: O): DecisionResult<O>;
+
+  /**
+   * Picks an outcome from a yes/no question: `true` runs `whenTrue`, `false`
+   * runs `whenFalse`. A bare-string branch is a constant outcome, checked
+   * when `ifElse` is called (`TypeError` for an unknown one). While running,
+   * a predicate that throws, rejects or returns a non-boolean, or a branch
+   * that fails or returns a malformed result, gives `onError` (the override,
+   * else the toolkit's). Never throws or rejects.
+   * @example
+   * const affordability = credit.ifElse(
+   *   (app: CreditApplication) => app.monthlyDebt / app.monthlyIncome > 0.5,
+   *   "declined",
+   *   "approved",
+   * );
+   */
+  ifElse<TInput, TContext = unknown>(
+    predicate: Predicate<TInput, TContext>,
+    whenTrue: Branch<TInput, O, TContext>,
+    whenFalse: Branch<TInput, O, TContext>,
+    options?: Override<O>,
+  ): Decision<TInput, O, TContext>;
 }
 
 /**
@@ -111,16 +142,93 @@ export const defineOutcomes = <const T extends readonly [string, ...string[]]>(
     );
   }
 
-  return Object.freeze({
+  const hook: ErrorHook | undefined = options.onErrorCaught;
+
+  const notDeclared = (where: string, value: unknown) =>
+    new TypeError(`${where} ${display(value)} is not a declared outcome`);
+
+  /** The combinator's `onError`: its override (validated now), else the toolkit's. */
+  const localOnError = (combinator: string, override?: Override<O>): O => {
+    const value = override?.onError;
+    if (value === undefined) return onError;
+    if (!isDeclared(value)) throw notDeclared(`${combinator}: onError`, value);
+    return value;
+  };
+
+  /** A bare-string branch becomes a constant decision, validated now. */
+  const toDecision = <TInput, TContext>(
+    where: string,
+    value: Branch<TInput, O, TContext>,
+  ): Decision<TInput, O, TContext> => {
+    if (typeof value === "function") return value;
+    if (typeof value !== "string") {
+      throw new TypeError(
+        `${where} must be a declared outcome or a decision function`,
+      );
+    }
+    if (!isDeclared(value)) throw notDeclared(where, value);
+    return () => ({ outcome: value });
+  };
+
+  /** Check for child decisions: an own `outcome` key holding a declared label. */
+  const toLabel = (value: unknown): O => {
+    if (
+      typeof value !== "object" ||
+      value === null ||
+      !Object.hasOwn(value, "outcome")
+    ) {
+      throw new TypeError("decision must return an object with an own outcome");
+    }
+    const { outcome } = value as { outcome: unknown };
+    if (!isDeclared(outcome)) {
+      throw new TypeError(
+        `decision returned ${display(outcome)}, which is not a declared outcome`,
+      );
+    }
+    return outcome;
+  };
+
+  /** Runs a child decision; any failure gives `fallback`. Fresh result. */
+  const runDecision = async <TInput, TContext>(
+    decision: Decision<TInput, O, TContext>,
+    input: TInput,
+    context: TContext | undefined,
+    fallback: O,
+  ): Promise<DecisionResult<O>> => {
+    const result = await runSafely(
+      () => decision(input, context),
+      toLabel,
+      hook,
+    );
+    return { outcome: result.ok ? result.value : fallback };
+  };
+
+  const toolkit: OutcomeToolkit<O> = {
     outcomes: declared,
     onError,
-    outcome: (outcome: O): DecisionResult<O> => {
-      if (!isDeclared(outcome)) {
-        throw new TypeError(
-          `outcome: ${display(outcome)} is not a declared outcome`,
-        );
-      }
+    outcome: (outcome) => {
+      if (!isDeclared(outcome)) throw notDeclared("outcome:", outcome);
       return { outcome };
     },
-  });
+    ifElse: (predicate, whenTrue, whenFalse, override) => {
+      const yes = toDecision("ifElse: whenTrue", whenTrue);
+      const no = toDecision("ifElse: whenFalse", whenFalse);
+      const fallback = localOnError("ifElse", override);
+      return async (input, context) => {
+        const condition = await runSafely(
+          () => predicate(input, context),
+          toBoolean,
+          hook,
+        );
+        if (!condition.ok) return { outcome: fallback };
+        return runDecision(
+          branch(condition.value, yes, no),
+          input,
+          context,
+          fallback,
+        );
+      };
+    },
+  };
+  return Object.freeze(toolkit);
 };

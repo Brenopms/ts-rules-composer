@@ -11,9 +11,15 @@ import { defineOutcomes, type OutcomeOf } from "./define-outcomes";
 // Shared setup for the credit-domain examples.
 interface CreditApplication {
   applicantId: string;
+  monthlyIncome: number;
+  monthlyDebt: number;
 }
 const creditBureau = { score: async (_applicantId: string) => 720 };
-const application: CreditApplication = { applicantId: "app-001" };
+const application: CreditApplication = {
+  applicantId: "app-001",
+  monthlyIncome: 6_000,
+  monthlyDebt: 1_200,
+};
 
 describe("JSDoc examples", () => {
   it("defineOutcomes", () => {
@@ -42,6 +48,20 @@ describe("JSDoc examples", () => {
     };
 
     expect(await bureauScore(application)).toEqual({ outcome: "approved" });
+  });
+
+  it("OutcomeToolkit.ifElse", async () => {
+    const credit = defineOutcomes(["declined", "review", "approved"], {
+      onError: "review",
+    });
+
+    const affordability = credit.ifElse(
+      (app: CreditApplication) => app.monthlyDebt / app.monthlyIncome > 0.5,
+      "declined",
+      "approved",
+    );
+
+    expect(await affordability(application)).toEqual({ outcome: "approved" });
   });
 
   it("Decision", async () => {
