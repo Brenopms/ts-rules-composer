@@ -94,6 +94,28 @@ type DebugOptions<TInput, TError, TContext> = {
   onError?: (error: unknown, input: TInput, context?: TContext, duration?: number) => void;
 };
 /**
+ * The result of a decision: one label from a declared outcome set.
+ * @template O - The outcome labels, e.g. \`"declined" | "review" | "approved"\`
+ * @example
+ * const result: DecisionResult<"declined" | "approved"> = { outcome: "approved" };
+ */
+type DecisionResult<O extends string> = {
+  readonly outcome: O;
+};
+/**
+ * A function that picks one outcome for an input. Every \`Rule\` is a
+ * \`Decision<TInput, "passed" | "failed", TContext>\`.
+ * @template TInput - The type of the input to decide on
+ * @template O - The outcome labels it can return
+ * @template TContext - The type of the context object (optional)
+ * @example
+ * const bureauScore: Decision<CreditApplication, CreditOutcome> = async (app) => {
+ *   const score = await creditBureau.score(app.applicantId);
+ *   return score >= 700 ? credit.outcome("approved") : credit.outcome("review");
+ * };
+ */
+type Decision<TInput, O extends string, TContext = unknown> = (input: TInput, context?: TContext) => DecisionResult<O> | Promise<DecisionResult<O>>;
+/**
  * A predicate function that evaluates an input and returns a boolean result.
  * Can be synchronous or asynchronous.
  */
@@ -809,6 +831,53 @@ export declare function pipe<A, B, C, D, E, F, G, H, I, J, K>(value: A, fn1: (ar
  */
 export declare const pipeRules: <TInput, TError = string, TContext = unknown>(rules: Rule<TInput, TError, TContext>[], options?: CompositionOptions<TError>) => Rule<TInput, TError, TContext>;
 /**
+ * A declared outcome set and the decision builders bound to it, returned by
+ * {@link defineOutcomes}. Frozen.
+ * @template O - The outcome labels
+ */
+interface OutcomeToolkit<O extends string> {
+  /** Declaration order = precedence, strongest first. */
+  readonly outcomes: readonly O[];
+  /** The outcome any failure while deciding resolves to. */
+  readonly onError: O;
+  /**
+   * Typed result builder for hand-written decisions, like \`pass()\`/\`fail()\`
+   * for rules. Throws \`TypeError\` for a label outside the set.
+   * @example
+   * const bureauScore: Decision<CreditApplication, CreditOutcome> = async (app) => {
+   *   const score = await creditBureau.score(app.applicantId);
+   *   if (score >= 700) return credit.outcome("approved");
+   *   if (score >= 600) return credit.outcome("review");
+   *   return credit.outcome("declined");
+   * };
+   */
+  outcome(outcome: O): DecisionResult<O>;
+}
+/**
+ * The outcome labels of a toolkit.
+ * @example
+ * type CreditOutcome = OutcomeOf<typeof credit>; // "declined" | "review" | "approved"
+ */
+type OutcomeOf<T> = T extends OutcomeToolkit<infer O> ? O : never;
+/**
+ * Declares an outcome set once and returns the decision toolkit bound to it.
+ * Declaration order is precedence: an earlier outcome outranks every later
+ * one. Throws \`TypeError\` for an invalid set or options.
+ * @param outcomes - Non-empty, unique, non-empty strings (no \`as const\` needed)
+ * @param options.onError - The declared outcome any failure while deciding resolves to
+ * @param options.onErrorCaught - Called with every failure turned into \`onError\`
+ * @example
+ * const credit = defineOutcomes(["declined", "review", "approved"], {
+ *   onError: "review",
+ * });
+ * type CreditOutcome = OutcomeOf<typeof credit>; // "declined" | "review" | "approved"
+ */
+export declare const defineOutcomes: <const T extends readonly [string, ...string[]]>(outcomes: T, options: {
+  readonly onError: T[number];
+  /** Called with every failure that was turned into an onError outcome. */
+  readonly onErrorCaught?: (error: unknown) => void;
+}) => OutcomeToolkit<T[number]>;
+/**
  * Graph node primitives.
  *
  * This module must not import from \`combinators/\` or \`helpers/\`: combinators
@@ -1003,7 +1072,7 @@ export declare const pass: <TError = string>() => RuleResult<TError>;
 export declare const calculateDelay: (strategy: RetryStrategy | undefined, attempt: number, initialDelayMs: number) => number;
 export declare const getNormalizedRule: <TInput, TError, TContext>(rule: Rule<TInput, TError, TContext>, opts?: RuleSafetyOptions<TError>) => Rule<TInput, TError, TContext>;
 export declare const getNormalizedRules: <TInput, TError, TContext>(rules: Rule<TInput, TError, TContext>[], opts?: RuleSafetyOptions<TError>) => Rule<TInput, TError, TContext>[];
-export type { CompositionOptions, DebugOptions, GraphNode, Predicate, PredicateResult, PredicateSafe, Rule, RuleGraph, RuleResult, RuleSafetyOptions };
+export type { CompositionOptions, DebugOptions, Decision, DecisionResult, GraphNode, OutcomeOf, OutcomeToolkit, Predicate, PredicateResult, PredicateSafe, Rule, RuleGraph, RuleResult, RuleSafetyOptions };
 //# sourceMappingURL=index.d.cts.map
 // ==== index.d.ts ====
 import { n as RuleResult, t as Rule } from "./rule-[hash].js";
@@ -1098,6 +1167,28 @@ type DebugOptions<TInput, TError, TContext> = {
   onError?: (error: unknown, input: TInput, context?: TContext, duration?: number) => void;
 };
 /**
+ * The result of a decision: one label from a declared outcome set.
+ * @template O - The outcome labels, e.g. \`"declined" | "review" | "approved"\`
+ * @example
+ * const result: DecisionResult<"declined" | "approved"> = { outcome: "approved" };
+ */
+type DecisionResult<O extends string> = {
+  readonly outcome: O;
+};
+/**
+ * A function that picks one outcome for an input. Every \`Rule\` is a
+ * \`Decision<TInput, "passed" | "failed", TContext>\`.
+ * @template TInput - The type of the input to decide on
+ * @template O - The outcome labels it can return
+ * @template TContext - The type of the context object (optional)
+ * @example
+ * const bureauScore: Decision<CreditApplication, CreditOutcome> = async (app) => {
+ *   const score = await creditBureau.score(app.applicantId);
+ *   return score >= 700 ? credit.outcome("approved") : credit.outcome("review");
+ * };
+ */
+type Decision<TInput, O extends string, TContext = unknown> = (input: TInput, context?: TContext) => DecisionResult<O> | Promise<DecisionResult<O>>;
+/**
  * A predicate function that evaluates an input and returns a boolean result.
  * Can be synchronous or asynchronous.
  */
@@ -1813,6 +1904,53 @@ export declare function pipe<A, B, C, D, E, F, G, H, I, J, K>(value: A, fn1: (ar
  */
 export declare const pipeRules: <TInput, TError = string, TContext = unknown>(rules: Rule<TInput, TError, TContext>[], options?: CompositionOptions<TError>) => Rule<TInput, TError, TContext>;
 /**
+ * A declared outcome set and the decision builders bound to it, returned by
+ * {@link defineOutcomes}. Frozen.
+ * @template O - The outcome labels
+ */
+interface OutcomeToolkit<O extends string> {
+  /** Declaration order = precedence, strongest first. */
+  readonly outcomes: readonly O[];
+  /** The outcome any failure while deciding resolves to. */
+  readonly onError: O;
+  /**
+   * Typed result builder for hand-written decisions, like \`pass()\`/\`fail()\`
+   * for rules. Throws \`TypeError\` for a label outside the set.
+   * @example
+   * const bureauScore: Decision<CreditApplication, CreditOutcome> = async (app) => {
+   *   const score = await creditBureau.score(app.applicantId);
+   *   if (score >= 700) return credit.outcome("approved");
+   *   if (score >= 600) return credit.outcome("review");
+   *   return credit.outcome("declined");
+   * };
+   */
+  outcome(outcome: O): DecisionResult<O>;
+}
+/**
+ * The outcome labels of a toolkit.
+ * @example
+ * type CreditOutcome = OutcomeOf<typeof credit>; // "declined" | "review" | "approved"
+ */
+type OutcomeOf<T> = T extends OutcomeToolkit<infer O> ? O : never;
+/**
+ * Declares an outcome set once and returns the decision toolkit bound to it.
+ * Declaration order is precedence: an earlier outcome outranks every later
+ * one. Throws \`TypeError\` for an invalid set or options.
+ * @param outcomes - Non-empty, unique, non-empty strings (no \`as const\` needed)
+ * @param options.onError - The declared outcome any failure while deciding resolves to
+ * @param options.onErrorCaught - Called with every failure turned into \`onError\`
+ * @example
+ * const credit = defineOutcomes(["declined", "review", "approved"], {
+ *   onError: "review",
+ * });
+ * type CreditOutcome = OutcomeOf<typeof credit>; // "declined" | "review" | "approved"
+ */
+export declare const defineOutcomes: <const T extends readonly [string, ...string[]]>(outcomes: T, options: {
+  readonly onError: T[number];
+  /** Called with every failure that was turned into an onError outcome. */
+  readonly onErrorCaught?: (error: unknown) => void;
+}) => OutcomeToolkit<T[number]>;
+/**
  * Graph node primitives.
  *
  * This module must not import from \`combinators/\` or \`helpers/\`: combinators
@@ -2007,7 +2145,7 @@ export declare const pass: <TError = string>() => RuleResult<TError>;
 export declare const calculateDelay: (strategy: RetryStrategy | undefined, attempt: number, initialDelayMs: number) => number;
 export declare const getNormalizedRule: <TInput, TError, TContext>(rule: Rule<TInput, TError, TContext>, opts?: RuleSafetyOptions<TError>) => Rule<TInput, TError, TContext>;
 export declare const getNormalizedRules: <TInput, TError, TContext>(rules: Rule<TInput, TError, TContext>[], opts?: RuleSafetyOptions<TError>) => Rule<TInput, TError, TContext>[];
-export type { CompositionOptions, DebugOptions, GraphNode, Predicate, PredicateResult, PredicateSafe, Rule, RuleGraph, RuleResult, RuleSafetyOptions };
+export type { CompositionOptions, DebugOptions, Decision, DecisionResult, GraphNode, OutcomeOf, OutcomeToolkit, Predicate, PredicateResult, PredicateSafe, Rule, RuleGraph, RuleResult, RuleSafetyOptions };
 //# sourceMappingURL=index.d.ts.map
 // ==== mermaid.d.cts ====
 import { t as Rule } from "./rule-[hash].cjs";

@@ -1,5 +1,6 @@
 export type * from "./composition-options";
 export type * from "./debug-options";
+export type * from "./decision";
 export type * from "./predicate";
 export type * from "./predicate-result";
 export type * from "./predicate-safe";
