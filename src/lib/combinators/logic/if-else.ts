@@ -60,7 +60,7 @@ export const ifElse = <TInput, TError = string, TContext = unknown>(
       const selected = branch(
         safePredicateResult.value,
         normalizedIfRule,
-        elseRule ? normalizedElseRule : () => pass(),
+        elseRule ? normalizedElseRule : pass<TError>,
       );
       return selected(input, context);
     },
