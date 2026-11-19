@@ -13,12 +13,14 @@ interface CreditApplication {
   applicantId: string;
   monthlyIncome: number;
   monthlyDebt: number;
+  employment: "employed" | "self_employed" | "unemployed";
 }
 const creditBureau = { score: async (_applicantId: string) => 720 };
 const application: CreditApplication = {
   applicantId: "app-001",
   monthlyIncome: 6_000,
   monthlyDebt: 1_200,
+  employment: "self_employed",
 };
 
 describe("JSDoc examples", () => {
@@ -62,6 +64,24 @@ describe("JSDoc examples", () => {
     );
 
     expect(await affordability(application)).toEqual({ outcome: "approved" });
+  });
+
+  it("OutcomeToolkit.match", async () => {
+    const credit = defineOutcomes(["declined", "review", "approved"], {
+      onError: "review",
+    });
+
+    const employment = credit.match(
+      (app: CreditApplication) => app.employment,
+      {
+        employed: "approved",
+        self_employed: "review",
+        unemployed: "declined",
+      },
+      "review",
+    );
+
+    expect(await employment(application)).toEqual({ outcome: "review" });
   });
 
   it("Decision", async () => {

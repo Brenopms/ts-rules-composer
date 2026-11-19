@@ -873,6 +873,27 @@ interface OutcomeToolkit<O extends string> {
    * );
    */
   ifElse<TInput, TContext = unknown>(predicate: Predicate<TInput, TContext>, whenTrue: Branch<TInput, O, TContext>, whenFalse: Branch<TInput, O, TContext>, options?: Override<O>): Decision<TInput, O, TContext>;
+  /**
+   * Picks an outcome by key: the accessor's key selects its own case
+   * (\`Object.hasOwn\`, so an inherited \`toString\` is a miss), and any other
+   * key runs \`defaultCase\`. Every supplied case and \`defaultCase\` must be a
+   * declared outcome or a decision, checked when \`match\` is called
+   * (\`TypeError\` otherwise, even for a case set to \`undefined\`). While
+   * running, an accessor that throws, rejects or returns anything but a
+   * string, number or symbol gives \`onError\` and runs no case; so does a
+   * case that fails or returns a malformed result. Never throws or rejects.
+   * @example
+   * const employment = credit.match(
+   *   (app: CreditApplication) => app.employment,
+   *   {
+   *     employed: "approved",
+   *     self_employed: "review",
+   *     unemployed: "declined",
+   *   },
+   *   "review",
+   * );
+   */
+  match<TInput, TKey extends PropertyKey, TContext = unknown>(accessor: (input: TInput, context?: TContext) => TKey | Promise<TKey>, cases: Partial<Record<TKey, Branch<TInput, O, TContext>>>, defaultCase: Branch<TInput, O, TContext>, options?: Override<O>): Decision<TInput, O, TContext>;
 }
 /**
  * The outcome labels of a toolkit.
@@ -1967,6 +1988,27 @@ interface OutcomeToolkit<O extends string> {
    * );
    */
   ifElse<TInput, TContext = unknown>(predicate: Predicate<TInput, TContext>, whenTrue: Branch<TInput, O, TContext>, whenFalse: Branch<TInput, O, TContext>, options?: Override<O>): Decision<TInput, O, TContext>;
+  /**
+   * Picks an outcome by key: the accessor's key selects its own case
+   * (\`Object.hasOwn\`, so an inherited \`toString\` is a miss), and any other
+   * key runs \`defaultCase\`. Every supplied case and \`defaultCase\` must be a
+   * declared outcome or a decision, checked when \`match\` is called
+   * (\`TypeError\` otherwise, even for a case set to \`undefined\`). While
+   * running, an accessor that throws, rejects or returns anything but a
+   * string, number or symbol gives \`onError\` and runs no case; so does a
+   * case that fails or returns a malformed result. Never throws or rejects.
+   * @example
+   * const employment = credit.match(
+   *   (app: CreditApplication) => app.employment,
+   *   {
+   *     employed: "approved",
+   *     self_employed: "review",
+   *     unemployed: "declined",
+   *   },
+   *   "review",
+   * );
+   */
+  match<TInput, TKey extends PropertyKey, TContext = unknown>(accessor: (input: TInput, context?: TContext) => TKey | Promise<TKey>, cases: Partial<Record<TKey, Branch<TInput, O, TContext>>>, defaultCase: Branch<TInput, O, TContext>, options?: Override<O>): Decision<TInput, O, TContext>;
 }
 /**
  * The outcome labels of a toolkit.
