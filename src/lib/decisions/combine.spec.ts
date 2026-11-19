@@ -525,7 +525,7 @@ describe("toolkit.combineAll (parallel)", () => {
     ]);
   });
 
-  it("turns two rejecting children into onError without rejecting", async () => {
+  it("turns two rejecting children into onError, which joins the merge", async () => {
     const hook = vi.fn();
     const credit = makeCredit(hook);
     const first = new Error("first");
@@ -533,11 +533,12 @@ describe("toolkit.combineAll (parallel)", () => {
 
     const result = await credit.combineAll([
       () => Promise.reject(first),
-      decisionOf("approved"),
+      decisionOf("declined"),
       () => Promise.reject(second),
     ])(app);
 
-    expect(result).toStrictEqual({ outcome: "review" });
+    // "declined" outranks onError ("review"): the failures were merged.
+    expect(result).toStrictEqual({ outcome: "declined" });
     expect(hook).toHaveBeenCalledTimes(2);
     expect(hook.mock.calls.map(([error]) => error)).toEqual([first, second]);
   });

@@ -35,12 +35,7 @@ export const foldParallel = async <TChild, O extends string>(
   run: (child: TChild) => Promise<O>,
   resolver: Pick<Resolver<O>, "combine">,
 ): Promise<O> => {
-  const [first, ...rest] = await Promise.all([
-    run(children[0]),
-    ...children.slice(1).map(run),
-  ]);
-  return rest.reduce<O>(
-    (current, next) => resolver.combine(current, next),
-    first,
-  );
+  const outcomes: O[] = await Promise.all(children.map(run));
+  // Non-empty, so reduce needs no seed; one child returns without a merge.
+  return outcomes.reduce((current, next) => resolver.combine(current, next));
 };
