@@ -1,0 +1,146 @@
+import { describe, expect, it } from "vitest";
+import { defineOutcomes } from "./define-outcomes";
+
+const thrownBy = (build: () => unknown): unknown => {
+  try {
+    build();
+  } catch (error) {
+    return error;
+  }
+  throw new Error("expected a throw");
+};
+
+describe("defineOutcomes", () => {
+  it.each<[string, () => unknown, string]>([
+    [
+      "outcomes is not an array",
+      () =>
+        defineOutcomes("declined" as never, { onError: "declined" as never }),
+      "defineOutcomes: outcomes must be an array",
+    ],
+    [
+      "outcomes is empty",
+      () => defineOutcomes([] as never, { onError: "declined" as never }),
+      "defineOutcomes: outcomes must not be empty",
+    ],
+    [
+      "an outcome is not a string",
+      () =>
+        defineOutcomes(["declined", 1] as never, {
+          onError: "declined" as never,
+        }),
+      "defineOutcomes: outcomes[1] must be a non-empty string",
+    ],
+    [
+      "an outcome is an empty string",
+      () => defineOutcomes(["declined", ""], { onError: "declined" }),
+      "defineOutcomes: outcomes[1] must be a non-empty string",
+    ],
+    [
+      "an outcome is declared twice",
+      () =>
+        defineOutcomes(["declined", "review", "declined"], {
+          onError: "review",
+        }),
+      'defineOutcomes: duplicate outcome "declined"',
+    ],
+    [
+      "options are missing",
+      () => defineOutcomes(["declined"], undefined as never),
+      "defineOutcomes: options.onError is required",
+    ],
+    [
+      "onError is missing",
+      () => defineOutcomes(["declined"], {} as never),
+      "defineOutcomes: options.onError is required",
+    ],
+    [
+      "onError is not a declared outcome",
+      () => defineOutcomes(["declined"], { onError: "review" as never }),
+      'defineOutcomes: onError "review" is not a declared outcome',
+    ],
+    [
+      "onErrorCaught is not a function",
+      () =>
+        defineOutcomes(["declined"], {
+          onError: "declined",
+          onErrorCaught: "log" as never,
+        }),
+      "defineOutcomes: options.onErrorCaught must be a function",
+    ],
+  ])("throws a TypeError when %s", (_, build, message) => {
+    const error = thrownBy(build);
+
+    expect(error).toBeInstanceOf(TypeError);
+    expect((error as TypeError).message).toBe(message);
+  });
+
+  it("returns the declared outcomes and onError", () => {
+    const credit = defineOutcomes(["declined", "review", "approved"], {
+      onError: "review",
+    });
+
+    expect(credit.outcomes).toEqual(["declined", "review", "approved"]);
+    expect(credit.onError).toBe("review");
+  });
+
+  it("freezes the toolkit and its outcomes", () => {
+    const credit = defineOutcomes(["declined", "review", "approved"], {
+      onError: "review",
+    });
+
+    expect(Object.isFrozen(credit)).toBe(true);
+    expect(Object.isFrozen(credit.outcomes)).toBe(true);
+  });
+
+  it("copies the input array, so mutating it later changes nothing", () => {
+    const input: [string, string] = ["declined", "approved"];
+    const credit = defineOutcomes(input, { onError: "declined" });
+
+    input[0] = "changed";
+    input.push("added");
+
+    expect(credit.outcomes).toEqual(["declined", "approved"]);
+  });
+
+  it('accepts "failed" and "passed" as outcomes (a binary toolkit)', () => {
+    const binary = defineOutcomes(["failed", "passed"], { onError: "failed" });
+
+    expect(binary.outcomes).toEqual(["failed", "passed"]);
+  });
+
+  it("accepts a function as onErrorCaught", () => {
+    expect(() =>
+      defineOutcomes(["declined"], {
+        onError: "declined",
+        onErrorCaught: () => {},
+      }),
+    ).not.toThrow();
+  });
+});
+
+describe("toolkit.outcome", () => {
+  const credit = defineOutcomes(["declined", "review", "approved"], {
+    onError: "review",
+  });
+
+  it("returns { outcome } with exactly that key", () => {
+    const result = credit.outcome("approved");
+
+    expect(result).toStrictEqual({ outcome: "approved" });
+    expect(Reflect.ownKeys(result)).toEqual(["outcome"]);
+  });
+
+  it("returns a fresh object on every call", () => {
+    expect(credit.outcome("review")).not.toBe(credit.outcome("review"));
+  });
+
+  it("throws a TypeError for an outcome outside the set", () => {
+    const error = thrownBy(() => credit.outcome("aproved" as never));
+
+    expect(error).toBeInstanceOf(TypeError);
+    expect((error as TypeError).message).toBe(
+      'outcome: "aproved" is not a declared outcome',
+    );
+  });
+});

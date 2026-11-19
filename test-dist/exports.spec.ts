@@ -7,6 +7,7 @@ import { type Entry, PACKAGE_NAME, runInConsumer } from "./helpers";
 const EXPORTS = [
   "calculateDelay",
   "composeRules",
+  "defineOutcomes",
   "every",
   "fail",
   "getNormalizedRule",
