@@ -98,6 +98,65 @@ describe("ifElse types", () => {
   });
 });
 
+describe("match types", () => {
+  type Employment = "employed" | "self_employed" | "unemployed";
+  interface Applicant {
+    employment: Employment;
+  }
+
+  it("accepts a partial case map for a sync literal-union accessor", () => {
+    const decide = credit.match(
+      (applicant: Applicant) => applicant.employment,
+      { employed: "approved" },
+      "review",
+    );
+
+    expectTypeOf(decide).toEqualTypeOf<Decision<Applicant, CreditOutcome>>();
+  });
+
+  it("accepts a partial case map for an async literal-union accessor", () => {
+    const decide = credit.match(
+      async (applicant: Applicant) => applicant.employment,
+      { unemployed: "declined" },
+      "review",
+    );
+
+    expectTypeOf(decide).toEqualTypeOf<Decision<Applicant, CreditOutcome>>();
+  });
+
+  it("rejects a misspelled key in an inline case map (async accessor)", () => {
+    credit.match(
+      async (applicant: Applicant) => applicant.employment,
+      {
+        employed: "approved",
+        // @ts-expect-error "employd" is not a key the accessor returns
+        employd: "review",
+      },
+      "review",
+    );
+  });
+
+  it("requires defaultCase", () => {
+    expect(() =>
+      // @ts-expect-error defaultCase is required
+      credit.match((applicant: Applicant) => applicant.employment, {
+        employed: "approved",
+      }),
+    ).toThrow(TypeError);
+  });
+
+  it("rejects a misspelled case outcome", () => {
+    expect(() =>
+      credit.match(
+        (applicant: Applicant) => applicant.employment,
+        // @ts-expect-error "aproved" is misspelled
+        { employed: "aproved" },
+        "review",
+      ),
+    ).toThrow(TypeError);
+  });
+});
+
 describe("Rule as a binary Decision", () => {
   it("assigns a plain Rule to Decision<App, passed | failed>", () => {
     expectTypeOf<Rule<App>>().toExtend<Decision<App, "passed" | "failed">>();

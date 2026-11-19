@@ -52,3 +52,17 @@ export const toBoolean: Check<boolean> = (value) => {
   }
   return value;
 };
+
+/** Check for accessors: a property key, no conversion. */
+export const toKey: Check<PropertyKey> = (value) => {
+  if (
+    typeof value !== "string" &&
+    typeof value !== "number" &&
+    typeof value !== "symbol"
+  ) {
+    throw new TypeError(
+      `accessor must return a string, number or symbol, got ${value === null ? "null" : typeof value}`,
+    );
+  }
+  return value;
+};

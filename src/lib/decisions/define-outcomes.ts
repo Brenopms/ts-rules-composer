@@ -1,6 +1,7 @@
 import type { Decision, DecisionResult, Predicate } from "../types";
 import { branch } from "./branch";
-import { type ErrorHook, runSafely, toBoolean } from "./run-safely";
+import { type ErrorHook, runSafely, toBoolean, toKey } from "./run-safely";
+import { switchCase } from "./switch";
 
 /** A declared outcome (constant decision) or a decision to run. */
 type Branch<TInput, O extends string, TContext> =
@@ -52,6 +53,33 @@ export interface OutcomeToolkit<O extends string> {
     predicate: Predicate<TInput, TContext>,
     whenTrue: Branch<TInput, O, TContext>,
     whenFalse: Branch<TInput, O, TContext>,
+    options?: Override<O>,
+  ): Decision<TInput, O, TContext>;
+
+  /**
+   * Picks an outcome by key: the accessor's key selects its own case
+   * (`Object.hasOwn`, so an inherited `toString` is a miss), and any other
+   * key runs `defaultCase`. Every supplied case and `defaultCase` must be a
+   * declared outcome or a decision, checked when `match` is called
+   * (`TypeError` otherwise, even for a case set to `undefined`). While
+   * running, an accessor that throws, rejects or returns anything but a
+   * string, number or symbol gives `onError` and runs no case; so does a
+   * case that fails or returns a malformed result. Never throws or rejects.
+   * @example
+   * const employment = credit.match(
+   *   (app: CreditApplication) => app.employment,
+   *   {
+   *     employed: "approved",
+   *     self_employed: "review",
+   *     unemployed: "declined",
+   *   },
+   *   "review",
+   * );
+   */
+  match<TInput, TKey extends PropertyKey, TContext = unknown>(
+    accessor: (input: TInput, context?: TContext) => TKey | Promise<TKey>,
+    cases: Partial<Record<TKey, Branch<TInput, O, TContext>>>,
+    defaultCase: Branch<TInput, O, TContext>,
     options?: Override<O>,
   ): Decision<TInput, O, TContext>;
 }
@@ -203,6 +231,29 @@ export const defineOutcomes = <const T extends readonly [string, ...string[]]>(
     return { outcome: result.ok ? result.value : fallback };
   };
 
+  /**
+   * Validates every own case (symbol keys included) and copies them into a
+   * null-prototype table, so later changes to `cases` change nothing.
+   */
+  const toCaseTable = <TInput, TContext>(
+    cases: Partial<Record<PropertyKey, Branch<TInput, O, TContext>>>,
+  ): Record<PropertyKey, Decision<TInput, O, TContext>> => {
+    if (typeof cases !== "object" || cases === null) {
+      throw new TypeError("match: cases must be an object");
+    }
+    const table: Record<
+      PropertyKey,
+      Decision<TInput, O, TContext>
+    > = Object.create(null);
+    for (const key of Reflect.ownKeys(cases)) {
+      table[key] = toDecision(
+        `match: cases[${display(key)}]`,
+        cases[key] as Branch<TInput, O, TContext>,
+      );
+    }
+    return table;
+  };
+
   const toolkit: OutcomeToolkit<O> = {
     outcomes: declared,
     onError,
@@ -223,6 +274,29 @@ export const defineOutcomes = <const T extends readonly [string, ...string[]]>(
         if (!condition.ok) return { outcome: fallback };
         return runDecision(
           branch(condition.value, yes, no),
+          input,
+          context,
+          fallback,
+        );
+      };
+    },
+    match: (accessor, cases, defaultCase, override) => {
+      const table = toCaseTable(cases);
+      const otherwise = toDecision("match: defaultCase", defaultCase);
+      const fallback = localOnError("match", override);
+      return async (input, context) => {
+        const key = await runSafely(
+          () => accessor(input, context),
+          toKey,
+          hook,
+        );
+        if (!key.ok) return { outcome: fallback };
+        return runDecision(
+          switchCase(
+            key.value,
+            (k) => (Object.hasOwn(table, k) ? table[k] : undefined),
+            otherwise,
+          ),
           input,
           context,
           fallback,
