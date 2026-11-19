@@ -139,6 +139,24 @@ describe("defineOutcomes", () => {
     expect(credit.onError).toBe("review");
   });
 
+  it("reads each option once", () => {
+    const reads: string[] = [];
+    const options = {
+      get onError() {
+        reads.push("onError");
+        return "review" as const;
+      },
+      get onErrorCaught() {
+        reads.push("onErrorCaught");
+        return () => {};
+      },
+    };
+
+    defineOutcomes(["declined", "review", "approved"], options);
+
+    expect(reads).toEqual(["onError", "onErrorCaught"]);
+  });
+
   it("freezes the toolkit and its outcomes", () => {
     const credit = defineOutcomes(["declined", "review", "approved"], {
       onError: "review",
