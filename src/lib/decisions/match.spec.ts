@@ -302,6 +302,16 @@ describe("toolkit.match construction", () => {
 
   it.each<[string, () => unknown, string]>([
     [
+      "accessor is not a function",
+      () => credit.match("employment" as never, {}, "review"),
+      "match: accessor must be a function",
+    ],
+    [
+      "accessor is missing, before checking the cases",
+      () => credit.match(undefined as never, null as never, "review"),
+      "match: accessor must be a function",
+    ],
+    [
       "a case is an unknown outcome",
       () => credit.match(accessor, { employed: "aproved" as never }, "review"),
       'match: cases["employed"] "aproved" is not a declared outcome',

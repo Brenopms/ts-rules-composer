@@ -191,7 +191,7 @@ describe("combine types", () => {
     ).toThrow(TypeError);
   });
 
-  it("rejects a resolver for another outcome set and parallel mode (until D7)", () => {
+  it("rejects a resolver for another outcome set or without isFinal", () => {
     const binaryResolver: Resolver<"failed" | "passed"> = {
       combine: (current) => current,
       isFinal: () => false,
@@ -205,10 +205,52 @@ describe("combine types", () => {
     ).not.toThrow();
     expect(() =>
       credit.combine([approve], {
-        // @ts-expect-error only "sequential" is supported
-        mode: "parallel",
+        // @ts-expect-error combine stops early, so it needs isFinal
+        resolver: { combine: (current: CreditOutcome) => current },
       }),
     ).toThrow(TypeError);
+  });
+});
+
+describe("combineAll types", () => {
+  const credit = defineOutcomes(["declined", "review", "approved"], {
+    onError: "review",
+  });
+  const approve: Decision<App, CreditOutcome> = () => ({
+    outcome: "approved",
+  });
+
+  it("returns a Decision of the toolkit's outcomes", () => {
+    expectTypeOf(credit.combineAll([approve])).toEqualTypeOf<
+      Decision<App, CreditOutcome, unknown>
+    >();
+  });
+
+  it("accepts a combine-only resolver or a full Resolver", () => {
+    const full: Resolver<CreditOutcome> = {
+      combine: (current) => current,
+      isFinal: () => false,
+    };
+
+    expect(() =>
+      credit.combineAll([approve], {
+        resolver: { combine: (current) => current },
+      }),
+    ).not.toThrow();
+    expect(() =>
+      credit.combineAll([approve], { resolver: full }),
+    ).not.toThrow();
+  });
+
+  it("rejects a resolver for another outcome set", () => {
+    expect(() =>
+      credit.combineAll([approve], {
+        resolver: {
+          // @ts-expect-error the resolver's outcomes are not credit outcomes
+          combine: (current: "failed" | "passed") => current,
+        },
+      }),
+    ).not.toThrow();
   });
 });
 

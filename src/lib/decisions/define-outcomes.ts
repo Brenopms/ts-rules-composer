@@ -1,15 +1,15 @@
 import type { Decision, DecisionResult, Predicate, Resolver } from "../types";
 import { branch } from "./branch";
-import { foldSequential } from "./combine";
-import { display, isObject, toList } from "./guards";
+import { foldParallel, foldSequential } from "./combine";
+import { checkFunction, display, isObject, toList } from "./guards";
 import {
-  checkMode,
   localOnError,
   notDeclared,
   type OutcomeSet,
   toCaseTable,
   toChildren,
   toDecision,
+  toMerger,
   toResolver,
 } from "./inputs";
 import { byPrecedence } from "./precedence";
@@ -62,11 +62,12 @@ export interface OutcomeToolkit<O extends string> {
 
   /**
    * Picks an outcome from a yes/no question: `true` runs `whenTrue`, `false`
-   * runs `whenFalse`. A bare-string branch is a constant outcome, checked
-   * when `ifElse` is called (`TypeError` for an unknown one). While running,
-   * a predicate that throws, rejects or returns a non-boolean, or a branch
-   * that fails or returns a malformed result, gives `onError` (the override,
-   * else the toolkit's). Never throws or rejects.
+   * runs `whenFalse`. A bare-string branch is a constant outcome. The
+   * predicate must be a function and each branch a declared outcome or a
+   * decision, checked when `ifElse` is called (`TypeError` otherwise).
+   * While running, a predicate that throws, rejects or returns a
+   * non-boolean, or a branch that fails or returns a malformed result, gives
+   * `onError` (the override, else the toolkit's). Never throws or rejects.
    * @example
    * const affordability = credit.ifElse(
    *   (app: CreditApplication) => app.monthlyDebt / app.monthlyIncome > 0.5,
@@ -84,9 +85,10 @@ export interface OutcomeToolkit<O extends string> {
   /**
    * Picks an outcome by key: the accessor's key selects its own case
    * (`Object.hasOwn`, so an inherited `toString` is a miss), and any other
-   * key runs `defaultCase`. Every supplied case and `defaultCase` must be a
-   * declared outcome or a decision, checked when `match` is called
-   * (`TypeError` otherwise, even for a case set to `undefined`). While
+   * key runs `defaultCase`. The accessor must be a function, and every
+   * supplied case and `defaultCase` a declared outcome or a decision,
+   * checked when `match` is called (`TypeError` otherwise, even for a case
+   * set to `undefined`). While
    * running, an accessor that throws, rejects or returns anything but a
    * string, number or symbol gives `onError` and runs no case; so does a
    * case that fails or returns a malformed result. Never throws or rejects.
@@ -113,12 +115,14 @@ export interface OutcomeToolkit<O extends string> {
    * the resolver (default: precedence, so the outcome declared first wins and
    * the first declared outcome is final). Starts from the first decision's
    * outcome and stops as soon as `resolver.isFinal` is true; later decisions
-   * are not called. A decision that fails or returns a malformed result
-   * becomes `onError` and joins the merge. A resolver method that throws,
-   * returns a promise or returns a malformed value ends the whole `combine`
-   * with `onError`. `decisions`, `mode`, `resolver` and the `onError`
-   * override are checked when `combine` is called (`TypeError`). Never
-   * throws or rejects.
+   * are not called. To run every decision at once, use
+   * {@link OutcomeToolkit.combineAll}. A decision that fails or returns a
+   * malformed result becomes `onError` and joins the merge. A resolver
+   * method that throws, returns a promise or returns a malformed value ends
+   * the whole `combine` with `onError`. `decisions`, `resolver` and the
+   * `onError` override are checked when `combine` is called (`TypeError`).
+   * Never throws or rejects. No timeouts: a decision that never settles
+   * keeps the `combine` pending (`withTimeout` is for rules only).
    * @example
    * // Stops at the first "declined"; otherwise the strongest outcome wins.
    * const creditPolicy = credit.combine([
@@ -130,10 +134,39 @@ export interface OutcomeToolkit<O extends string> {
   combine<TInput, TContext = unknown>(
     decisions: Decisions<TInput, O, TContext>,
     options?: Override<O> & {
-      /** Default `"sequential"`. */
-      readonly mode?: "sequential";
       /** Default: precedence (declaration order). */
       readonly resolver?: Resolver<O>;
+    },
+  ): Decision<TInput, O, TContext>;
+
+  /**
+   * Runs every decision at once, waits for all of them, then merges their
+   * outcomes with `resolver.combine` in declaration order (not the order
+   * they finished in). Default: precedence, so the outcome declared first
+   * wins. Nothing stops early, so the resolver needs only `combine`
+   * (`isFinal` is never read; a full {@link Resolver} works too). A decision
+   * that fails or returns a malformed result becomes `onError` and joins the
+   * merge. A `resolver.combine` that throws, returns a promise or returns a
+   * malformed value ends the whole `combineAll` with `onError`.
+   * `decisions`, `resolver` and the `onError` override are checked when
+   * `combineAll` is called (`TypeError`). Never throws or rejects.
+   *
+   * No timeouts: a decision that never settles keeps the `combineAll`
+   * pending, since it waits for every decision. `withTimeout` is for rules
+   * only; put any time limit inside the decision itself.
+   * @example
+   * // Runs all checks at once; the strongest outcome wins.
+   * const fastPolicy = credit.combineAll([
+   *   affordability,
+   *   employment,
+   *   bureauScore,
+   * ]);
+   */
+  combineAll<TInput, TContext = unknown>(
+    decisions: Decisions<TInput, O, TContext>,
+    options?: Override<O> & {
+      /** Default: precedence (declaration order). Only `combine` is used. */
+      readonly resolver?: Pick<Resolver<O>, "combine">;
     },
   ): Decision<TInput, O, TContext>;
 }
@@ -244,6 +277,34 @@ export const defineOutcomes = <const T extends readonly [string, ...string[]]>(
     return { outcome: result.ok ? result.value : fallback };
   };
 
+  /**
+   * The run side of `combine`/`combineAll`: each child runs through
+   * `runDecision` (a failure joins the merge as `fallback`). Only a resolver
+   * method throws out of `fold`: it ends the whole combinator with
+   * `fallback`, the hook notified once.
+   */
+  const folding =
+    <TInput, TContext, R>(
+      children: Decisions<TInput, O, TContext>,
+      fold: (
+        children: Decisions<TInput, O, TContext>,
+        run: (child: Decision<TInput, O, TContext>) => Promise<O>,
+        resolver: R,
+      ) => Promise<O>,
+      resolver: R,
+      fallback: O,
+    ): Decision<TInput, O, TContext> =>
+    async (input, context) => {
+      const run = async (child: Decision<TInput, O, TContext>) =>
+        (await runDecision(child, input, context, fallback)).outcome;
+      try {
+        return { outcome: await fold(children, run, resolver) };
+      } catch (error) {
+        notify(hook, error);
+        return { outcome: fallback };
+      }
+    };
+
   const toolkit: OutcomeToolkit<O> = {
     outcomes: declared,
     onError,
@@ -252,6 +313,7 @@ export const defineOutcomes = <const T extends readonly [string, ...string[]]>(
       return { outcome };
     },
     ifElse: (predicate, whenTrue, whenFalse, override) => {
+      checkFunction(predicate, "ifElse: predicate");
       const yes = toDecision(set, "ifElse: whenTrue", whenTrue);
       const no = toDecision(set, "ifElse: whenFalse", whenFalse);
       const fallback = localOnError(set, "ifElse", override);
@@ -271,6 +333,7 @@ export const defineOutcomes = <const T extends readonly [string, ...string[]]>(
       };
     },
     match: (accessor, cases, defaultCase, override) => {
+      checkFunction(accessor, "match: accessor");
       const table = toCaseTable(set, cases);
       const otherwise = toDecision(set, "match: defaultCase", defaultCase);
       const fallback = localOnError(set, "match", override);
@@ -294,21 +357,16 @@ export const defineOutcomes = <const T extends readonly [string, ...string[]]>(
       };
     },
     combine: (decisions, options) => {
-      const children = toChildren(decisions);
-      checkMode(options?.mode);
+      const children = toChildren("combine", decisions);
       const resolver = toResolver(set, options?.resolver, precedence);
       const fallback = localOnError(set, "combine", options);
-      return async (input, context) => {
-        const run = async (child: (typeof children)[number]) =>
-          (await runDecision(child, input, context, fallback)).outcome;
-        try {
-          return { outcome: await foldSequential(children, run, resolver) };
-        } catch (error) {
-          // Only a resolver method throws here: it ends the whole combine.
-          notify(hook, error);
-          return { outcome: fallback };
-        }
-      };
+      return folding(children, foldSequential, resolver, fallback);
+    },
+    combineAll: (decisions, options) => {
+      const children = toChildren("combineAll", decisions);
+      const resolver = toMerger(set, options?.resolver, precedence);
+      const fallback = localOnError(set, "combineAll", options);
+      return folding(children, foldParallel, resolver, fallback);
     },
   };
   return Object.freeze(toolkit);

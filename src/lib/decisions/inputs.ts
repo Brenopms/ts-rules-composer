@@ -73,23 +73,17 @@ export const toCaseTable = <O extends string, TInput, TContext>(
   return table;
 };
 
-/** `combine` children: a non-empty copy holding only decision functions. */
+/** `combine`/`combineAll` children: a non-empty copy holding only decision functions. */
 export const toChildren = <O extends string, TInput, TContext>(
+  combinator: string,
   decisions: Decisions<TInput, O, TContext>,
 ): Decisions<TInput, O, TContext> =>
-  toList(decisions, "combine: decisions", (decision, at) => {
+  toList(decisions, `${combinator}: decisions`, (decision, at) => {
     if (typeof decision !== "function") {
       throw new TypeError(`${at} must be a decision function`);
     }
     return decision as Decision<TInput, O, TContext>;
   }) as unknown as Decisions<TInput, O, TContext>;
-
-/** `combine` mode: only `"sequential"` for now. */
-export const checkMode = (mode: unknown): void => {
-  if (mode !== undefined && mode !== "sequential") {
-    throw new TypeError('combine: mode must be "sequential"');
-  }
-};
 
 /** A promise is malformed here; its rejection is marked handled. */
 const isFinalResult = expectBoolean("resolver.isFinal", {
@@ -97,11 +91,35 @@ const isFinalResult = expectBoolean("resolver.isFinal", {
 });
 
 /**
+ * Reads a custom resolver's `combine` once (`message` when it is missing)
+ * and wraps it: called with the resolver as `this`, each result checked
+ * when the fold calls it. A malformed result (including a promise, whose
+ * rejection is marked handled) throws a `TypeError` that ends the whole
+ * combinator.
+ */
+const readCombine = <O extends string>(
+  set: OutcomeSet<O>,
+  resolver: Pick<Resolver<O>, "combine">,
+  message: string,
+): Resolver<O>["combine"] => {
+  const combine: unknown = isObject(resolver) ? resolver.combine : undefined;
+  if (typeof combine !== "function") throw new TypeError(message);
+  return (current, next) => {
+    const merged: unknown = Reflect.apply(combine, resolver, [current, next]);
+    if (set.isDeclared(merged)) return merged;
+    ignoreRejection(merged);
+    throw new TypeError(
+      `resolver.combine returned ${display(merged)}, which is not a declared outcome`,
+    );
+  };
+};
+
+/**
  * `combine` resolver: `fallback` when none is given. A custom one's methods
- * are read once now and called with the resolver as `this`; each result is
- * checked synchronously when the fold calls it, and a malformed one
- * (including a promise, whose rejection is marked handled) throws a
- * `TypeError` that ends the whole `combine`.
+ * are read once now (`combine`, then `isFinal`) and called with the
+ * resolver as `this`; each result is checked synchronously when the fold
+ * calls it, and a malformed one throws a `TypeError` that ends the whole
+ * `combine`.
  */
 export const toResolver = <O extends string>(
   set: OutcomeSet<O>,
@@ -109,25 +127,35 @@ export const toResolver = <O extends string>(
   fallback: Resolver<O>,
 ): Resolver<O> => {
   if (resolver === undefined) return fallback;
-  const combine: unknown = isObject(resolver) ? resolver.combine : undefined;
-  const isFinal: unknown =
-    typeof combine === "function" ? resolver.isFinal : undefined;
-  if (typeof combine !== "function" || typeof isFinal !== "function") {
-    throw new TypeError(
-      "combine: resolver must be an object with combine and isFinal functions",
-    );
-  }
+  const message =
+    "combine: resolver must be an object with combine and isFinal functions";
+  const combine = readCombine(set, resolver, message);
+  const isFinal: unknown = resolver.isFinal;
+  if (typeof isFinal !== "function") throw new TypeError(message);
   return {
-    combine: (current, next) => {
-      const merged: unknown = Reflect.apply(combine, resolver, [current, next]);
-      if (set.isDeclared(merged)) return merged;
-      ignoreRejection(merged);
-      throw new TypeError(
-        `resolver.combine returned ${display(merged)}, which is not a declared outcome`,
-      );
-    },
+    combine,
     isFinal: (current) => {
       return isFinalResult(Reflect.apply(isFinal, resolver, [current]));
     },
+  };
+};
+
+/**
+ * `combineAll` resolver: `fallback` when none is given. Only `combine` is
+ * read (once) and checked like in {@link toResolver}; `isFinal` is never
+ * read, since the parallel fold doesn't stop early.
+ */
+export const toMerger = <O extends string>(
+  set: OutcomeSet<O>,
+  resolver: Pick<Resolver<O>, "combine"> | undefined,
+  fallback: Resolver<O>,
+): Pick<Resolver<O>, "combine"> => {
+  if (resolver === undefined) return fallback;
+  return {
+    combine: readCombine(
+      set,
+      resolver,
+      "combineAll: resolver must be an object with a combine function",
+    ),
   };
 };

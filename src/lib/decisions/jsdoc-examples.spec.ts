@@ -118,6 +118,40 @@ describe("JSDoc examples", () => {
     expect(await creditPolicy(application)).toEqual({ outcome: "review" });
   });
 
+  it("OutcomeToolkit.combineAll", async () => {
+    const credit = defineOutcomes(["declined", "review", "approved"], {
+      onError: "review",
+    });
+    type CreditOutcome = OutcomeOf<typeof credit>;
+    const affordability = credit.ifElse(
+      (app: CreditApplication) => app.monthlyDebt / app.monthlyIncome > 0.5,
+      "declined",
+      "approved",
+    );
+    const employment = credit.match(
+      (app: CreditApplication) => app.employment,
+      { employed: "approved", unemployed: "declined" },
+      "review",
+    );
+    const bureauScore: Decision<CreditApplication, CreditOutcome> = async (
+      app,
+    ) =>
+      credit.outcome(
+        (await creditBureau.score(app.applicantId)) >= 700
+          ? "approved"
+          : "review",
+      );
+
+    // Runs all checks at once; the strongest outcome wins.
+    const fastPolicy = credit.combineAll([
+      affordability,
+      employment,
+      bureauScore,
+    ]);
+
+    expect(await fastPolicy(application)).toEqual({ outcome: "review" });
+  });
+
   it("Resolver", async () => {
     const credit = defineOutcomes(["declined", "review", "approved"], {
       onError: "review",

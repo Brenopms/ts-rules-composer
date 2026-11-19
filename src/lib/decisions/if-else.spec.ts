@@ -344,6 +344,16 @@ describe("toolkit.ifElse construction", () => {
 
   it.each<[string, () => unknown, string]>([
     [
+      "predicate is not a function",
+      () => credit.ifElse(true as never, "approved", "declined"),
+      "ifElse: predicate must be a function",
+    ],
+    [
+      "predicate is missing, before checking the branches",
+      () => credit.ifElse(undefined as never, "aproved" as never, "declined"),
+      "ifElse: predicate must be a function",
+    ],
+    [
       "whenTrue is an unknown outcome",
       () => credit.ifElse(yes, "aproved" as never, "declined"),
       'ifElse: whenTrue "aproved" is not a declared outcome',
