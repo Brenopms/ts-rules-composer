@@ -327,6 +327,18 @@ describe("toolkit.match construction", () => {
       'match: cases["retired"] must be a declared outcome or a decision function',
     ],
     [
+      "a non-enumerable own case is explicitly undefined",
+      () =>
+        credit.match(
+          accessor,
+          Object.defineProperty({ employed: "approved" }, "retired", {
+            value: undefined,
+          }) as never,
+          "review",
+        ),
+      'match: cases["retired"] must be a declared outcome or a decision function',
+    ],
+    [
       "cases is not an object",
       () => credit.match(accessor, null as never, "review"),
       "match: cases must be an object",
