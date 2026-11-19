@@ -44,14 +44,24 @@ export const toList = <T>(
 /**
  * A check for callbacks that must return a boolean, with no truthiness
  * coercion. Throws `TypeError` (`<what> must return a boolean, got <type>`).
+ * @param options.describe - Names the bad value's type (default `typeName`)
+ * @param options.onInvalid - Called with a bad value before the throw
  */
 export const expectBoolean =
-  (what: string) =>
+  (
+    what: string,
+    {
+      describe = typeName,
+      onInvalid,
+    }: {
+      readonly describe?: (value: unknown) => string;
+      readonly onInvalid?: (value: unknown) => void;
+    } = {},
+  ) =>
   (value: unknown): boolean => {
-    if (typeof value !== "boolean") {
-      throw new TypeError(
-        `${what} must return a boolean, got ${typeName(value)}`,
-      );
-    }
-    return value;
+    if (typeof value === "boolean") return value;
+    onInvalid?.(value);
+    throw new TypeError(
+      `${what} must return a boolean, got ${describe(value)}`,
+    );
   };

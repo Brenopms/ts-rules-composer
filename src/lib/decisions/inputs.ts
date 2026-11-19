@@ -91,7 +91,10 @@ export const checkMode = (mode: unknown): void => {
   }
 };
 
-const isFinalResult = expectBoolean("resolver.isFinal");
+/** A promise is malformed here; its rejection is marked handled. */
+const isFinalResult = expectBoolean("resolver.isFinal", {
+  onInvalid: ignoreRejection,
+});
 
 /**
  * `combine` resolver: `fallback` when none is given. A custom one's methods
@@ -124,9 +127,7 @@ export const toResolver = <O extends string>(
       );
     },
     isFinal: (current) => {
-      const final: unknown = Reflect.apply(isFinal, resolver, [current]);
-      if (typeof final !== "boolean") ignoreRejection(final);
-      return isFinalResult(final);
+      return isFinalResult(Reflect.apply(isFinal, resolver, [current]));
     },
   };
 };

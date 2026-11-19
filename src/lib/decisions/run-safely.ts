@@ -55,7 +55,9 @@ export const runSafely = async <T>(
 };
 
 /** Check for predicates: a boolean, no truthiness coercion. */
-export const toBoolean: Check<boolean> = expectBoolean("predicate");
+export const toBoolean: Check<boolean> = expectBoolean("predicate", {
+  describe: (value) => typeof value,
+});
 
 /** Check for accessors: a property key, no conversion. */
 export const toKey: Check<PropertyKey> = (value) => {
