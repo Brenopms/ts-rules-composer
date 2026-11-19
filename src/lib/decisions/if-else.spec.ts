@@ -16,6 +16,13 @@ const thrownBy = (build: () => unknown): unknown => {
   throw new Error("expected a throw");
 };
 
+/** Its string conversion throws, so a message must not coerce it. */
+const unprintable = {
+  toString: () => {
+    throw new RangeError("cannot print");
+  },
+};
+
 const makeCredit = (onErrorCaught?: (error: unknown) => void) =>
   defineOutcomes(["declined", "review", "approved"], {
     onError: "review",
@@ -77,13 +84,15 @@ describe("toolkit.ifElse routing", () => {
 
   it("awaits an async predicate and an async decision branch", async () => {
     const credit = makeCredit();
+    // "approved" is neither the other branch nor the fallback ("review"),
+    // so a callback that isn't awaited can't pass by accident.
     const decide = credit.ifElse(
       async () => true,
-      async () => ({ outcome: "review" as const }),
-      "approved",
+      async () => ({ outcome: "approved" as const }),
+      "declined",
     );
 
-    expect(await decide({ age: 30 })).toStrictEqual({ outcome: "review" });
+    expect(await decide({ age: 30 })).toStrictEqual({ outcome: "approved" });
   });
 
   it("forwards input and context to the predicate and the branch", async () => {
@@ -225,6 +234,21 @@ describe("toolkit.ifElse failures", () => {
     },
   );
 
+  it("passes a TypeError to the hook for an out-of-set outcome whose conversion throws", async () => {
+    const hook = vi.fn();
+    const credit = makeCredit(hook);
+
+    const result = await credit.ifElse(
+      () => true,
+      (() => ({ outcome: unprintable })) as never,
+      "approved",
+    )({ age: 30 });
+
+    expect(result).toStrictEqual({ outcome: "review" });
+    expect(hook).toHaveBeenCalledOnce();
+    expect(hook.mock.calls[0]?.[0]).toBeInstanceOf(TypeError);
+  });
+
   it("calls onErrorCaught before the outcome is returned", async () => {
     const order: string[] = [];
     const credit = makeCredit(() => order.push("hook"));
@@ -346,6 +370,14 @@ describe("toolkit.ifElse construction", () => {
           onError: "unknown" as never,
         }),
       'ifElse: onError "unknown" is not a declared outcome',
+    ],
+    [
+      "the onError override is a non-string whose conversion throws",
+      () =>
+        credit.ifElse(yes, "approved", "declined", {
+          onError: unprintable as never,
+        }),
+      "ifElse: onError (object) is not a declared outcome",
     ],
   ])("throws a TypeError when %s", (_, build, message) => {
     const error = thrownBy(build);
