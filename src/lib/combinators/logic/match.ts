@@ -87,7 +87,9 @@ export const match = <
     if (!isRule<TInput, TError, TContext>(defaultCase)) {
       return () => fail(defaultCase);
     }
-    return getNormalizedRule(defaultCase, options);
+    // Normalized only when it runs, so options are read for the rule that runs.
+    return (input, context) =>
+      getNormalizedRule(defaultCase, options)(input, context);
   };
 
   return attachNode(
@@ -96,8 +98,12 @@ export const match = <
       const selected = switchCase(
         key,
         // Truthy lookup, inherited keys included (unlike toolkit.match).
-        (k): Rule<TInput, TError, TContext> | undefined =>
-          cases[k] ? getNormalizedRule(cases[k], options) : undefined,
+        (k): Rule<TInput, TError, TContext> | undefined => {
+          const matchedRule = cases[k];
+          return matchedRule
+            ? getNormalizedRule(matchedRule, options)
+            : undefined;
+        },
         fallback(key),
       );
       return selected(input, context);
