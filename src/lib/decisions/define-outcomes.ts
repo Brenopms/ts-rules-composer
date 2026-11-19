@@ -1,6 +1,15 @@
-import type { Decision, DecisionResult, Predicate } from "../types";
+import type { Decision, DecisionResult, Predicate, Resolver } from "../types";
 import { branch } from "./branch";
-import { type ErrorHook, runSafely, toBoolean, toKey } from "./run-safely";
+import { foldSequential } from "./combine";
+import { byPrecedence } from "./precedence";
+import {
+  type ErrorHook,
+  ignoreRejection,
+  notify,
+  runSafely,
+  toBoolean,
+  toKey,
+} from "./run-safely";
 import { switchCase } from "./switch";
 
 /** A declared outcome (constant decision) or a decision to run. */
@@ -10,6 +19,12 @@ type Branch<TInput, O extends string, TContext> =
 
 /** Per-combinator override of the toolkit's `onError`. */
 type Override<O extends string> = { readonly onError?: O };
+
+/** A non-empty list of decisions, for `combine`. */
+type Decisions<TInput, O extends string, TContext> = readonly [
+  Decision<TInput, O, TContext>,
+  ...Decision<TInput, O, TContext>[],
+];
 
 /**
  * A declared outcome set and the decision builders bound to it, returned by
@@ -81,6 +96,35 @@ export interface OutcomeToolkit<O extends string> {
     cases: Partial<Record<TKey, Branch<TInput, O, TContext>>>,
     defaultCase: Branch<TInput, O, TContext>,
     options?: Override<O>,
+  ): Decision<TInput, O, TContext>;
+
+  /**
+   * Runs decisions one at a time, in order, and merges their outcomes with
+   * the resolver (default: precedence, so the outcome declared first wins and
+   * the first declared outcome is final). Starts from the first decision's
+   * outcome and stops as soon as `resolver.isFinal` is true; later decisions
+   * are not called. A decision that fails or returns a malformed result
+   * becomes `onError` and joins the merge. A resolver method that throws,
+   * returns a promise or returns a malformed value ends the whole `combine`
+   * with `onError`. `decisions`, `mode`, `resolver` and the `onError`
+   * override are checked when `combine` is called (`TypeError`). Never
+   * throws or rejects.
+   * @example
+   * // Stops at the first "declined"; otherwise the strongest outcome wins.
+   * const creditPolicy = credit.combine([
+   *   affordability,
+   *   employment,
+   *   bureauScore,
+   * ]);
+   */
+  combine<TInput, TContext = unknown>(
+    decisions: Decisions<TInput, O, TContext>,
+    options?: Override<O> & {
+      /** Default `"sequential"`. */
+      readonly mode?: "sequential";
+      /** Default: precedence (declaration order). */
+      readonly resolver?: Resolver<O>;
+    },
   ): Decision<TInput, O, TContext>;
 }
 
@@ -254,6 +298,72 @@ export const defineOutcomes = <const T extends readonly [string, ...string[]]>(
     return table;
   };
 
+  /** Copies `decisions`, checking each entry (holes included) is a function. */
+  const toChildren = <TInput, TContext>(
+    decisions: Decisions<TInput, O, TContext>,
+  ): Decisions<TInput, O, TContext> => {
+    if (!Array.isArray(decisions)) {
+      throw new TypeError("combine: decisions must be an array");
+    }
+    if (decisions.length === 0) {
+      throw new TypeError("combine: decisions must not be empty");
+    }
+    const children: Decision<TInput, O, TContext>[] = [];
+    for (let index = 0; index < decisions.length; index++) {
+      const decision: unknown = decisions[index];
+      if (typeof decision !== "function") {
+        throw new TypeError(
+          `combine: decisions[${index}] must be a decision function`,
+        );
+      }
+      children.push(decision as Decision<TInput, O, TContext>);
+    }
+    return children as unknown as Decisions<TInput, O, TContext>;
+  };
+
+  const precedence = byPrecedence(declared);
+
+  /**
+   * The default resolver, or a custom one whose methods are read once now
+   * and called with the resolver as `this`. Each result is checked
+   * synchronously: a malformed one throws a `TypeError`.
+   */
+  const toResolver = (resolver: Resolver<O> | undefined): Resolver<O> => {
+    if (resolver === undefined) return precedence;
+    const combine: unknown =
+      typeof resolver === "object" && resolver !== null
+        ? resolver.combine
+        : undefined;
+    const isFinal: unknown =
+      typeof combine === "function" ? resolver.isFinal : undefined;
+    if (typeof combine !== "function" || typeof isFinal !== "function") {
+      throw new TypeError(
+        "combine: resolver must be an object with combine and isFinal functions",
+      );
+    }
+    return {
+      combine: (current, next) => {
+        const merged: unknown = Reflect.apply(combine, resolver, [
+          current,
+          next,
+        ]);
+        if (isDeclared(merged)) return merged;
+        ignoreRejection(merged);
+        throw new TypeError(
+          `resolver.combine returned ${display(merged)}, which is not a declared outcome`,
+        );
+      },
+      isFinal: (current) => {
+        const final: unknown = Reflect.apply(isFinal, resolver, [current]);
+        if (typeof final === "boolean") return final;
+        ignoreRejection(final);
+        throw new TypeError(
+          `resolver.isFinal must return a boolean, got ${final === null ? "null" : typeof final}`,
+        );
+      },
+    };
+  };
+
   const toolkit: OutcomeToolkit<O> = {
     outcomes: declared,
     onError,
@@ -301,6 +411,26 @@ export const defineOutcomes = <const T extends readonly [string, ...string[]]>(
           context,
           fallback,
         );
+      };
+    },
+    combine: (decisions, options) => {
+      const children = toChildren(decisions);
+      const mode = options?.mode;
+      if (mode !== undefined && mode !== "sequential") {
+        throw new TypeError('combine: mode must be "sequential"');
+      }
+      const resolver = toResolver(options?.resolver);
+      const fallback = localOnError("combine", options);
+      return async (input, context) => {
+        const run = async (child: (typeof children)[number]) =>
+          (await runDecision(child, input, context, fallback)).outcome;
+        try {
+          return { outcome: await foldSequential(children, run, resolver) };
+        } catch (error) {
+          // Only a resolver method throws here: it ends the whole combine.
+          notify(hook, error);
+          return { outcome: fallback };
+        }
       };
     },
   };

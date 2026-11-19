@@ -16,11 +16,19 @@ export type SafeResult<T> =
   | { readonly ok: true; readonly value: T }
   | { readonly ok: false };
 
+/**
+ * Marks a value that may be a rejected promise as handled, so an ignored
+ * rejection never surfaces as an unhandled one.
+ */
+export const ignoreRejection = (value: unknown): void => {
+  Promise.resolve(value).catch(() => {});
+};
+
 /** Calls the hook; its throws and rejections are swallowed. */
-const notify = (hook: ErrorHook | undefined, error: unknown): void => {
+export const notify = (hook: ErrorHook | undefined, error: unknown): void => {
   if (hook === undefined) return;
   try {
-    Promise.resolve(hook(error)).catch(() => {});
+    ignoreRejection(hook(error));
   } catch {
     // The hook never changes the outcome.
   }

@@ -4,6 +4,7 @@ export type * from "./decision";
 export type * from "./predicate";
 export type * from "./predicate-result";
 export type * from "./predicate-safe";
+export type * from "./resolver";
 export type * from "./rule";
 export type * from "./rule-result";
 export type * from "./rule-safety-options";
