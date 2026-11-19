@@ -150,6 +150,30 @@ type PredicateResult<TError = string> = {
  */
 type PredicateSafe<TInput, TError, TContext> = (input: TInput, context?: TContext) => PredicateResult<TError> | Promise<PredicateResult<TError>>;
 /**
+ * How \`combine\` merges outcomes. Both methods are synchronous: a method that
+ * throws, returns a promise or returns a malformed value ends the whole
+ * \`combine\` with \`onError\`.
+ * @template O - The outcome labels
+ * @example
+ * // The strongest outcome wins, but every decision runs (e.g. for auditing).
+ * const runAll: Resolver<CreditOutcome> = {
+ *   combine: (current, next) =>
+ *     credit.outcomes.indexOf(next) < credit.outcomes.indexOf(current)
+ *       ? next
+ *       : current,
+ *   isFinal: () => false,
+ * };
+ * const auditedPolicy = credit.combine([affordability, employment], {
+ *   resolver: runAll,
+ * });
+ */
+type Resolver<O extends string> = {
+  /** Merge the outcome so far with the next one. Returns a declared outcome. */
+  readonly combine: (current: O, next: O) => O;
+  /** True when no later outcome can change the result (sequential stops). */
+  readonly isFinal: (current: O) => boolean;
+};
+/**
  * Composes multiple rules into a single rule that runs them all and collects all errors.
  * @template TInput - The type of the input to validate
  * @template TError - The type of the error (defaults to string)
@@ -836,6 +860,8 @@ type Branch<TInput, O extends string, TContext> = O | Decision<TInput, O, TConte
 type Override<O extends string> = {
   readonly onError?: O;
 };
+/** A non-empty list of decisions, for \`combine\`. */
+type Decisions<TInput, O extends string, TContext> = readonly [Decision<TInput, O, TContext>, ...Decision<TInput, O, TContext>[]];
 /**
  * A declared outcome set and the decision builders bound to it, returned by
  * {@link defineOutcomes}. Frozen.
@@ -894,6 +920,31 @@ interface OutcomeToolkit<O extends string> {
    * );
    */
   match<TInput, TKey extends PropertyKey, TContext = unknown>(accessor: (input: TInput, context?: TContext) => TKey | Promise<TKey>, cases: Partial<Record<TKey, Branch<TInput, O, TContext>>>, defaultCase: Branch<TInput, O, TContext>, options?: Override<O>): Decision<TInput, O, TContext>;
+  /**
+   * Runs decisions one at a time, in order, and merges their outcomes with
+   * the resolver (default: precedence, so the outcome declared first wins and
+   * the first declared outcome is final). Starts from the first decision's
+   * outcome and stops as soon as \`resolver.isFinal\` is true; later decisions
+   * are not called. A decision that fails or returns a malformed result
+   * becomes \`onError\` and joins the merge. A resolver method that throws,
+   * returns a promise or returns a malformed value ends the whole \`combine\`
+   * with \`onError\`. \`decisions\`, \`mode\`, \`resolver\` and the \`onError\`
+   * override are checked when \`combine\` is called (\`TypeError\`). Never
+   * throws or rejects.
+   * @example
+   * // Stops at the first "declined"; otherwise the strongest outcome wins.
+   * const creditPolicy = credit.combine([
+   *   affordability,
+   *   employment,
+   *   bureauScore,
+   * ]);
+   */
+  combine<TInput, TContext = unknown>(decisions: Decisions<TInput, O, TContext>, options?: Override<O> & {
+    /** Default \`"sequential"\`. */
+    readonly mode?: "sequential";
+    /** Default: precedence (declaration order). */
+    readonly resolver?: Resolver<O>;
+  }): Decision<TInput, O, TContext>;
 }
 /**
  * The outcome labels of a toolkit.
@@ -1114,7 +1165,7 @@ export declare const pass: <TError = string>() => RuleResult<TError>;
 export declare const calculateDelay: (strategy: RetryStrategy | undefined, attempt: number, initialDelayMs: number) => number;
 export declare const getNormalizedRule: <TInput, TError, TContext>(rule: Rule<TInput, TError, TContext>, opts?: RuleSafetyOptions<TError>) => Rule<TInput, TError, TContext>;
 export declare const getNormalizedRules: <TInput, TError, TContext>(rules: Rule<TInput, TError, TContext>[], opts?: RuleSafetyOptions<TError>) => Rule<TInput, TError, TContext>[];
-export type { CompositionOptions, DebugOptions, Decision, DecisionResult, GraphNode, OutcomeOf, OutcomeToolkit, Predicate, PredicateResult, PredicateSafe, Rule, RuleGraph, RuleResult, RuleSafetyOptions };
+export type { CompositionOptions, DebugOptions, Decision, DecisionResult, GraphNode, OutcomeOf, OutcomeToolkit, Predicate, PredicateResult, PredicateSafe, Resolver, Rule, RuleGraph, RuleResult, RuleSafetyOptions };
 //# sourceMappingURL=index.d.cts.map
 // ==== index.d.ts ====
 import { n as RuleResult, t as Rule } from "./rule-[hash].js";
@@ -1265,6 +1316,30 @@ type PredicateResult<TError = string> = {
  */
 type PredicateSafe<TInput, TError, TContext> = (input: TInput, context?: TContext) => PredicateResult<TError> | Promise<PredicateResult<TError>>;
 /**
+ * How \`combine\` merges outcomes. Both methods are synchronous: a method that
+ * throws, returns a promise or returns a malformed value ends the whole
+ * \`combine\` with \`onError\`.
+ * @template O - The outcome labels
+ * @example
+ * // The strongest outcome wins, but every decision runs (e.g. for auditing).
+ * const runAll: Resolver<CreditOutcome> = {
+ *   combine: (current, next) =>
+ *     credit.outcomes.indexOf(next) < credit.outcomes.indexOf(current)
+ *       ? next
+ *       : current,
+ *   isFinal: () => false,
+ * };
+ * const auditedPolicy = credit.combine([affordability, employment], {
+ *   resolver: runAll,
+ * });
+ */
+type Resolver<O extends string> = {
+  /** Merge the outcome so far with the next one. Returns a declared outcome. */
+  readonly combine: (current: O, next: O) => O;
+  /** True when no later outcome can change the result (sequential stops). */
+  readonly isFinal: (current: O) => boolean;
+};
+/**
  * Composes multiple rules into a single rule that runs them all and collects all errors.
  * @template TInput - The type of the input to validate
  * @template TError - The type of the error (defaults to string)
@@ -1951,6 +2026,8 @@ type Branch<TInput, O extends string, TContext> = O | Decision<TInput, O, TConte
 type Override<O extends string> = {
   readonly onError?: O;
 };
+/** A non-empty list of decisions, for \`combine\`. */
+type Decisions<TInput, O extends string, TContext> = readonly [Decision<TInput, O, TContext>, ...Decision<TInput, O, TContext>[]];
 /**
  * A declared outcome set and the decision builders bound to it, returned by
  * {@link defineOutcomes}. Frozen.
@@ -2009,6 +2086,31 @@ interface OutcomeToolkit<O extends string> {
    * );
    */
   match<TInput, TKey extends PropertyKey, TContext = unknown>(accessor: (input: TInput, context?: TContext) => TKey | Promise<TKey>, cases: Partial<Record<TKey, Branch<TInput, O, TContext>>>, defaultCase: Branch<TInput, O, TContext>, options?: Override<O>): Decision<TInput, O, TContext>;
+  /**
+   * Runs decisions one at a time, in order, and merges their outcomes with
+   * the resolver (default: precedence, so the outcome declared first wins and
+   * the first declared outcome is final). Starts from the first decision's
+   * outcome and stops as soon as \`resolver.isFinal\` is true; later decisions
+   * are not called. A decision that fails or returns a malformed result
+   * becomes \`onError\` and joins the merge. A resolver method that throws,
+   * returns a promise or returns a malformed value ends the whole \`combine\`
+   * with \`onError\`. \`decisions\`, \`mode\`, \`resolver\` and the \`onError\`
+   * override are checked when \`combine\` is called (\`TypeError\`). Never
+   * throws or rejects.
+   * @example
+   * // Stops at the first "declined"; otherwise the strongest outcome wins.
+   * const creditPolicy = credit.combine([
+   *   affordability,
+   *   employment,
+   *   bureauScore,
+   * ]);
+   */
+  combine<TInput, TContext = unknown>(decisions: Decisions<TInput, O, TContext>, options?: Override<O> & {
+    /** Default \`"sequential"\`. */
+    readonly mode?: "sequential";
+    /** Default: precedence (declaration order). */
+    readonly resolver?: Resolver<O>;
+  }): Decision<TInput, O, TContext>;
 }
 /**
  * The outcome labels of a toolkit.
@@ -2229,7 +2331,7 @@ export declare const pass: <TError = string>() => RuleResult<TError>;
 export declare const calculateDelay: (strategy: RetryStrategy | undefined, attempt: number, initialDelayMs: number) => number;
 export declare const getNormalizedRule: <TInput, TError, TContext>(rule: Rule<TInput, TError, TContext>, opts?: RuleSafetyOptions<TError>) => Rule<TInput, TError, TContext>;
 export declare const getNormalizedRules: <TInput, TError, TContext>(rules: Rule<TInput, TError, TContext>[], opts?: RuleSafetyOptions<TError>) => Rule<TInput, TError, TContext>[];
-export type { CompositionOptions, DebugOptions, Decision, DecisionResult, GraphNode, OutcomeOf, OutcomeToolkit, Predicate, PredicateResult, PredicateSafe, Rule, RuleGraph, RuleResult, RuleSafetyOptions };
+export type { CompositionOptions, DebugOptions, Decision, DecisionResult, GraphNode, OutcomeOf, OutcomeToolkit, Predicate, PredicateResult, PredicateSafe, Resolver, Rule, RuleGraph, RuleResult, RuleSafetyOptions };
 //# sourceMappingURL=index.d.ts.map
 // ==== mermaid.d.cts ====
 import { t as Rule } from "./rule-[hash].cjs";

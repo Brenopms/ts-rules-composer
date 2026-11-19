@@ -21,4 +21,10 @@ describe("decision combinators attach no graph node", () => {
   it("match", () => {
     expect(readNode(credit.match(() => "a", {}, "review"))).toBe(undefined);
   });
+
+  it("combine", () => {
+    expect(readNode(credit.combine([() => ({ outcome: "review" })]))).toBe(
+      undefined,
+    );
+  });
 });

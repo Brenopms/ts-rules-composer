@@ -1,5 +1,5 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
-import type { Decision, DecisionResult, Rule } from "../types";
+import type { Decision, DecisionResult, Resolver, Rule } from "../types";
 import { defineOutcomes, type OutcomeOf } from "./define-outcomes";
 
 interface App {
@@ -153,6 +153,61 @@ describe("match types", () => {
         { employed: "aproved" },
         "review",
       ),
+    ).toThrow(TypeError);
+  });
+});
+
+describe("combine types", () => {
+  const approve: Decision<App, CreditOutcome> = () => ({ outcome: "approved" });
+
+  it("infers the input and outcomes from the decisions", () => {
+    const decide = credit.combine([approve, approve]);
+
+    expectTypeOf(decide).toEqualTypeOf<Decision<App, CreditOutcome>>();
+  });
+
+  it("accepts raw Rules in a binary toolkit", () => {
+    const binary = defineOutcomes(["failed", "passed"], { onError: "failed" });
+    const rule: Rule<App, DomainError, Ctx> = () => ({ outcome: "passed" });
+
+    const decide = binary.combine([rule]);
+
+    expectTypeOf(decide).toEqualTypeOf<
+      Decision<App, "failed" | "passed", Ctx>
+    >();
+  });
+
+  it("rejects a raw Rule in the credit toolkit", () => {
+    const rule: Rule<App> = () => ({ outcome: "passed" });
+
+    // @ts-expect-error "passed" | "failed" are not credit outcomes
+    credit.combine([rule]);
+  });
+
+  it("rejects an empty list", () => {
+    expect(() =>
+      // @ts-expect-error at least one decision is required
+      credit.combine([]),
+    ).toThrow(TypeError);
+  });
+
+  it("rejects a resolver for another outcome set and parallel mode (until D7)", () => {
+    const binaryResolver: Resolver<"failed" | "passed"> = {
+      combine: (current) => current,
+      isFinal: () => false,
+    };
+
+    expect(() =>
+      credit.combine([approve], {
+        // @ts-expect-error the resolver's outcomes are not credit outcomes
+        resolver: binaryResolver,
+      }),
+    ).not.toThrow();
+    expect(() =>
+      credit.combine([approve], {
+        // @ts-expect-error only "sequential" is supported
+        mode: "parallel",
+      }),
     ).toThrow(TypeError);
   });
 });
