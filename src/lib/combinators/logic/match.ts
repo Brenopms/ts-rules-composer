@@ -1,3 +1,4 @@
+import { switchCase } from "../../decisions/switch";
 import { attachNode } from "../../graph/node";
 import { fail, getNormalizedRule } from "../../helpers";
 import type { Rule, RuleResult, RuleSafetyOptions } from "../../types";
@@ -77,30 +78,29 @@ export const match = <
   defaultCase?: Rule<TInput, TError, TContext> | TError,
   options?: RuleSafetyOptions<TError>,
 ): Rule<TInput, TError, TContext> => {
+  /** The rule to run when no case matches the key. */
+  const fallback = (key: TKey): Rule<TInput, TError, TContext> => {
+    if (defaultCase === undefined) {
+      return () => fail(`No matching rule for key: ${String(key)}` as TError);
+    }
+    // if default case is not a rule, fail the error/message directly
+    if (!isRule<TInput, TError, TContext>(defaultCase)) {
+      return () => fail(defaultCase);
+    }
+    return getNormalizedRule(defaultCase, options);
+  };
+
   return attachNode(
     async (input: TInput, context?: TContext): Promise<RuleResult<TError>> => {
       const key = await accessor(input, context);
-      const matchedRule = cases[key];
-
-      if (matchedRule) {
-        const safeMatchedRule = getNormalizedRule(matchedRule, options);
-        return safeMatchedRule(input, context);
-      }
-
-      if (defaultCase !== undefined) {
-        // if default case is not a rule, fail the error/messae directly
-        if (!isRule<TInput, TError, TContext>(defaultCase)) {
-          return fail(defaultCase);
-        }
-
-        const safeDefaultCase = getNormalizedRule(
-          defaultCase as Rule<TInput, TError, TContext>,
-          options,
-        );
-        return safeDefaultCase(input, context);
-      }
-
-      return fail(`No matching rule for key: ${String(key)}` as TError);
+      const selected = switchCase(
+        key,
+        // Truthy lookup, inherited keys included (unlike toolkit.match).
+        (k): Rule<TInput, TError, TContext> | undefined =>
+          cases[k] ? getNormalizedRule(cases[k], options) : undefined,
+        fallback(key),
+      );
+      return selected(input, context);
     },
     {
       kind: "switch",
