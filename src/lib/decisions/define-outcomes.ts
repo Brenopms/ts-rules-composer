@@ -32,7 +32,14 @@ export interface OutcomeToolkit<O extends string> {
  */
 export type OutcomeOf<T> = T extends OutcomeToolkit<infer O> ? O : never;
 
-const quoted = (value: unknown) => `"${String(value)}"`;
+/**
+ * A label for an error message. Never converts a non-string: an object's
+ * `toString` may throw and replace the `TypeError` being built.
+ */
+const display = (value: unknown): string =>
+  typeof value === "string"
+    ? `"${value}"`
+    : `(${value === null ? "null" : typeof value})`;
 
 const validateOutcomes = (outcomes: unknown): readonly string[] => {
   if (!Array.isArray(outcomes)) {
@@ -41,21 +48,23 @@ const validateOutcomes = (outcomes: unknown): readonly string[] => {
   if (outcomes.length === 0) {
     throw new TypeError("defineOutcomes: outcomes must not be empty");
   }
-  const seen = new Set<string>();
-  outcomes.forEach((outcome: unknown, index) => {
+  // An indexed loop, not forEach: forEach skips the holes of a sparse array.
+  const declared: string[] = [];
+  for (let index = 0; index < outcomes.length; index++) {
+    const outcome: unknown = outcomes[index];
     if (typeof outcome !== "string" || outcome === "") {
       throw new TypeError(
         `defineOutcomes: outcomes[${index}] must be a non-empty string`,
       );
     }
-    if (seen.has(outcome)) {
+    if (declared.includes(outcome)) {
       throw new TypeError(
-        `defineOutcomes: duplicate outcome ${quoted(outcome)}`,
+        `defineOutcomes: duplicate outcome ${display(outcome)}`,
       );
     }
-    seen.add(outcome);
-  });
-  return Object.freeze([...outcomes]);
+    declared.push(outcome);
+  }
+  return Object.freeze(declared);
 };
 
 /**
@@ -90,7 +99,7 @@ export const defineOutcomes = <const T extends readonly [string, ...string[]]>(
   }
   if (!isDeclared(onError)) {
     throw new TypeError(
-      `defineOutcomes: onError ${quoted(onError)} is not a declared outcome`,
+      `defineOutcomes: onError ${display(onError)} is not a declared outcome`,
     );
   }
   if (
@@ -108,7 +117,7 @@ export const defineOutcomes = <const T extends readonly [string, ...string[]]>(
     outcome: (outcome: O): DecisionResult<O> => {
       if (!isDeclared(outcome)) {
         throw new TypeError(
-          `outcome: ${quoted(outcome)} is not a declared outcome`,
+          `outcome: ${display(outcome)} is not a declared outcome`,
         );
       }
       return { outcome };

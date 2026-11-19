@@ -1,6 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { defineOutcomes } from "./define-outcomes";
 
+/** Its string conversion throws, so a message must not coerce it. */
+const unprintable = {
+  toString: () => {
+    throw new RangeError("cannot print");
+  },
+};
+
+/** `["declined", <hole>]`: `forEach` and friends skip index 1. */
+const withHole = (): string[] => {
+  const outcomes = ["declined"];
+  outcomes.length = 2;
+  return outcomes;
+};
+
 const thrownBy = (build: () => unknown): unknown => {
   try {
     build();
@@ -37,6 +51,12 @@ describe("defineOutcomes", () => {
       "defineOutcomes: outcomes[1] must be a non-empty string",
     ],
     [
+      "an outcome is a hole in a sparse array",
+      () =>
+        defineOutcomes(withHole() as never, { onError: "declined" as never }),
+      "defineOutcomes: outcomes[1] must be a non-empty string",
+    ],
+    [
       "an outcome is declared twice",
       () =>
         defineOutcomes(["declined", "review", "declined"], {
@@ -58,6 +78,11 @@ describe("defineOutcomes", () => {
       "onError is not a declared outcome",
       () => defineOutcomes(["declined"], { onError: "review" as never }),
       'defineOutcomes: onError "review" is not a declared outcome',
+    ],
+    [
+      "onError is a non-string whose conversion throws",
+      () => defineOutcomes(["declined"], { onError: unprintable as never }),
+      "defineOutcomes: onError (object) is not a declared outcome",
     ],
     [
       "onErrorCaught is not a function",
@@ -141,6 +166,15 @@ describe("toolkit.outcome", () => {
     expect(error).toBeInstanceOf(TypeError);
     expect((error as TypeError).message).toBe(
       'outcome: "aproved" is not a declared outcome',
+    );
+  });
+
+  it("describes a non-string label by its type, without converting it", () => {
+    const error = thrownBy(() => credit.outcome(unprintable as never));
+
+    expect(error).toBeInstanceOf(TypeError);
+    expect((error as TypeError).message).toBe(
+      "outcome: (object) is not a declared outcome",
     );
   });
 });
