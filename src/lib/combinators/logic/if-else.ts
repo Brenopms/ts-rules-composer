@@ -1,3 +1,4 @@
+import { branch } from "../../decisions/branch";
 import { attachNode } from "../../graph/node";
 import { fail, getNormalizedRules, pass } from "../../helpers";
 import type { Predicate, Rule } from "../../types";
@@ -56,12 +57,12 @@ export const ifElse = <TInput, TError = string, TContext = unknown>(
         options,
       );
 
-      const shouldBranch = safePredicateResult.value;
-      return shouldBranch
-        ? normalizedIfRule(input, context)
-        : elseRule
-          ? normalizedElseRule(input, context)
-          : pass();
+      const selected = branch(
+        safePredicateResult.value,
+        normalizedIfRule,
+        elseRule ? normalizedElseRule : () => pass(),
+      );
+      return selected(input, context);
     },
     {
       kind: "branch",
