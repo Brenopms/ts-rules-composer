@@ -177,10 +177,11 @@ export interface OutcomeToolkit<O extends string> {
    * this toolkit: `failed` gives `mapping.failed`, `passed` gives
    * `mapping.passed`, else the last declared outcome. The rule's `error` is
    * dropped. The rule runs without `withSafeError`, so a rule that throws,
-   * rejects or returns anything but `"passed"`/`"failed"` gives `onError`
-   * (the override, else the toolkit's): an outage is never read as a
-   * failure. The rule must be a function and each mapping value a declared
-   * outcome, checked when `mapOutcome` is called (`TypeError` otherwise).
+   * rejects or returns anything but an object with an own `outcome` of
+   * `"passed"` or `"failed"` gives `onError` (the override, else the
+   * toolkit's): an outage is never read as a failure. The rule must be a
+   * function and each mapping value a declared outcome, checked when
+   * `mapOutcome` is called (`TypeError` otherwise).
    * Never throws or rejects.
    * @example
    * // A listed applicant is declined; a service outage gives onError ("review").

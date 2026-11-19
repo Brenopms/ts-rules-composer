@@ -93,6 +93,22 @@ describe("toolkit.mapOutcome mapping", () => {
     expect(first).not.toBe(second);
   });
 
+  it("reads the rule result's outcome once", async () => {
+    let reads = 0;
+    const result = {
+      get outcome() {
+        reads++;
+        return reads === 1 ? "failed" : "passed";
+      },
+    };
+    const decide = makeCredit().mapOutcome(() => result as never, {
+      failed: "declined",
+    });
+
+    expect(await decide(app)).toStrictEqual({ outcome: "declined" });
+    expect(reads).toBe(1);
+  });
+
   it("is not affected by changing the mapping after construction", async () => {
     const mapping: { failed: "declined" | "review" } = { failed: "declined" };
     const decide = makeCredit().mapOutcome(fails, mapping);
