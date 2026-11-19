@@ -830,6 +830,12 @@ export declare function pipe<A, B, C, D, E, F, G, H, I, J, K>(value: A, fn1: (ar
  *   3. Falls back to JSON clone otherwise
  */
 export declare const pipeRules: <TInput, TError = string, TContext = unknown>(rules: Rule<TInput, TError, TContext>[], options?: CompositionOptions<TError>) => Rule<TInput, TError, TContext>;
+/** A declared outcome (constant decision) or a decision to run. */
+type Branch<TInput, O extends string, TContext> = O | Decision<TInput, O, TContext>;
+/** Per-combinator override of the toolkit's \`onError\`. */
+type Override<O extends string> = {
+  readonly onError?: O;
+};
 /**
  * A declared outcome set and the decision builders bound to it, returned by
  * {@link defineOutcomes}. Frozen.
@@ -852,6 +858,21 @@ interface OutcomeToolkit<O extends string> {
    * };
    */
   outcome(outcome: O): DecisionResult<O>;
+  /**
+   * Picks an outcome from a yes/no question: \`true\` runs \`whenTrue\`, \`false\`
+   * runs \`whenFalse\`. A bare-string branch is a constant outcome, checked
+   * when \`ifElse\` is called (\`TypeError\` for an unknown one). While running,
+   * a predicate that throws, rejects or returns a non-boolean, or a branch
+   * that fails or returns a malformed result, gives \`onError\` (the override,
+   * else the toolkit's). Never throws or rejects.
+   * @example
+   * const affordability = credit.ifElse(
+   *   (app: CreditApplication) => app.monthlyDebt / app.monthlyIncome > 0.5,
+   *   "declined",
+   *   "approved",
+   * );
+   */
+  ifElse<TInput, TContext = unknown>(predicate: Predicate<TInput, TContext>, whenTrue: Branch<TInput, O, TContext>, whenFalse: Branch<TInput, O, TContext>, options?: Override<O>): Decision<TInput, O, TContext>;
 }
 /**
  * The outcome labels of a toolkit.
@@ -1903,6 +1924,12 @@ export declare function pipe<A, B, C, D, E, F, G, H, I, J, K>(value: A, fn1: (ar
  *   3. Falls back to JSON clone otherwise
  */
 export declare const pipeRules: <TInput, TError = string, TContext = unknown>(rules: Rule<TInput, TError, TContext>[], options?: CompositionOptions<TError>) => Rule<TInput, TError, TContext>;
+/** A declared outcome (constant decision) or a decision to run. */
+type Branch<TInput, O extends string, TContext> = O | Decision<TInput, O, TContext>;
+/** Per-combinator override of the toolkit's \`onError\`. */
+type Override<O extends string> = {
+  readonly onError?: O;
+};
 /**
  * A declared outcome set and the decision builders bound to it, returned by
  * {@link defineOutcomes}. Frozen.
@@ -1925,6 +1952,21 @@ interface OutcomeToolkit<O extends string> {
    * };
    */
   outcome(outcome: O): DecisionResult<O>;
+  /**
+   * Picks an outcome from a yes/no question: \`true\` runs \`whenTrue\`, \`false\`
+   * runs \`whenFalse\`. A bare-string branch is a constant outcome, checked
+   * when \`ifElse\` is called (\`TypeError\` for an unknown one). While running,
+   * a predicate that throws, rejects or returns a non-boolean, or a branch
+   * that fails or returns a malformed result, gives \`onError\` (the override,
+   * else the toolkit's). Never throws or rejects.
+   * @example
+   * const affordability = credit.ifElse(
+   *   (app: CreditApplication) => app.monthlyDebt / app.monthlyIncome > 0.5,
+   *   "declined",
+   *   "approved",
+   * );
+   */
+  ifElse<TInput, TContext = unknown>(predicate: Predicate<TInput, TContext>, whenTrue: Branch<TInput, O, TContext>, whenFalse: Branch<TInput, O, TContext>, options?: Override<O>): Decision<TInput, O, TContext>;
 }
 /**
  * The outcome labels of a toolkit.

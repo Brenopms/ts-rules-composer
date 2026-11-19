@@ -57,6 +57,47 @@ describe("defineOutcomes types", () => {
   });
 });
 
+describe("ifElse types", () => {
+  it("infers the input from a typed predicate with string branches", () => {
+    const decide = credit.ifElse(
+      (app: App) => app.age >= 18,
+      "approved",
+      "declined",
+    );
+
+    expectTypeOf(decide).toEqualTypeOf<Decision<App, CreditOutcome>>();
+  });
+
+  it("infers an inline predicate's input from the annotated result (spike)", () => {
+    const decide: Decision<App, CreditOutcome> = credit.ifElse(
+      (app) => {
+        expectTypeOf(app).toEqualTypeOf<App>();
+        return app.age > 18;
+      },
+      "review",
+      "approved",
+    );
+
+    expect(decide).toBeTypeOf("function");
+  });
+
+  it("rejects a misspelled branch", () => {
+    expect(() =>
+      // @ts-expect-error "aproved" is misspelled
+      credit.ifElse((app: App) => app.age >= 18, "aproved", "review"),
+    ).toThrow(TypeError);
+  });
+
+  it("rejects an out-of-set onError override", () => {
+    expect(() =>
+      credit.ifElse((app: App) => app.age >= 18, "approved", "review", {
+        // @ts-expect-error "unknown" is not a declared outcome
+        onError: "unknown",
+      }),
+    ).toThrow(TypeError);
+  });
+});
+
 describe("Rule as a binary Decision", () => {
   it("assigns a plain Rule to Decision<App, passed | failed>", () => {
     expectTypeOf<Rule<App>>().toExtend<Decision<App, "passed" | "failed">>();
