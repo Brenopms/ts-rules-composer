@@ -14,8 +14,13 @@ contract:
 - **Fail closed.** A decision never throws or rejects while running. Any
   failure (a throw, a rejection, a malformed result) becomes the
   combinator's `onError` outcome.
-- **Bad configuration fails early.** It throws a `TypeError` with a fixed
-  message when the combinator is built, never when it runs.
+- **Bad configuration fails early.** Every argument a builder checks
+  (outcome labels, branches, cases, `decisions`, `mode`, `resolver`, an
+  `onError` override, `onErrorCaught`) throws a `TypeError` with a fixed
+  message when the combinator is built, never when it runs. Predicates and
+  accessors are not checked at build time yet: they are only called when
+  the decision runs, so a non-function fails there and gives `onError`.
+  (Build-time function checks for them are planned with D7.)
 - **Read once.** Each user object, property and array entry is read once,
   so getters and later mutation can't change what was checked.
 - **Shared routing.** Rule `ifElse`/`match` reuse the same routing engines
