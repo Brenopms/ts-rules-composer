@@ -34,7 +34,7 @@ const toxicity: Decision<Post, ModerationOutcome> = async (post) => {
   return moderation.outcome("allow");
 };
 
-const spam: Decision<Post, ModerationOutcome> = async (post) =>
+const spam = async (post: Post) =>
   moderation.outcome((await spamService.isSpam(post)) ? "remove" : "allow");
 
 const nsfwImage: Decision<Post, ModerationOutcome> = async (post) =>
@@ -56,12 +56,12 @@ const byCategory = moderation.match(
     adult: "remove",
     news: "allow",
     politics: moderation.ifElse(
-      (post: Post) => post.authorStrikes > 0,
+      (post) => post.authorStrikes > 0,
       "review",
       "allow",
     ),
     ads: moderation.ifElse(
-      (post: Post) => post.authorStrikes >= 3,
+      (post) => post.authorStrikes >= 3,
       "remove",
       "review",
     ),

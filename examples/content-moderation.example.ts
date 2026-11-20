@@ -28,15 +28,20 @@ const imageService = {
 // 1. The outcome set. Order is precedence: "remove" outranks "review",
 //    which outranks "allow". A failure caught by a decision combinator
 //    becomes "review" (a human looks), and onErrorCaught sees the error,
-//    so an outage is logged instead of silently hidden.
+//    so an outage is logged instead of silently hidden. The hook says only
+//    that a check failed: a stronger outcome from another check ("remove")
+//    can still decide the post.
 const moderation = defineOutcomes(["remove", "review", "allow"], {
   onError: "review",
   onErrorCaught: (error) =>
-    console.warn("moderation: check failed, sent to review:", String(error)),
+    console.warn("moderation: check failed:", String(error)),
 });
 type ModerationOutcome = OutcomeOf<typeof moderation>; // "remove" | "review" | "allow"
 
 // 2. Hand-written decisions: each classifier turns a score into an outcome.
+//    Two styles: toxicity annotates its type, so `post` is inferred and
+//    the thresholds are checked against ModerationOutcome; spam annotates
+//    only its parameter and lets the return type be inferred.
 const toxicity: Decision<Post, ModerationOutcome> = async (post) => {
   const score = await toxicityService.score(post.text);
   if (score > 0.9) return moderation.outcome("remove");
@@ -44,7 +49,7 @@ const toxicity: Decision<Post, ModerationOutcome> = async (post) => {
   return moderation.outcome("allow");
 };
 
-const spam: Decision<Post, ModerationOutcome> = async (post) =>
+const spam = async (post: Post) =>
   moderation.outcome((await spamService.isSpam(post)) ? "remove" : "allow");
 
 const nsfwImage: Decision<Post, ModerationOutcome> = async (post) =>
@@ -66,19 +71,20 @@ const classifiers = moderation.combineAll([toxicity, spam, imageCheck]);
 
 // 5. Category rules: bare outcome strings for fixed answers, nested
 //    decisions where the answer depends on the author. Any category
-//    without a case (here "other") uses the required default.
+//    without a case (here "other") uses the required default. The nested
+//    predicates need no annotation: `post` is typed from the accessor.
 const byCategory = moderation.match(
   (post: Post) => post.category,
   {
     adult: "remove",
     news: "allow",
     politics: moderation.ifElse(
-      (post: Post) => post.authorStrikes > 0,
+      (post) => post.authorStrikes > 0,
       "review",
       "allow",
     ),
     ads: moderation.ifElse(
-      (post: Post) => post.authorStrikes >= 3,
+      (post) => post.authorStrikes >= 3,
       "remove",
       "review",
     ),
@@ -118,7 +124,7 @@ const moderatePost = moderation.combine([byCategory, classifiers]);
   console.log(await moderatePost(post));
   toxicityService.score = score;
 
-  // moderation: check failed, sent to review: Error: toxicity service unavailable
+  // moderation: check failed: Error: toxicity service unavailable
   // { outcome: "review" } (toxicity classifier down -> onError)
   toxicityService.score = async () => {
     throw new Error("toxicity service unavailable");
@@ -126,7 +132,7 @@ const moderatePost = moderation.combine([byCategory, classifiers]);
   console.log(await moderatePost(post));
   toxicityService.score = score;
 
-  // moderation: check failed, sent to review: Error: toxicity service unavailable
+  // moderation: check failed: Error: toxicity service unavailable
   // { outcome: "remove" } (spam wins over the outage: "remove" outranks "review")
   toxicityService.score = async () => {
     throw new Error("toxicity service unavailable");
