@@ -928,10 +928,11 @@ interface OutcomeToolkit<O extends string> {
    * the first declared outcome is final). Starts from the first decision's
    * outcome and stops as soon as \`resolver.isFinal\` is true; later decisions
    * are not called. To run every decision at once, use
-   * {@link OutcomeToolkit.combineAll}. A decision that fails or returns a
-   * malformed result becomes \`onError\` and joins the merge. A resolver
-   * method that throws, returns a promise or returns a malformed value ends
-   * the whole \`combine\` with \`onError\`. \`decisions\`, \`resolver\` and the
+   * {@link OutcomeToolkit.combineAll}. To run every decision in order, pass
+   * a resolver whose \`isFinal\` always returns \`false\`. A decision that fails
+   * or returns a malformed result becomes \`onError\` and joins the merge. A
+   * resolver method that throws, returns a promise or returns a malformed
+   * value ends the whole \`combine\` with \`onError\`. \`decisions\`, \`resolver\` and the
    * \`onError\` override are checked when \`combine\` is called (\`TypeError\`).
    * Never throws or rejects. No timeouts: a decision that never settles
    * keeps the \`combine\` pending (\`withTimeout\` is for rules only).
@@ -952,7 +953,8 @@ interface OutcomeToolkit<O extends string> {
    * outcomes with \`resolver.combine\` in declaration order (not the order
    * they finished in). Default: precedence, so the outcome declared first
    * wins. Nothing stops early, so the resolver needs only \`combine\`
-   * (\`isFinal\` is never read; a full {@link Resolver} works too). A decision
+   * (\`isFinal\` is never read; a full {@link Resolver} works too). This is
+   * how to run every check with the default precedence. A decision
    * that fails or returns a malformed result becomes \`onError\` and joins the
    * merge. A \`resolver.combine\` that throws, returns a promise or returns a
    * malformed value ends the whole \`combineAll\` with \`onError\`.
@@ -981,7 +983,10 @@ interface OutcomeToolkit<O extends string> {
    * dropped. The rule runs without \`withSafeError\`, so a rule that throws,
    * rejects or returns anything but an object with an own \`outcome\` of
    * \`"passed"\` or \`"failed"\` gives \`onError\` (the override, else the
-   * toolkit's): an outage is never read as a failure. The rule must be a
+   * toolkit's). A \`failed\` the rule returns always gives \`mapping.failed\`,
+   * including one made upstream from an outage: a default (\`"safe"\`)
+   * \`pipeRules\` turns a child's throw into \`failed\` before \`mapOutcome\` sees
+   * it. Map outage-prone rules on their own. The rule must be a
    * function and each mapping value a declared outcome, checked when
    * \`mapOutcome\` is called (\`TypeError\` otherwise).
    * Never throws or rejects.
@@ -2148,10 +2153,11 @@ interface OutcomeToolkit<O extends string> {
    * the first declared outcome is final). Starts from the first decision's
    * outcome and stops as soon as \`resolver.isFinal\` is true; later decisions
    * are not called. To run every decision at once, use
-   * {@link OutcomeToolkit.combineAll}. A decision that fails or returns a
-   * malformed result becomes \`onError\` and joins the merge. A resolver
-   * method that throws, returns a promise or returns a malformed value ends
-   * the whole \`combine\` with \`onError\`. \`decisions\`, \`resolver\` and the
+   * {@link OutcomeToolkit.combineAll}. To run every decision in order, pass
+   * a resolver whose \`isFinal\` always returns \`false\`. A decision that fails
+   * or returns a malformed result becomes \`onError\` and joins the merge. A
+   * resolver method that throws, returns a promise or returns a malformed
+   * value ends the whole \`combine\` with \`onError\`. \`decisions\`, \`resolver\` and the
    * \`onError\` override are checked when \`combine\` is called (\`TypeError\`).
    * Never throws or rejects. No timeouts: a decision that never settles
    * keeps the \`combine\` pending (\`withTimeout\` is for rules only).
@@ -2172,7 +2178,8 @@ interface OutcomeToolkit<O extends string> {
    * outcomes with \`resolver.combine\` in declaration order (not the order
    * they finished in). Default: precedence, so the outcome declared first
    * wins. Nothing stops early, so the resolver needs only \`combine\`
-   * (\`isFinal\` is never read; a full {@link Resolver} works too). A decision
+   * (\`isFinal\` is never read; a full {@link Resolver} works too). This is
+   * how to run every check with the default precedence. A decision
    * that fails or returns a malformed result becomes \`onError\` and joins the
    * merge. A \`resolver.combine\` that throws, returns a promise or returns a
    * malformed value ends the whole \`combineAll\` with \`onError\`.
@@ -2201,7 +2208,10 @@ interface OutcomeToolkit<O extends string> {
    * dropped. The rule runs without \`withSafeError\`, so a rule that throws,
    * rejects or returns anything but an object with an own \`outcome\` of
    * \`"passed"\` or \`"failed"\` gives \`onError\` (the override, else the
-   * toolkit's): an outage is never read as a failure. The rule must be a
+   * toolkit's). A \`failed\` the rule returns always gives \`mapping.failed\`,
+   * including one made upstream from an outage: a default (\`"safe"\`)
+   * \`pipeRules\` turns a child's throw into \`failed\` before \`mapOutcome\` sees
+   * it. Map outage-prone rules on their own. The rule must be a
    * function and each mapping value a declared outcome, checked when
    * \`mapOutcome\` is called (\`TypeError\` otherwise).
    * Never throws or rejects.
