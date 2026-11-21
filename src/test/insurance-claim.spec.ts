@@ -29,6 +29,7 @@ const duplicateService = {
   isDuplicate: vi.fn<(claimId: string) => Promise<boolean>>(),
 };
 const onErrorCaught = vi.fn<(error: unknown) => void>();
+const paperworkErrorCaught = vi.fn<(error: unknown) => void>();
 
 // Policy (copy of examples/insurance-claim.example.ts; the audit trail is
 // replaced by the mocks' call records)
@@ -38,7 +39,10 @@ const claims = defineOutcomes(["deny", "investigate", "pay"], {
 });
 type ClaimOutcome = OutcomeOf<typeof claims>;
 
-const paperwork = defineOutcomes(["failed", "passed"], { onError: "failed" });
+const paperwork = defineOutcomes(["failed", "passed"], {
+  onError: "failed",
+  onErrorCaught: paperworkErrorCaught,
+});
 
 const hasClaimForm: Rule<Claim> = (claim) =>
   claim.hasClaimForm ? pass() : fail("Claim form is missing");
@@ -204,11 +208,27 @@ describe("insurance-claim decision", () => {
       expect(await settleClaim(claim)).toEqual({ outcome: "investigate" });
     });
 
-    it("fails closed on a document store outage, using its own onError", async () => {
+    it("fails closed on a document store outage, using its own onError and hook", async () => {
       const outage = new Error("document store unavailable");
       documentStore.receiptCount.mockRejectedValue(outage);
       expect(await documentsComplete(claim)).toEqual({ outcome: "failed" });
-      // the binary toolkit has no onErrorCaught; the claims hook is not called
+      // each toolkit reports only the failures it catches itself
+      expect(paperworkErrorCaught).toHaveBeenCalledOnce();
+      expect(paperworkErrorCaught).toHaveBeenCalledWith(outage);
+      expect(onErrorCaught).not.toHaveBeenCalled();
+    });
+
+    it("investigates both zero receipts and a document store outage, but reports only the outage", async () => {
+      documentStore.receiptCount.mockResolvedValue(0);
+      expect(await settleClaim(claim)).toEqual({ outcome: "investigate" });
+      expect(paperworkErrorCaught).not.toHaveBeenCalled();
+
+      const outage = new Error("document store unavailable");
+      documentStore.receiptCount.mockRejectedValue(outage);
+      expect(await settleClaim(claim)).toEqual({ outcome: "investigate" });
+      expect(paperworkErrorCaught).toHaveBeenCalledOnce();
+      expect(paperworkErrorCaught).toHaveBeenCalledWith(outage);
+      // the paperwork toolkit caught it, so the claims hook never sees it
       expect(onErrorCaught).not.toHaveBeenCalled();
     });
   });

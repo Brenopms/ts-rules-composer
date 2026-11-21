@@ -40,7 +40,14 @@ type ClaimOutcome = OutcomeOf<typeof claims>; // "deny" | "investigate" | "pay"
 // 2. A binary toolkit. "failed" comes first, so it outranks "passed", and
 //    any failure while running is "failed" (fail-closed). Every Rule is a
 //    binary decision, so this toolkit's combine takes raw Rules directly.
-const paperwork = defineOutcomes(["failed", "passed"], { onError: "failed" });
+//    Each toolkit reports only the failures it catches itself: a document
+//    store outage is caught here and becomes "failed", so the claims hook
+//    never sees it. This toolkit needs its own onErrorCaught.
+const paperwork = defineOutcomes(["failed", "passed"], {
+  onError: "failed",
+  onErrorCaught: (error) =>
+    auditTrail.push(`paperwork error: ${String(error)}`),
+});
 
 const hasClaimForm: Rule<Claim> = (claim) =>
   claim.hasClaimForm ? pass() : fail("Claim form is missing");
@@ -146,4 +153,17 @@ const settleClaim = claims.combine(
   console.log(await settleClaim({ ...claim, amount: 300 }));
   console.log(await settleClaim(claim));
   duplicateService.isDuplicate = isDuplicateClaim;
+
+  // { outcome: "investigate" } (document store down; same outcome as zero
+  // receipts, but the paperwork hook records it)
+  // Audit trail: [ 'paperwork error: Error: document store unavailable',
+  //   'fraud score: 0.1' ]
+  auditTrail.length = 0;
+  const receiptCount = documentStore.receiptCount;
+  documentStore.receiptCount = async () => {
+    throw new Error("document store unavailable");
+  };
+  console.log(await settleClaim(claim));
+  console.log("Audit trail:", auditTrail);
+  documentStore.receiptCount = receiptCount;
 })();
