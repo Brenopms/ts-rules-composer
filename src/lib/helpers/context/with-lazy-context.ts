@@ -27,7 +27,7 @@ export const withLazyContext = <TInput, TError, TContext>(
     async (input: TInput) => {
       try {
         const context = await loader(input);
-        return rule(input, context);
+        return await rule(input, context);
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : "Context loading failed";

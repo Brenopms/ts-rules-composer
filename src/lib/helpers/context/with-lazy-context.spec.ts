@@ -66,6 +66,24 @@ describe("withLazyContext", () => {
     expect(result).toEqual(fail("Context loading failed"));
   });
 
+  it("should convert an async rule rejection to a failed result", async () => {
+    const lazyRule = withLazyContext(
+      () => ({}),
+      async () => Promise.reject(new Error("rule service down")),
+    );
+
+    await expect(lazyRule({})).resolves.toEqual(fail("rule service down"));
+  });
+
+  it("should use the generic message when an async rule rejects with a non-Error", async () => {
+    const lazyRule = withLazyContext(
+      () => ({}),
+      async () => Promise.reject("not an Error"),
+    );
+
+    await expect(lazyRule({})).resolves.toEqual(fail("Context loading failed"));
+  });
+
   it("should preserve input types", async () => {
     type StrictInput = { id: string };
     type LooseInput = { other: number };
