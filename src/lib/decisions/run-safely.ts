@@ -74,9 +74,22 @@ export const toKey: Check<PropertyKey> = (value) => {
 };
 
 /**
+ * Re-throws the cause of a caught failure: an own `outcome` of `"failed"`
+ * (already read and validated by the caller) with an own `caughtCause`,
+ * whatever its value. Called inside a check, so `runSafely` notifies the hook
+ * once with the cause and the caller uses its local `onError`. Reads the
+ * field by name: decisions import no rule-side helper.
+ */
+export const throwIfCaught = (value: object, outcome: unknown): void => {
+  if (outcome === "failed" && Object.hasOwn(value, "caughtCause")) {
+    throw (value as { caughtCause: unknown }).caughtCause;
+  }
+};
+
+/**
  * Check for a rule mapped by `mapOutcome`: an own `outcome` key holding
  * `"passed"` or `"failed"`, checked before mapping. A destination label
- * (e.g. `"approved"`) is malformed here.
+ * (e.g. `"approved"`) is malformed here. A caught failure throws its cause.
  */
 export const toRuleOutcome: Check<"passed" | "failed"> = (value) => {
   if (!isObject(value) || !Object.hasOwn(value, "outcome")) {
@@ -88,5 +101,6 @@ export const toRuleOutcome: Check<"passed" | "failed"> = (value) => {
       `rule returned ${display(outcome)}, which is not "passed" or "failed"`,
     );
   }
+  throwIfCaught(value, outcome);
   return outcome;
 };

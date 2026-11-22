@@ -102,7 +102,10 @@ describe("withFallback", () => {
       onlyFallbackOn: () => false,
     });
 
-    await expect(rule("test")).resolves.toEqual(fail(transformedError));
+    await expect(rule("test")).resolves.toEqual({
+      ...fail(transformedError),
+      caughtCause: new Error("primary threw"),
+    });
     expect(fallbackRule).not.toHaveBeenCalled();
   });
 
@@ -117,7 +120,10 @@ describe("withFallback", () => {
       errorTransform: () => transformedError,
     });
 
-    await expect(rule("test")).resolves.toEqual(fail(transformedError));
+    await expect(rule("test")).resolves.toEqual({
+      ...fail(transformedError),
+      caughtCause: new Error("fallback threw"),
+    });
   });
 
   it("should leave explicit RuleResults unchanged by the error transform", async () => {

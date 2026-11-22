@@ -163,7 +163,10 @@ describe("prepareRuleExecution", () => {
       "forwardFailFast",
     );
 
-    await expect(safe({})).resolves.toEqual(fail("transformed"));
+    await expect(safe({})).resolves.toEqual({
+      ...fail("transformed"),
+      caughtCause: new Error("boom"),
+    });
     await expect(unsafe({})).rejects.toThrow("boom");
   });
 });

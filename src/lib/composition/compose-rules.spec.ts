@@ -59,7 +59,10 @@ describe("composeRules", () => {
 
     await expect(
       composeRules([throws], { errorTransform: () => "transformed" })({}),
-    ).resolves.toEqual(fail("transformed"));
+    ).resolves.toEqual({
+      ...fail("transformed"),
+      caughtCause: new Error("boom"),
+    });
     await expect(
       composeRules([throws], { errorHandlingMode: "unsafe" })({}),
     ).rejects.toThrow("boom");

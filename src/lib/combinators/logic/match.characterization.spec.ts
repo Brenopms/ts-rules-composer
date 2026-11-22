@@ -103,7 +103,11 @@ describe("rule match characterization", () => {
       options,
     )({ role: "admin" });
 
-    expect(result).toEqual({ outcome: "failed", error: "transform 1: boom" });
+    expect(result).toEqual({
+      outcome: "failed",
+      error: "transform 1: boom",
+      caughtCause: "boom",
+    });
     expect(reads).toBe(1);
   });
 });

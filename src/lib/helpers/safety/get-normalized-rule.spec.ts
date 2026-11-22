@@ -106,12 +106,10 @@ describe("getNormalizedRule", () => {
       );
       const result = await normalized("test");
 
-      expect(result).toEqual(
-        fail({
-          code: 500,
-          message: "Error: Boom!",
-        }),
-      );
+      expect(result).toEqual({
+        ...fail({ code: 500, message: "Error: Boom!" }),
+        caughtCause: new Error("Boom!"),
+      });
       expect(customTransform).toHaveBeenCalledWith(expect.any(Error));
     });
 
@@ -137,7 +135,10 @@ describe("getNormalizedRule", () => {
       const normalized = getNormalizedRule(stringErrorRule, {});
       const result = await normalized("test");
 
-      expect(result).toEqual(fail(new Error("Boom!")));
+      expect(result).toEqual({
+        ...fail(new Error("Boom!")),
+        caughtCause: new Error("Boom!"),
+      });
     });
   });
 
