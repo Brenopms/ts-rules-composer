@@ -226,3 +226,93 @@ describe("toolkit.outcome", () => {
     );
   });
 });
+
+describe("toolkit.resolvers", () => {
+  const credit = defineOutcomes(["declined", "review", "approved"], {
+    onError: "review",
+  });
+  type CreditOutcome = (typeof credit.outcomes)[number];
+
+  /** A child that records its call and returns `outcome`. */
+  const child = (outcome: CreditOutcome, calls: string[]) => async () => {
+    calls.push(outcome);
+    return credit.outcome(outcome);
+  };
+
+  it("exposes strongestWins with the default precedence merge", () => {
+    const { strongestWins } = credit.resolvers;
+    expect(strongestWins.combine("approved", "declined")).toBe("declined");
+    expect(strongestWins.combine("review", "approved")).toBe("review");
+    expect(strongestWins.isFinal("declined")).toBe(true);
+    expect(strongestWins.isFinal("review")).toBe(false);
+  });
+
+  it("strongestWins gives the same results as no resolver, including the early stop", async () => {
+    const withDefault: string[] = [];
+    const withBuiltIn: string[] = [];
+    const byDefault = credit.combine([
+      child("approved", withDefault),
+      child("declined", withDefault),
+      child("review", withDefault),
+    ]);
+    const byBuiltIn = credit.combine(
+      [
+        child("approved", withBuiltIn),
+        child("declined", withBuiltIn),
+        child("review", withBuiltIn),
+      ],
+      { resolver: credit.resolvers.strongestWins },
+    );
+    expect(await byDefault({})).toEqual({ outcome: "declined" });
+    expect(await byBuiltIn({})).toEqual({ outcome: "declined" });
+    expect(withBuiltIn).toEqual(withDefault);
+    expect(withBuiltIn).toEqual(["approved", "declined"]);
+  });
+
+  it("runEveryCheck calls every child after a first-outcome result and keeps the strongest", async () => {
+    const calls: string[] = [];
+    const policy = credit.combine(
+      [
+        child("declined", calls),
+        child("approved", calls),
+        child("review", calls),
+      ],
+      { resolver: credit.resolvers.runEveryCheck },
+    );
+    expect(await policy({})).toEqual({ outcome: "declined" });
+    expect(calls).toEqual(["declined", "approved", "review"]);
+    expect(credit.resolvers.runEveryCheck.isFinal("declined")).toBe(false);
+  });
+
+  it("both work in combineAll", async () => {
+    for (const resolver of [
+      credit.resolvers.strongestWins,
+      credit.resolvers.runEveryCheck,
+    ]) {
+      const calls: string[] = [];
+      const policy = credit.combineAll(
+        [child("approved", calls), child("review", calls)],
+        { resolver },
+      );
+      expect(await policy({})).toEqual({ outcome: "review" });
+      expect(calls).toHaveLength(2);
+    }
+  });
+
+  it("is frozen, with frozen members", () => {
+    expect(Object.isFrozen(credit.resolvers)).toBe(true);
+    expect(Object.isFrozen(credit.resolvers.strongestWins)).toBe(true);
+    expect(Object.isFrozen(credit.resolvers.runEveryCheck)).toBe(true);
+  });
+
+  it("is bound to each toolkit's own order", () => {
+    const reversed = defineOutcomes(["approved", "review", "declined"], {
+      onError: "review",
+    });
+    expect(reversed.resolvers).not.toBe(credit.resolvers);
+    expect(
+      reversed.resolvers.strongestWins.combine("declined", "approved"),
+    ).toBe("approved");
+    expect(reversed.resolvers.strongestWins.isFinal("approved")).toBe(true);
+  });
+});

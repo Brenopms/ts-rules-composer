@@ -1,4 +1,4 @@
-import type { Decision, OutcomeOf, Resolver, Rule } from "../src/lib";
+import type { Decision, OutcomeOf, Rule } from "../src/lib";
 import { defineOutcomes, fail, pass } from "../src/lib";
 
 // Types
@@ -104,20 +104,12 @@ const duplicateCheck = claims.ifElse(
   claims.ifElse(isDuplicate, "deny", "pay"),
 );
 
-// 6. A custom Resolver. The default stops at the first "deny"; this one
-//    never stops (isFinal is always false), so every check runs and the
+// 6. The full policy, with a built-in resolver. The default stops at the
+//    first "deny"; runEveryCheck never stops, so every check runs and the
 //    audit trail is complete. It still keeps the strongest outcome.
-const rank = (outcome: ClaimOutcome) => claims.outcomes.indexOf(outcome);
-
-const runEveryCheck: Resolver<ClaimOutcome> = {
-  combine: (current, next) => (rank(next) < rank(current) ? next : current),
-  isFinal: () => false,
-};
-
-// 7. The full policy.
 const settleClaim = claims.combine(
   [coverage, paperworkCheck, fraudCheck, duplicateCheck],
-  { resolver: runEveryCheck },
+  { resolver: claims.resolvers.runEveryCheck },
 );
 
 // Example usage

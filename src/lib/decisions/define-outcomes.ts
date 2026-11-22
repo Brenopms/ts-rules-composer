@@ -13,7 +13,7 @@ import {
   toMerger,
   toResolver,
 } from "./inputs";
-import { byPrecedence } from "./precedence";
+import { builtInResolvers } from "./precedence";
 import {
   type ErrorHook,
   notify,
@@ -61,6 +61,31 @@ export interface OutcomeToolkit<O extends string> {
    * };
    */
   outcome(outcome: O): DecisionResult<O>;
+
+  /**
+   * Built-in resolvers bound to this toolkit's declared order, for the
+   * `resolver` option of `combine` and `combineAll`. Frozen.
+   * @example
+   * // Every check runs in order (e.g. for an audit trail); the strongest
+   * // outcome still wins.
+   * const auditedPolicy = credit.combine([affordability, employment], {
+   *   resolver: credit.resolvers.runEveryCheck,
+   * });
+   */
+  readonly resolvers: {
+    /**
+     * The default resolver (the same object `combine` uses when none is
+     * given): the outcome declared first wins, and only the first declared
+     * outcome is final, so `combine` stops there.
+     */
+    readonly strongestWins: Resolver<O>;
+    /**
+     * The same merge as `strongestWins`, but never final: a sequential
+     * `combine` calls every decision. In `combineAll` it behaves like
+     * `strongestWins`.
+     */
+    readonly runEveryCheck: Resolver<O>;
+  };
 
   /**
    * Picks an outcome from a yes/no question: `true` runs `whenTrue`, `false`
@@ -118,10 +143,12 @@ export interface OutcomeToolkit<O extends string> {
    * the first declared outcome is final). Starts from the first decision's
    * outcome and stops as soon as `resolver.isFinal` is true; later decisions
    * are not called. To run every decision at once, use
-   * {@link OutcomeToolkit.combineAll}. A decision that fails or returns a
-   * malformed result becomes `onError` and joins the merge. A resolver
-   * method that throws, returns a promise or returns a malformed value ends
-   * the whole `combine` with `onError`. `decisions`, `resolver` and the
+   * {@link OutcomeToolkit.combineAll}. To run every decision in order, pass
+   * `toolkit.resolvers.runEveryCheck` (its `isFinal` always returns
+   * `false`). A decision that fails or returns a malformed result becomes
+   * `onError` and joins the merge. A
+   * resolver method that throws, returns a promise or returns a malformed
+   * value ends the whole `combine` with `onError`. `decisions`, `resolver` and the
    * `onError` override are checked when `combine` is called (`TypeError`).
    * Never throws or rejects. No timeouts: a decision that never settles
    * keeps the `combine` pending (`withTimeout` is for rules only).
@@ -146,7 +173,8 @@ export interface OutcomeToolkit<O extends string> {
    * outcomes with `resolver.combine` in declaration order (not the order
    * they finished in). Default: precedence, so the outcome declared first
    * wins. Nothing stops early, so the resolver needs only `combine`
-   * (`isFinal` is never read; a full {@link Resolver} works too). A decision
+   * (`isFinal` is never read; a full {@link Resolver} works too). This is
+   * how to run every check with the default precedence. A decision
    * that fails or returns a malformed result becomes `onError` and joins the
    * merge. A `resolver.combine` that throws, returns a promise or returns a
    * malformed value ends the whole `combineAll` with `onError`.
@@ -179,7 +207,10 @@ export interface OutcomeToolkit<O extends string> {
    * dropped. The rule runs without `withSafeError`, so a rule that throws,
    * rejects or returns anything but an object with an own `outcome` of
    * `"passed"` or `"failed"` gives `onError` (the override, else the
-   * toolkit's): an outage is never read as a failure. The rule must be a
+   * toolkit's). A `failed` the rule returns always gives `mapping.failed`,
+   * including one made upstream from an outage: a default (`"safe"`)
+   * `pipeRules` turns a child's throw into `failed` before `mapOutcome` sees
+   * it. Map outage-prone rules on their own. The rule must be a
    * function and each mapping value a declared outcome, checked when
    * `mapOutcome` is called (`TypeError` otherwise).
    * Never throws or rejects.
@@ -275,7 +306,8 @@ export const defineOutcomes = <const T extends readonly [string, ...string[]]>(
   }
 
   const set: OutcomeSet<O> = { onError, isDeclared };
-  const precedence = byPrecedence(declared);
+  const resolvers = builtInResolvers(declared);
+  const precedence = resolvers.strongestWins;
 
   /** Check for child decisions: an own `outcome` key holding a declared label. */
   const toLabel = (value: unknown): O => {
@@ -337,6 +369,7 @@ export const defineOutcomes = <const T extends readonly [string, ...string[]]>(
   const toolkit: OutcomeToolkit<O> = {
     outcomes: declared,
     onError,
+    resolvers,
     outcome: (outcome) => {
       if (!isDeclared(outcome)) throw notDeclared("outcome:", outcome);
       return { outcome };

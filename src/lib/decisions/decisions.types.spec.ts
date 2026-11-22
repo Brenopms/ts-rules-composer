@@ -294,6 +294,28 @@ describe("mapOutcome types", () => {
   });
 });
 
+describe("toolkit.resolvers types", () => {
+  it("types both members as Resolver of the toolkit's labels", () => {
+    expectTypeOf(credit.resolvers.strongestWins).toEqualTypeOf<
+      Resolver<CreditOutcome>
+    >();
+    expectTypeOf(credit.resolvers.runEveryCheck).toEqualTypeOf<
+      Resolver<CreditOutcome>
+    >();
+  });
+
+  it("is not assignable to a toolkit with different labels", () => {
+    const traffic = defineOutcomes(["stop", "go"], { onError: "stop" });
+    expectTypeOf(credit.resolvers.runEveryCheck).not.toExtend<
+      Resolver<OutcomeOf<typeof traffic>>
+    >();
+    traffic.combine([async () => traffic.outcome("go")], {
+      // @ts-expect-error a resolver bound to the credit labels
+      resolver: credit.resolvers.runEveryCheck,
+    });
+  });
+});
+
 describe("Rule as a binary Decision", () => {
   it("assigns a plain Rule to Decision<App, passed | failed>", () => {
     expectTypeOf<Rule<App>>().toExtend<Decision<App, "passed" | "failed">>();
