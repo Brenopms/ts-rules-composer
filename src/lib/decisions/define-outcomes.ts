@@ -144,8 +144,9 @@ export interface OutcomeToolkit<O extends string> {
    * outcome and stops as soon as `resolver.isFinal` is true; later decisions
    * are not called. To run every decision at once, use
    * {@link OutcomeToolkit.combineAll}. To run every decision in order, pass
-   * a resolver whose `isFinal` always returns `false`. A decision that fails
-   * or returns a malformed result becomes `onError` and joins the merge. A
+   * `toolkit.resolvers.runEveryCheck` (its `isFinal` always returns
+   * `false`). A decision that fails or returns a malformed result becomes
+   * `onError` and joins the merge. A
    * resolver method that throws, returns a promise or returns a malformed
    * value ends the whole `combine` with `onError`. `decisions`, `resolver` and the
    * `onError` override are checked when `combine` is called (`TypeError`).
