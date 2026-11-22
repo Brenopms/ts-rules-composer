@@ -16,3 +16,17 @@ export const byPrecedence = <O extends string>(
     isFinal: (current) => rankOf(current) === 0,
   };
 };
+
+/**
+ * The built-in resolvers bound to `outcomes`, all frozen. `strongestWins`
+ * is the default resolver; `runEveryCheck` shares its `combine` but is
+ * never final, so a sequential `combine` calls every child. Internal.
+ */
+export const builtInResolvers = <O extends string>(outcomes: readonly O[]) => {
+  const strongestWins: Resolver<O> = Object.freeze(byPrecedence(outcomes));
+  const runEveryCheck: Resolver<O> = Object.freeze({
+    combine: strongestWins.combine,
+    isFinal: () => false,
+  });
+  return Object.freeze({ strongestWins, runEveryCheck });
+};

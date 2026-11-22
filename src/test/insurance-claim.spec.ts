@@ -88,16 +88,9 @@ const duplicateCheck = claims.ifElse(
   claims.ifElse(isDuplicate, "deny", "pay"),
 );
 
-const rank = (outcome: ClaimOutcome) => claims.outcomes.indexOf(outcome);
-
-const runEveryCheck: Resolver<ClaimOutcome> = {
-  combine: (current, next) => (rank(next) < rank(current) ? next : current),
-  isFinal: () => false,
-};
-
 const settleClaim = claims.combine(
   [coverage, paperworkCheck, fraudCheck, duplicateCheck],
-  { resolver: runEveryCheck },
+  { resolver: claims.resolvers.runEveryCheck },
 );
 
 describe("insurance-claim decision", () => {
@@ -142,7 +135,7 @@ describe("insurance-claim decision", () => {
     });
   });
 
-  describe("custom resolver (run every check)", () => {
+  describe("built-in resolver (run every check)", () => {
     it("keeps running after a deny, so every check is on record", async () => {
       expect(await settleClaim({ ...claim, amount: 20_000 })).toEqual({
         outcome: "deny",
@@ -269,7 +262,7 @@ describe("insurance-claim decision", () => {
       expect(await settleClaim(claim)).toEqual({ outcome: "investigate" });
       expect(onErrorCaught).toHaveBeenCalledOnce();
       expect(onErrorCaught).toHaveBeenCalledWith(outage);
-      // the custom resolver still runs the remaining check
+      // runEveryCheck still runs the remaining check
       expect(duplicateService.isDuplicate).toHaveBeenCalledOnce();
     });
 

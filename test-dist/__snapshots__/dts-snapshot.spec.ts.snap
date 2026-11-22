@@ -885,6 +885,30 @@ interface OutcomeToolkit<O extends string> {
    */
   outcome(outcome: O): DecisionResult<O>;
   /**
+   * Built-in resolvers bound to this toolkit's declared order, for the
+   * \`resolver\` option of \`combine\` and \`combineAll\`. Frozen.
+   * @example
+   * // Every check runs in order (e.g. for an audit trail); the strongest
+   * // outcome still wins.
+   * const auditedPolicy = credit.combine([affordability, employment], {
+   *   resolver: credit.resolvers.runEveryCheck,
+   * });
+   */
+  readonly resolvers: {
+    /**
+     * The default resolver (the same object \`combine\` uses when none is
+     * given): the outcome declared first wins, and only the first declared
+     * outcome is final, so \`combine\` stops there.
+     */
+    readonly strongestWins: Resolver<O>;
+    /**
+     * The same merge as \`strongestWins\`, but never final: a sequential
+     * \`combine\` calls every decision. In \`combineAll\` it behaves like
+     * \`strongestWins\`.
+     */
+    readonly runEveryCheck: Resolver<O>;
+  };
+  /**
    * Picks an outcome from a yes/no question: \`true\` runs \`whenTrue\`, \`false\`
    * runs \`whenFalse\`. A bare-string branch is a constant outcome. The
    * predicate must be a function and each branch a declared outcome or a
@@ -2109,6 +2133,30 @@ interface OutcomeToolkit<O extends string> {
    * };
    */
   outcome(outcome: O): DecisionResult<O>;
+  /**
+   * Built-in resolvers bound to this toolkit's declared order, for the
+   * \`resolver\` option of \`combine\` and \`combineAll\`. Frozen.
+   * @example
+   * // Every check runs in order (e.g. for an audit trail); the strongest
+   * // outcome still wins.
+   * const auditedPolicy = credit.combine([affordability, employment], {
+   *   resolver: credit.resolvers.runEveryCheck,
+   * });
+   */
+  readonly resolvers: {
+    /**
+     * The default resolver (the same object \`combine\` uses when none is
+     * given): the outcome declared first wins, and only the first declared
+     * outcome is final, so \`combine\` stops there.
+     */
+    readonly strongestWins: Resolver<O>;
+    /**
+     * The same merge as \`strongestWins\`, but never final: a sequential
+     * \`combine\` calls every decision. In \`combineAll\` it behaves like
+     * \`strongestWins\`.
+     */
+    readonly runEveryCheck: Resolver<O>;
+  };
   /**
    * Picks an outcome from a yes/no question: \`true\` runs \`whenTrue\`, \`false\`
    * runs \`whenFalse\`. A bare-string branch is a constant outcome. The

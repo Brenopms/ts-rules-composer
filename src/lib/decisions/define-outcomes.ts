@@ -13,7 +13,7 @@ import {
   toMerger,
   toResolver,
 } from "./inputs";
-import { byPrecedence } from "./precedence";
+import { builtInResolvers } from "./precedence";
 import {
   type ErrorHook,
   notify,
@@ -61,6 +61,31 @@ export interface OutcomeToolkit<O extends string> {
    * };
    */
   outcome(outcome: O): DecisionResult<O>;
+
+  /**
+   * Built-in resolvers bound to this toolkit's declared order, for the
+   * `resolver` option of `combine` and `combineAll`. Frozen.
+   * @example
+   * // Every check runs in order (e.g. for an audit trail); the strongest
+   * // outcome still wins.
+   * const auditedPolicy = credit.combine([affordability, employment], {
+   *   resolver: credit.resolvers.runEveryCheck,
+   * });
+   */
+  readonly resolvers: {
+    /**
+     * The default resolver (the same object `combine` uses when none is
+     * given): the outcome declared first wins, and only the first declared
+     * outcome is final, so `combine` stops there.
+     */
+    readonly strongestWins: Resolver<O>;
+    /**
+     * The same merge as `strongestWins`, but never final: a sequential
+     * `combine` calls every decision. In `combineAll` it behaves like
+     * `strongestWins`.
+     */
+    readonly runEveryCheck: Resolver<O>;
+  };
 
   /**
    * Picks an outcome from a yes/no question: `true` runs `whenTrue`, `false`
@@ -280,7 +305,8 @@ export const defineOutcomes = <const T extends readonly [string, ...string[]]>(
   }
 
   const set: OutcomeSet<O> = { onError, isDeclared };
-  const precedence = byPrecedence(declared);
+  const resolvers = builtInResolvers(declared);
+  const precedence = resolvers.strongestWins;
 
   /** Check for child decisions: an own `outcome` key holding a declared label. */
   const toLabel = (value: unknown): O => {
@@ -342,6 +368,7 @@ export const defineOutcomes = <const T extends readonly [string, ...string[]]>(
   const toolkit: OutcomeToolkit<O> = {
     outcomes: declared,
     onError,
+    resolvers,
     outcome: (outcome) => {
       if (!isDeclared(outcome)) throw notDeclared("outcome:", outcome);
       return { outcome };

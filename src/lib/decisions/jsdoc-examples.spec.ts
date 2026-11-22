@@ -119,6 +119,36 @@ describe("JSDoc examples", () => {
     expect(await creditPolicy(application)).toEqual({ outcome: "review" });
   });
 
+  it("OutcomeToolkit.resolvers", async () => {
+    const credit = defineOutcomes(["declined", "review", "approved"], {
+      onError: "review",
+    });
+    const affordability = credit.ifElse(
+      (app: CreditApplication) => app.monthlyDebt / app.monthlyIncome > 0.5,
+      "declined",
+      "approved",
+    );
+    let employmentChecked = false;
+    const employment = credit.match(
+      (app: CreditApplication) => {
+        employmentChecked = true;
+        return app.employment;
+      },
+      { employed: "approved", unemployed: "declined" },
+      "review",
+    );
+
+    // Every check runs in order (e.g. for an audit trail); the strongest
+    // outcome still wins.
+    const auditedPolicy = credit.combine([affordability, employment], {
+      resolver: credit.resolvers.runEveryCheck,
+    });
+
+    const overBudget = { ...application, monthlyDebt: 4_000 };
+    expect(await auditedPolicy(overBudget)).toEqual({ outcome: "declined" });
+    expect(employmentChecked).toBe(true);
+  });
+
   it("OutcomeToolkit.combineAll", async () => {
     const credit = defineOutcomes(["declined", "review", "approved"], {
       onError: "review",
