@@ -334,7 +334,10 @@ export declare const ifElse: <TInput, TError = string, TContext = unknown>(predi
  */
 export declare const match: <TInput, TError = string, TContext = unknown, TKey extends string | number | symbol = string>(accessor: (input: TInput, context?: TContext) => TKey | Promise<TKey>, cases: Record<TKey, Rule<TInput, TError, TContext>>, defaultCase?: Rule<TInput, TError, TContext> | TError, options?: RuleSafetyOptions<TError>) => Rule<TInput, TError, TContext>;
 /**
- * Inverts the logic of a rule - passes when original fails and vice versa.
+ * Inverts the logic of a rule. A passing child produces \`fail(error)\`. An
+ * unmarked failure produces \`pass()\`. A caught failure (one with a
+ * \`caughtCause\`, such as a throw caught by the default safe mode) is returned
+ * as the same object, preserving its \`error\` and \`caughtCause\`.
  * @template TInput - The type of the input to validate
  * @template TError - The type of the error (defaults to string)
  * @template TContext - The type of the context object (optional, defaults to unknown)
@@ -349,10 +352,10 @@ export declare const match: <TInput, TError = string, TContext = unknown, TKey e
  * @example
  * const isNotAdmin = not(isAdmin, "User must not be admin");
  * @caveats
- * - The original rule's error is discarded when it fails
- * - A caught failure (one with a \`caughtCause\`, such as a throw caught by the
- *   default safe mode) is returned unchanged instead of passing
- * - Always uses the provided error when original passes
+ * - The default safety transform can preserve a thrown \`Error\` even when
+ *   \`TError\` is \`string\`. To control the payload of a caught failure, supply
+ *   \`errorTransform\` at the point that catches the exception. A failure
+ *   already returned by the child keeps its original payload.
  */
 export declare const not: <TInput, TError = string, TContext = unknown>(rule: Rule<TInput, TError, TContext>, error: TError, options?: RuleSafetyOptions<TError>) => Rule<TInput, TError, TContext>;
 /**
@@ -1599,7 +1602,10 @@ export declare const ifElse: <TInput, TError = string, TContext = unknown>(predi
  */
 export declare const match: <TInput, TError = string, TContext = unknown, TKey extends string | number | symbol = string>(accessor: (input: TInput, context?: TContext) => TKey | Promise<TKey>, cases: Record<TKey, Rule<TInput, TError, TContext>>, defaultCase?: Rule<TInput, TError, TContext> | TError, options?: RuleSafetyOptions<TError>) => Rule<TInput, TError, TContext>;
 /**
- * Inverts the logic of a rule - passes when original fails and vice versa.
+ * Inverts the logic of a rule. A passing child produces \`fail(error)\`. An
+ * unmarked failure produces \`pass()\`. A caught failure (one with a
+ * \`caughtCause\`, such as a throw caught by the default safe mode) is returned
+ * as the same object, preserving its \`error\` and \`caughtCause\`.
  * @template TInput - The type of the input to validate
  * @template TError - The type of the error (defaults to string)
  * @template TContext - The type of the context object (optional, defaults to unknown)
@@ -1614,10 +1620,10 @@ export declare const match: <TInput, TError = string, TContext = unknown, TKey e
  * @example
  * const isNotAdmin = not(isAdmin, "User must not be admin");
  * @caveats
- * - The original rule's error is discarded when it fails
- * - A caught failure (one with a \`caughtCause\`, such as a throw caught by the
- *   default safe mode) is returned unchanged instead of passing
- * - Always uses the provided error when original passes
+ * - The default safety transform can preserve a thrown \`Error\` even when
+ *   \`TError\` is \`string\`. To control the payload of a caught failure, supply
+ *   \`errorTransform\` at the point that catches the exception. A failure
+ *   already returned by the child keeps its original payload.
  */
 export declare const not: <TInput, TError = string, TContext = unknown>(rule: Rule<TInput, TError, TContext>, error: TError, options?: RuleSafetyOptions<TError>) => Rule<TInput, TError, TContext>;
 /**
