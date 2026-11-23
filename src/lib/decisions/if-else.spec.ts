@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Decision } from "../types";
+import { withSafeError } from "../combinators";
+import type { Decision, Rule } from "../types";
 import { defineOutcomes } from "./define-outcomes";
 
 interface App {
@@ -335,6 +336,31 @@ describe("toolkit.ifElse failures", () => {
 
     expect(await outerFails({ age: 30 })).toStrictEqual({ outcome: "review" });
     expect(await innerFails({ age: 30 })).toStrictEqual({ outcome: "review" });
+  });
+});
+
+describe("toolkit.ifElse caught branch (caughtCause)", () => {
+  const outage = new Error("down");
+  const marked: Rule<App> = withSafeError(() => {
+    throw outage;
+  });
+  const makeVerdict = (onErrorCaught?: (error: unknown) => void) =>
+    defineOutcomes(["denied", "failed", "passed"], {
+      onError: "failed",
+      onErrorCaught,
+    });
+
+  it("returns the local onError override for a marked raw-Rule branch, hook once", async () => {
+    const hook = vi.fn();
+    const verdict = makeVerdict(hook);
+
+    const result = await verdict.ifElse(() => true, marked, "passed", {
+      onError: "denied",
+    })({ age: 30 });
+
+    expect(result).toStrictEqual({ outcome: "denied" });
+    expect(hook).toHaveBeenCalledOnce();
+    expect(hook.mock.calls[0]?.[0]).toBe(outage);
   });
 });
 

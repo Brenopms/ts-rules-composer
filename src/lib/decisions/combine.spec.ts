@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Decision, Resolver } from "../types";
+import { withSafeError } from "../combinators";
+import { fail, pass } from "../helpers";
+import type { Decision, Resolver, Rule } from "../types";
 import { defineOutcomes } from "./define-outcomes";
 
 interface App {
@@ -622,6 +624,108 @@ describe("toolkit.combineAll (parallel)", () => {
 
     expect(result).toStrictEqual({ outcome: "approved" });
     expect(combine).not.toHaveBeenCalled();
+  });
+});
+
+describe("toolkit.combine caught children (caughtCause)", () => {
+  type Verdict = "denied" | "failed" | "passed";
+  const outage = new Error("down");
+  const marked: Rule<App> = withSafeError(() => {
+    throw outage;
+  });
+  const verdictOf =
+    (outcome: Verdict): Decision<App, Verdict> =>
+    () => ({ outcome });
+  const makeVerdict = (onErrorCaught?: (error: unknown) => void) =>
+    defineOutcomes(["denied", "failed", "passed"], {
+      onError: "failed",
+      onErrorCaught,
+    });
+
+  it("gives onError for a binary combine of a marked raw Rule, hook once", async () => {
+    const hook = vi.fn();
+    const binary = defineOutcomes(["failed", "passed"], {
+      onError: "failed",
+      onErrorCaught: hook,
+    });
+
+    const result = await binary.combine([marked])(app);
+
+    expect(result).toStrictEqual({ outcome: "failed" });
+    expect(hook).toHaveBeenCalledOnce();
+    expect(hook.mock.calls[0]?.[0]).toBe(outage);
+  });
+
+  it.each<[string, Rule<App>, "failed" | "passed"]>([
+    ["a business failure", () => fail("Too young"), "failed"],
+    ["a pass", () => pass(), "passed"],
+  ])("keeps %s as its label, no hook", async (_, rule, expected) => {
+    const hook = vi.fn();
+    const binary = defineOutcomes(["failed", "passed"], {
+      onError: "failed",
+      onErrorCaught: hook,
+    });
+
+    expect(await binary.combine([rule])(app)).toStrictEqual({
+      outcome: expected,
+    });
+    expect(hook).not.toHaveBeenCalled();
+  });
+
+  it.each(["combine", "combineAll"] as const)(
+    "%s: a marked child contributes the local override, hook once",
+    async (method) => {
+      const hook = vi.fn();
+      const verdict = makeVerdict(hook);
+
+      const result = await verdict[method]([marked, verdictOf("passed")], {
+        onError: "passed",
+      })(app);
+
+      expect(result).toStrictEqual({ outcome: "passed" });
+      expect(hook).toHaveBeenCalledOnce();
+      expect(hook.mock.calls[0]?.[0]).toBe(outage);
+    },
+  );
+
+  it.each(["combine", "combineAll"] as const)(
+    "%s: a later stronger sibling (denied) still decides",
+    async (method) => {
+      const hook = vi.fn();
+      const verdict = makeVerdict(hook);
+
+      const result = await verdict[method]([marked, verdictOf("denied")], {
+        onError: "passed",
+      })(app);
+
+      expect(result).toStrictEqual({ outcome: "denied" });
+      expect(hook).toHaveBeenCalledExactlyOnceWith(outage);
+    },
+  );
+
+  it.each<Verdict>(["passed", "denied"])(
+    "keeps a %s child with an own caughtCause as its label, no hook",
+    async (outcome) => {
+      const hook = vi.fn();
+      const verdict = makeVerdict(hook);
+      const child = () => ({ outcome, caughtCause: outage });
+
+      const result = await verdict.combine([child], { onError: "passed" })(app);
+
+      expect(result).toStrictEqual({ outcome });
+      expect(hook).not.toHaveBeenCalled();
+    },
+  );
+
+  it("reads an out-of-set label as malformed before the marker", async () => {
+    const hook = vi.fn();
+    const credit = makeCredit(hook);
+
+    const result = await credit.combine([marked as never])(app);
+
+    expect(result).toStrictEqual({ outcome: "review" });
+    expect(hook).toHaveBeenCalledOnce();
+    expect(hook.mock.calls[0]?.[0]).toBeInstanceOf(TypeError);
   });
 });
 
