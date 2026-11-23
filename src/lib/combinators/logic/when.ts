@@ -1,5 +1,5 @@
 import { attachNode } from "../../graph/node";
-import { fail, getNormalizedRule } from "../../helpers";
+import { getNormalizedRule } from "../../helpers";
 import { pass } from "../../helpers/result/pass";
 import type { Predicate } from "../../types";
 import type { Rule } from "../../types/rule";
@@ -44,7 +44,8 @@ export const when = <TInput, TError = string, TContext = unknown>(
 
       const safePredicateResult = await safePredicate(input, context);
       if (safePredicateResult.outcome === "failed") {
-        return fail(safePredicateResult.error);
+        // Already a rule failure: returned as is, so a caughtCause survives.
+        return safePredicateResult;
       }
 
       return safePredicateResult.value

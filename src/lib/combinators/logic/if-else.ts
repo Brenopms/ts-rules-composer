@@ -1,6 +1,6 @@
 import { branch } from "../../decisions/branch";
 import { attachNode } from "../../graph/node";
-import { fail, getNormalizedRules, pass } from "../../helpers";
+import { getNormalizedRules, pass } from "../../helpers";
 import type { Predicate, Rule } from "../../types";
 import type { SafetyOptions } from "../../types/safety-options";
 import { withSafePredicate } from "../utility";
@@ -49,7 +49,8 @@ export const ifElse = <TInput, TError = string, TContext = unknown>(
 
       // Predicate fail to run or returned invalid result
       if (safePredicateResult.outcome === "failed") {
-        return fail(safePredicateResult.error);
+        // Already a rule failure: returned as is, so a caughtCause survives.
+        return safePredicateResult;
       }
 
       const [normalizedIfRule, normalizedElseRule] = getNormalizedRules(

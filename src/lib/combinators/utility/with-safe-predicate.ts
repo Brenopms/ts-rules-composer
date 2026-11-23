@@ -1,3 +1,4 @@
+import { caughtFailure } from "../../helpers/result/caught";
 import type { Predicate, PredicateResult, PredicateSafe } from "../../types";
 
 /**
@@ -36,6 +37,15 @@ export const withSafePredicate = <TInput, TError = string, TContext = unknown>(
     return (e instanceof Error ? e.message : String(e)) as TError;
   },
 ): PredicateSafe<TInput, TError, TContext> => {
+  // The diagnostic Error is the cause; a transform throwing here is caught
+  // below like any other throw.
+  const markNonBoolean = (result: unknown): PredicateResult<TError> => {
+    const error = new Error(
+      `Predicate must return boolean, got ${typeof result}`,
+    );
+    return caughtFailure(errorTransform(error), error);
+  };
+
   return async (
     input: TInput,
     context?: TContext,
@@ -48,17 +58,9 @@ export const withSafePredicate = <TInput, TError = string, TContext = unknown>(
         return { outcome: "passed", value: result };
       }
 
-      return {
-        outcome: "failed",
-        error: errorTransform(
-          new Error(`Predicate must return boolean, got ${typeof result}`),
-        ),
-      };
+      return markNonBoolean(result);
     } catch (error) {
-      return {
-        outcome: "failed",
-        error: errorTransform(error),
-      };
+      return caughtFailure(errorTransform(error), error);
     }
   };
 };
