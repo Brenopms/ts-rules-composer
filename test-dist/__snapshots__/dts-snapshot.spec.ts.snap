@@ -350,6 +350,8 @@ export declare const match: <TInput, TError = string, TContext = unknown, TKey e
  * const isNotAdmin = not(isAdmin, "User must not be admin");
  * @caveats
  * - The original rule's error is discarded when it fails
+ * - A caught failure (one with a \`caughtCause\`, such as a throw caught by the
+ *   default safe mode) is returned unchanged instead of passing
  * - Always uses the provided error when original passes
  */
 export declare const not: <TInput, TError = string, TContext = unknown>(rule: Rule<TInput, TError, TContext>, error: TError, options?: RuleSafetyOptions<TError>) => Rule<TInput, TError, TContext>;
@@ -1613,6 +1615,8 @@ export declare const match: <TInput, TError = string, TContext = unknown, TKey e
  * const isNotAdmin = not(isAdmin, "User must not be admin");
  * @caveats
  * - The original rule's error is discarded when it fails
+ * - A caught failure (one with a \`caughtCause\`, such as a throw caught by the
+ *   default safe mode) is returned unchanged instead of passing
  * - Always uses the provided error when original passes
  */
 export declare const not: <TInput, TError = string, TContext = unknown>(rule: Rule<TInput, TError, TContext>, error: TError, options?: RuleSafetyOptions<TError>) => Rule<TInput, TError, TContext>;

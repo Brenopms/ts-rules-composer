@@ -1,5 +1,6 @@
 import { attachNode } from "../../graph/node";
 import { fail, getNormalizedRule, pass } from "../../helpers";
+import { isCaught } from "../../helpers/result/caught";
 import type { RuleSafetyOptions } from "../../types";
 import type { Rule } from "../../types/rule";
 
@@ -20,6 +21,8 @@ import type { Rule } from "../../types/rule";
  * const isNotAdmin = not(isAdmin, "User must not be admin");
  * @caveats
  * - The original rule's error is discarded when it fails
+ * - A caught failure (one with a `caughtCause`, such as a throw caught by the
+ *   default safe mode) is returned unchanged instead of passing
  * - Always uses the provided error when original passes
  */
 export const not = <TInput, TError = string, TContext = unknown>(
@@ -32,7 +35,9 @@ export const not = <TInput, TError = string, TContext = unknown>(
       const normalizedRule = getNormalizedRule(rule, options);
 
       const result = await normalizedRule(input, context);
-      return result.outcome === "passed" ? fail(error) : pass();
+      if (result.outcome === "passed") return fail(error);
+      // An unknown stays unknown: a caught failure is not a "no".
+      return isCaught(result) ? result : pass();
     },
     { kind: "not", rule },
   );

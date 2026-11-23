@@ -5,7 +5,7 @@
  * business failure gives `rejected` with no hook call.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { defineOutcomes, fail, pass, pipeRules, type Rule } from "../lib";
+import { defineOutcomes, fail, not, pass, pipeRules, type Rule } from "../lib";
 
 type Applicant = { age: number };
 
@@ -48,6 +48,24 @@ describe("rule-error-provenance probe table", () => {
       pipeRules([isAdult, down]),
       adult,
       { outcome: "manual_review", cause: outage },
+    ],
+    [
+      "not(down, e)",
+      not(down, "Must not pass"),
+      adult,
+      { outcome: "manual_review", cause: outage },
+    ],
+    [
+      "not(pipeRules([down]), e)",
+      not(pipeRules([down]), "Must not pass"),
+      adult,
+      { outcome: "manual_review", cause: outage },
+    ],
+    [
+      "not(isAdult, e), applicant is 16 (business failure still inverts)",
+      not(isAdult, "Must not be an adult"),
+      minor,
+      { outcome: "verified" },
     ],
     [
       "pipeRules([isAdult]), applicant is 16",

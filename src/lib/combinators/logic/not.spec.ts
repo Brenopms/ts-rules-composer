@@ -67,6 +67,63 @@ describe("not combinator", () => {
     expect(result).toEqual(fail(errorMsg));
   });
 
+  describe("caught failures (three-valued)", () => {
+    const outage = new Error("down");
+    const down: Rule<unknown> = () => {
+      throw outage;
+    };
+    const causeOf = (result: unknown) =>
+      (result as { caughtCause: unknown }).caughtCause;
+
+    it("keeps a caught failure instead of passing", async () => {
+      const result = await not(down, errorMsg)({});
+
+      expect(result).toStrictEqual({
+        outcome: "failed",
+        error: outage,
+        caughtCause: outage,
+      });
+      expect(causeOf(result)).toBe(outage);
+    });
+
+    it("returns the child's caught result object unchanged", async () => {
+      const caught = { outcome: "failed", error: "e", caughtCause: outage };
+      const result = await not(() => caught as never, errorMsg)({});
+
+      expect(result).toBe(caught);
+    });
+
+    it("keeps a caught failure under double negation", async () => {
+      const result = await not(not(down, "inner"), errorMsg)({});
+
+      expect(result.outcome).toBe("failed");
+      expect(causeOf(result)).toBe(outage);
+    });
+
+    it("keeps a caught failure returned through unsafe mode", async () => {
+      const caught = { outcome: "failed", error: "e", caughtCause: undefined };
+      const result = await not(() => caught as never, errorMsg, {
+        errorHandlingMode: "unsafe",
+      })({});
+
+      expect(result).toBe(caught);
+    });
+
+    it("still inverts a business failure with an Error payload", async () => {
+      const denied: Rule<unknown, unknown> = () => fail(new Error("no"));
+      const result = await not(denied, errorMsg)({});
+
+      expect(result).toStrictEqual(pass());
+    });
+
+    it("leaves its own inversion failure unmarked", async () => {
+      const result = await not(mockRule, errorMsg)({});
+
+      expect(result).toStrictEqual(fail(errorMsg));
+      expect(Object.hasOwn(result, "caughtCause")).toBe(false);
+    });
+  });
+
   it("should propagate rule errors", async () => {
     const errorRule = vi.fn(() => {
       throw new Error("Boom!");
