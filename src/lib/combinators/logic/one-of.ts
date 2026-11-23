@@ -1,5 +1,10 @@
 import { attachNode } from "../../graph/node";
-import { fail, getNormalizedRules, pass } from "../../helpers";
+import { getNormalizedRules, pass } from "../../helpers";
+import {
+  collectedFailure,
+  type Failed,
+  isCaught,
+} from "../../helpers/result/caught";
 import type { Rule, RuleSafetyOptions } from "../../types";
 
 /**
@@ -31,7 +36,7 @@ export const oneOf = <TInput, TError = string, TContext = unknown>(
   return attachNode<Rule<TInput, TError[], TContext>>(
     async (input: TInput, context?: TContext) => {
       const normalizedRules = getNormalizedRules(rules, options);
-      const errors: TError[] = [];
+      const failures: Failed<TError>[] = [];
 
       if (!rules || rules.length === 0) {
         return pass();
@@ -42,10 +47,11 @@ export const oneOf = <TInput, TError = string, TContext = unknown>(
         if (result.outcome === "passed") {
           return pass();
         }
-        errors.push(result.error);
+        failures.push(result);
       }
 
-      return fail(errors);
+      // No pass: caught (unknown) if any child was caught, else a confirmed no.
+      return collectedFailure(failures, failures.find(isCaught));
     },
     {
       kind: "any",

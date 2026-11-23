@@ -149,3 +149,41 @@ describe("withFallback", () => {
     withFallback(stringRule, numberRule);
   });
 });
+
+describe("withFallback with caught failures (caughtCause)", () => {
+  const outage = new Error("primary down");
+  const down = () => {
+    throw outage;
+  };
+
+  it("gives a refusing guard the transformed error and keeps the primary's marker", async () => {
+    const guard = vi.fn(() => false);
+    const fallbackRule = vi.fn(() => pass());
+
+    const result = await withFallback(down, fallbackRule, {
+      errorTransform: () => "mapped",
+      onlyFallbackOn: guard,
+    })("test");
+
+    expect(guard).toHaveBeenCalledExactlyOnceWith("mapped");
+    expect(result).toStrictEqual({
+      outcome: "failed",
+      error: "mapped",
+      caughtCause: outage,
+    });
+    expect((result as { caughtCause?: unknown }).caughtCause).toBe(outage);
+    expect(fallbackRule).not.toHaveBeenCalled();
+  });
+
+  it("returns an accepted fallback's own caught result by identity", async () => {
+    const fallbackResult = {
+      outcome: "failed" as const,
+      error: "fallback down",
+      caughtCause: new Error("fallback down"),
+    };
+
+    const result = await withFallback(down, () => fallbackResult)("test");
+
+    expect(result).toBe(fallbackResult);
+  });
+});

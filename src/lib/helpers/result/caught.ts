@@ -2,6 +2,11 @@
  * Internal (not re-exported): builds and recognizes failures the library
  * caught, as opposed to business failures built with `fail()`.
  */
+import type { RuleResult } from "../../types";
+import { fail } from "./fail";
+
+/** The failed arm of a rule result. */
+export type Failed<E> = Extract<RuleResult<E>, { outcome: "failed" }>;
 
 /**
  * A failed result carrying the caught value as `caughtCause`. The return type
@@ -18,3 +23,22 @@ export const isCaught = (result: object): boolean =>
   Object.hasOwn(result, "outcome") &&
   (result as { outcome: unknown }).outcome === "failed" &&
   Object.hasOwn(result, "caughtCause");
+
+/** Whether a rule result failed (caught or not). */
+export const isFailed = <E>(result: RuleResult<E>): result is Failed<E> =>
+  result.outcome === "failed";
+
+/**
+ * The failure of an aggregate (`every`, `oneOf`): every failed payload, in
+ * declaration order. Caught (unknown) with `marked`'s cause when given, else
+ * a plain `fail` (a confirmed no).
+ */
+export const collectedFailure = <E>(
+  failures: readonly Failed<E>[],
+  marked: Failed<E> | undefined,
+): RuleResult<E[]> => {
+  const errors = failures.map((failure) => failure.error);
+  return marked === undefined
+    ? fail(errors)
+    : caughtFailure(errors, marked.caughtCause);
+};

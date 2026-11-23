@@ -1,7 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fail, pass } from "../../helpers";
-import type { Rule } from "../../types";
+import type { Rule, RuleResult } from "../../types";
 import { every } from "./every";
+import {
+  caught,
+  caughtAt,
+  children,
+  expectResult,
+} from "./three-valued.fixtures";
 
 describe("every", () => {
   const delay = (ms: number) =>
@@ -84,9 +90,11 @@ describe("every", () => {
 
     const result = await validator({});
 
-    expect(result).toEqual(
-      fail([new Error("Invalid rule - did not return RuleResult")]),
-    );
+    // A malformed result is a caught failure, so every is unknown (U).
+    expect(result).toEqual({
+      ...fail([new Error("Invalid rule - did not return RuleResult")]),
+      caughtCause: new Error("Invalid rule - did not return RuleResult"),
+    });
   });
 });
 
@@ -274,4 +282,69 @@ it("should handle circular reference errors", async () => {
   const errors = (result as any).error;
   expect(errors[0].self).toBe(errors[0]); // Verify circularity
   expect(errors).toEqual([obj]); // Verify error content
+});
+
+describe("every three-valued (caughtCause)", () => {
+  const outage = new Error("down");
+  const down: Rule<unknown> = () => {
+    throw outage;
+  };
+
+  it.each<[string, RuleResult<unknown>]>([
+    ["TT", pass()],
+    ["TF", fail(["f1"])],
+    ["TU", caught(["u1"], 1)],
+    ["FT", fail(["f0"])],
+    ["FF", fail(["f0", "f1"])],
+    ["FU", fail(["f0", "u1"])],
+    ["UT", caught(["u0"], 0)],
+    ["UF", fail(["u0", "f1"])],
+    ["UU", caught(["u0", "u1"], 0)],
+  ])("%s", async (cells, expected) => {
+    expectResult(await every(children(cells))({}), expected);
+  });
+
+  it("keeps the first declared cause when children complete in reverse order", async () => {
+    const delay = (ms: number) =>
+      new Promise((resolve) => setTimeout(resolve, ms));
+    const slow: Rule<unknown> = async () => {
+      await delay(20);
+      return caughtAt(0);
+    };
+    const fast: Rule<unknown> = () => caughtAt(1);
+
+    expectResult(await every([slow, fast])({}), caught(["u0", "u1"], 0));
+  });
+
+  it("marks a throw it caught itself, payload from errorTransform", async () => {
+    const result = await every([down, () => pass()], {
+      errorTransform: () => "mapped",
+    })({});
+
+    expectResult(result, {
+      outcome: "failed",
+      error: ["mapped"],
+      caughtCause: outage,
+    });
+  });
+
+  it("marks throw undefined with an own undefined cause", async () => {
+    const result = await every([
+      () => {
+        throw undefined;
+      },
+    ])({});
+
+    expect(result.outcome).toBe("failed");
+    expect(Object.hasOwn(result, "caughtCause")).toBe(true);
+    expect((result as { caughtCause?: unknown }).caughtCause).toBeUndefined();
+  });
+
+  it("keeps a child's marker in unsafe mode", async () => {
+    const result = await every(children("TU"), {
+      errorHandlingMode: "unsafe",
+    })({});
+
+    expectResult(result, caught(["u1"], 1));
+  });
 });
