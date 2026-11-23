@@ -29,16 +29,14 @@ export const isFailed = <E>(result: RuleResult<E>): result is Failed<E> =>
   result.outcome === "failed";
 
 /**
- * The failure of an aggregate (`every`, `oneOf`): every failed payload, in
- * declaration order. Caught (unknown) with `marked`'s cause when given, else
- * a plain `fail` (a confirmed no).
+ * The failure of an aggregate (`every`, `oneOf`) from its collected payloads
+ * (declaration order). Caught (unknown) with `marked`'s cause when given,
+ * else a plain `fail` (a confirmed no).
  */
 export const collectedFailure = <E>(
-  failures: readonly Failed<E>[],
+  errors: E[],
   marked: Failed<E> | undefined,
-): RuleResult<E[]> => {
-  const errors = failures.map((failure) => failure.error);
-  return marked === undefined
+): RuleResult<E[]> =>
+  marked === undefined
     ? fail(errors)
     : caughtFailure(errors, marked.caughtCause);
-};

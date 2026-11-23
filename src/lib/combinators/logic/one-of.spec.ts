@@ -112,6 +112,24 @@ describe("oneOf three-valued (caughtCause)", () => {
     });
   });
 
+  it("reads each payload when its child returns, not after later children", async () => {
+    let state = "first";
+    const failsWithState = (): RuleResult => ({
+      outcome: "failed",
+      get error() {
+        return state;
+      },
+    });
+    const changesState = (): RuleResult => {
+      state = "second";
+      return fail("second");
+    };
+
+    const result = await oneOf([failsWithState, changesState])({});
+
+    expect(result).toStrictEqual(fail(["first", "second"]));
+  });
+
   it("marks throw undefined with an own undefined cause", async () => {
     const result = await oneOf([
       () => {

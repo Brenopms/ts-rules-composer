@@ -36,7 +36,8 @@ export const oneOf = <TInput, TError = string, TContext = unknown>(
   return attachNode<Rule<TInput, TError[], TContext>>(
     async (input: TInput, context?: TContext) => {
       const normalizedRules = getNormalizedRules(rules, options);
-      const failures: Failed<TError>[] = [];
+      const errors: TError[] = [];
+      let marked: Failed<TError> | undefined;
 
       if (!rules || rules.length === 0) {
         return pass();
@@ -47,11 +48,13 @@ export const oneOf = <TInput, TError = string, TContext = unknown>(
         if (result.outcome === "passed") {
           return pass();
         }
-        failures.push(result);
+        // Read now: a later child must not change an earlier payload.
+        errors.push(result.error);
+        marked ??= isCaught(result) ? result : undefined;
       }
 
       // No pass: caught (unknown) if any child was caught, else a confirmed no.
-      return collectedFailure(failures, failures.find(isCaught));
+      return collectedFailure(errors, marked);
     },
     {
       kind: "any",
