@@ -143,6 +143,16 @@ type PredicateResult<TError = string> = {
 } | {
   readonly outcome: "failed";
   readonly error: TError;
+  /**
+   * The original error when this failure was caught rather than decided:
+   * the value a rule threw or rejected with, or the \`Error\` built for a
+   * malformed result. Set only by the library's catch points (such as
+   * \`withSafeError\`); \`fail()\` never sets it. A result with its own
+   * \`outcome: "failed"\` and its own \`caughtCause\`, whatever the value (even
+   * \`undefined\`), counts as caught. The name is reserved: don't set it by
+   * hand.
+   */
+  readonly caughtCause?: unknown;
 };
 /**
  * A predicate function that evaluates an input and returns a PredicateResult.
@@ -661,7 +671,10 @@ export declare function withRetry<TInput, TError = string, TContext = unknown>(r
   onExhausted?: "max-retries" | "last-error";
 }): Rule<TInput, TError | "MAX_RETRIES_EXCEEDED", TContext>;
 /**
- * Wraps a rule to catch errors and convert them to failed RuleResults
+ * Wraps a rule to catch errors and convert them to failed RuleResults.
+ * A caught failure carries the original error as \`caughtCause\`: the thrown or
+ * rejected value, or the \`Error\` built for a malformed or 1.x-shaped result.
+ * The rule's own results, including its failures, are returned unchanged.
  * @template TInput - The input type
  * @template TError - The error type (defaults to string)
  * @template TContext - The context type
@@ -1393,6 +1406,16 @@ type PredicateResult<TError = string> = {
 } | {
   readonly outcome: "failed";
   readonly error: TError;
+  /**
+   * The original error when this failure was caught rather than decided:
+   * the value a rule threw or rejected with, or the \`Error\` built for a
+   * malformed result. Set only by the library's catch points (such as
+   * \`withSafeError\`); \`fail()\` never sets it. A result with its own
+   * \`outcome: "failed"\` and its own \`caughtCause\`, whatever the value (even
+   * \`undefined\`), counts as caught. The name is reserved: don't set it by
+   * hand.
+   */
+  readonly caughtCause?: unknown;
 };
 /**
  * A predicate function that evaluates an input and returns a PredicateResult.
@@ -1911,7 +1934,10 @@ export declare function withRetry<TInput, TError = string, TContext = unknown>(r
   onExhausted?: "max-retries" | "last-error";
 }): Rule<TInput, TError | "MAX_RETRIES_EXCEEDED", TContext>;
 /**
- * Wraps a rule to catch errors and convert them to failed RuleResults
+ * Wraps a rule to catch errors and convert them to failed RuleResults.
+ * A caught failure carries the original error as \`caughtCause\`: the thrown or
+ * rejected value, or the \`Error\` built for a malformed or 1.x-shaped result.
+ * The rule's own results, including its failures, are returned unchanged.
  * @template TInput - The input type
  * @template TError - The error type (defaults to string)
  * @template TContext - The context type
@@ -2582,6 +2608,16 @@ type RuleResult<TError = string> = {
 } | {
   readonly outcome: "failed";
   readonly error: TError;
+  /**
+   * The original error when this failure was caught rather than decided:
+   * the value a rule threw or rejected with, or the \`Error\` built for a
+   * malformed result. Set only by the library's catch points (such as
+   * \`withSafeError\`); \`fail()\` never sets it. A result with its own
+   * \`outcome: "failed"\` and its own \`caughtCause\`, whatever the value (even
+   * \`undefined\`), counts as caught. The name is reserved: don't set it by
+   * hand.
+   */
+  readonly caughtCause?: unknown;
 };
 /**
  * A function that validates an input and returns a RuleResult.
@@ -2620,6 +2656,16 @@ type RuleResult<TError = string> = {
 } | {
   readonly outcome: "failed";
   readonly error: TError;
+  /**
+   * The original error when this failure was caught rather than decided:
+   * the value a rule threw or rejected with, or the \`Error\` built for a
+   * malformed result. Set only by the library's catch points (such as
+   * \`withSafeError\`); \`fail()\` never sets it. A result with its own
+   * \`outcome: "failed"\` and its own \`caughtCause\`, whatever the value (even
+   * \`undefined\`), counts as caught. The name is reserved: don't set it by
+   * hand.
+   */
+  readonly caughtCause?: unknown;
 };
 /**
  * A function that validates an input and returns a RuleResult.

@@ -64,7 +64,10 @@ describe("pipeRules", () => {
 
     await expect(
       pipeRules([throws], { errorTransform: () => "transformed" })({}),
-    ).resolves.toEqual(fail("transformed"));
+    ).resolves.toEqual({
+      ...fail("transformed"),
+      caughtCause: new Error("boom"),
+    });
     await expect(
       pipeRules([throws], { errorHandlingMode: "unsafe" })({}),
     ).rejects.toThrow("boom");

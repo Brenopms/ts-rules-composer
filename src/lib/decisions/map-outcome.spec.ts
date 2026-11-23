@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
+import { withSafeError } from "../combinators";
+import { pipeRules } from "../composition";
 import { fail, pass } from "../helpers";
 import type { Rule } from "../types";
 import { defineOutcomes } from "./define-outcomes";
@@ -206,6 +208,100 @@ describe("toolkit.mapOutcome failures", () => {
     }).mapOutcome(() => Promise.reject(boom), { failed: "declined" });
 
     expect(await decide(app)).toStrictEqual({ outcome: "review" });
+  });
+});
+
+describe("toolkit.mapOutcome caught failures (caughtCause)", () => {
+  const outage = new Error("down");
+  const throwing: Rule<App> = () => {
+    throw outage;
+  };
+
+  it("gives onError and calls the hook once with the cause by identity", async () => {
+    const hook = vi.fn();
+    const decide = makeCredit(hook).mapOutcome(withSafeError(throwing), {
+      failed: "declined",
+    });
+
+    expect(await decide(app)).toStrictEqual({ outcome: "review" });
+    expect(hook).toHaveBeenCalledOnce();
+    expect(hook.mock.calls[0]?.[0]).toBe(outage);
+  });
+
+  it("reaches a pipe's caught child", async () => {
+    const hook = vi.fn();
+    const decide = makeCredit(hook).mapOutcome(pipeRules([passes, throwing]), {
+      failed: "declined",
+    });
+
+    expect(await decide(app)).toStrictEqual({ outcome: "review" });
+    expect(hook).toHaveBeenCalledOnce();
+    expect(hook.mock.calls[0]?.[0]).toBe(outage);
+  });
+
+  it("uses the onError override", async () => {
+    const decide = makeCredit().mapOutcome(
+      withSafeError(throwing),
+      { failed: "approved" },
+      { onError: "declined" },
+    );
+
+    expect(await decide(app)).toStrictEqual({ outcome: "declined" });
+  });
+
+  it("treats an own undefined cause as caught", async () => {
+    const hook = vi.fn();
+    const decide = makeCredit(hook).mapOutcome(
+      () => ({ outcome: "failed", error: "e", caughtCause: undefined }),
+      { failed: "declined" },
+    );
+
+    expect(await decide(app)).toStrictEqual({ outcome: "review" });
+    expect(hook).toHaveBeenCalledExactlyOnceWith(undefined);
+  });
+
+  it.each<[string, () => unknown, "declined" | "approved"]>([
+    ["a business failure", () => fail("Too young"), "declined"],
+    [
+      "an inherited cause",
+      () =>
+        Object.assign(Object.create({ caughtCause: outage }), {
+          outcome: "failed",
+          error: "e",
+        }),
+      "declined",
+    ],
+    [
+      "a passed result with an own cause",
+      () => ({ outcome: "passed", caughtCause: outage }),
+      "approved",
+    ],
+  ])("maps %s without calling the hook", async (_, rule, expected) => {
+    const hook = vi.fn();
+    const decide = makeCredit(hook).mapOutcome(rule as Rule<App>, {
+      failed: "declined",
+    });
+
+    expect(await decide(app)).toStrictEqual({ outcome: expected });
+    expect(hook).not.toHaveBeenCalled();
+  });
+
+  it("gives onError, never a rejection, when the caughtCause getter throws", async () => {
+    const getterError = new Error("getter");
+    const hook = vi.fn();
+    const result = {
+      outcome: "failed",
+      error: "e",
+      get caughtCause(): unknown {
+        throw getterError;
+      },
+    };
+    const decide = makeCredit(hook).mapOutcome(() => result as never, {
+      failed: "declined",
+    });
+
+    await expect(decide(app)).resolves.toStrictEqual({ outcome: "review" });
+    expect(hook).toHaveBeenCalledExactlyOnceWith(getterError);
   });
 });
 

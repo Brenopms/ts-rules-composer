@@ -209,13 +209,15 @@ describe("kyc-onboarding decision", () => {
       expect(await onboard(applicant)).toEqual({ outcome: "rejected" });
     });
 
-    it("shows why outage-prone calls stay out of the pipe: a default pipeRules turns a throw into failed", async () => {
-      sanctionsService.isListed.mockRejectedValue(new Error("down"));
+    it("keeps a piped outage apart from a rejection: the caught throw gives manual_review", async () => {
+      const outage = new Error("down");
+      sanctionsService.isListed.mockRejectedValue(outage);
       const piped = kyc.mapOutcome(pipeRules([isAdult, isNotSanctioned]), {
         failed: "rejected",
       });
-      expect(await piped(applicant)).toEqual({ outcome: "rejected" });
-      expect(onErrorCaught).not.toHaveBeenCalled();
+      expect(await piped(applicant)).toEqual({ outcome: "manual_review" });
+      expect(onErrorCaught).toHaveBeenCalledOnce();
+      expect(onErrorCaught.mock.calls[0]?.[0]).toBe(outage);
     });
   });
 });
