@@ -18,6 +18,7 @@ import {
   type ErrorHook,
   notify,
   runSafely,
+  throwIfCaught,
   toBoolean,
   toKey,
   toRuleOutcome,
@@ -309,7 +310,11 @@ export const defineOutcomes = <const T extends readonly [string, ...string[]]>(
   const resolvers = builtInResolvers(declared);
   const precedence = resolvers.strongestWins;
 
-  /** Check for child decisions: an own `outcome` key holding a declared label. */
+  /**
+   * Check for child decisions: an own `outcome` key holding a declared label.
+   * A caught failure (a declared `"failed"` with an own `caughtCause`) throws
+   * its cause, so the child counts as failed and gives the local `onError`.
+   */
   const toLabel = (value: unknown): O => {
     if (!isObject(value) || !Object.hasOwn(value, "outcome")) {
       throw new TypeError("decision must return an object with an own outcome");
@@ -320,6 +325,7 @@ export const defineOutcomes = <const T extends readonly [string, ...string[]]>(
         `decision returned ${display(outcome)}, which is not a declared outcome`,
       );
     }
+    throwIfCaught(value, outcome);
     return outcome;
   };
 

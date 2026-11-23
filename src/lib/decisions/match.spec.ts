@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Decision } from "../types";
+import { withSafeError } from "../combinators";
+import type { Decision, Rule } from "../types";
 import { defineOutcomes } from "./define-outcomes";
 
 interface App {
@@ -292,6 +293,34 @@ describe("toolkit.match failures", () => {
     )(app);
 
     expect(result).toStrictEqual({ outcome: "declined" });
+  });
+});
+
+describe("toolkit.match caught branch (caughtCause)", () => {
+  const outage = new Error("down");
+  const marked: Rule<App> = withSafeError(() => {
+    throw outage;
+  });
+  const makeVerdict = (onErrorCaught?: (error: unknown) => void) =>
+    defineOutcomes(["denied", "failed", "passed"], {
+      onError: "failed",
+      onErrorCaught,
+    });
+
+  it("returns the local onError override for a marked raw-Rule branch, hook once", async () => {
+    const hook = vi.fn();
+    const verdict = makeVerdict(hook);
+
+    const result = await verdict.match(
+      (input) => input.employment,
+      { employed: marked },
+      "passed",
+      { onError: "denied" },
+    )(app);
+
+    expect(result).toStrictEqual({ outcome: "denied" });
+    expect(hook).toHaveBeenCalledOnce();
+    expect(hook.mock.calls[0]?.[0]).toBe(outage);
   });
 });
 
