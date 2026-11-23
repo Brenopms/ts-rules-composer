@@ -1,6 +1,28 @@
-import { fail, getNormalizedRules, pass } from "../helpers";
+import { getNormalizedRules, pass } from "../helpers";
 import { getCloneFn } from "../helpers/clone/getCloneFn";
-import type { CompositionOptions, Rule } from "../types";
+import {
+  collectedFailure,
+  type Failed,
+  isCaught,
+  isFailed,
+} from "../helpers/result/caught";
+import type { CompositionOptions, Rule, RuleResult } from "../types";
+
+/**
+ * Three-valued AND over results in declaration order: any unmarked failure →
+ * a plain failure (a confirmed no); else any caught failure → caught, with
+ * the first declared one's cause; else a pass.
+ */
+const allOf = <TError>(
+  results: readonly RuleResult<TError>[],
+): RuleResult<TError[]> => {
+  const failures: Failed<TError>[] = results.filter(isFailed);
+  if (failures.length === 0) return pass();
+  return collectedFailure(
+    failures.map((failure) => failure.error),
+    failures.every(isCaught) ? failures[0] : undefined,
+  );
+};
 
 type ExecutionPolicy =
   | "forwardFailFast"
@@ -33,10 +55,7 @@ export function prepareRuleExecution<TInput, TError, TContext>(
       const results = await Promise.all(
         normalizedRules.map((rule) => rule(input, currentContext)),
       );
-      const errors = results.flatMap((result) =>
-        result.outcome === "failed" ? [result.error] : [],
-      );
-      return errors.length > 0 ? fail(errors) : pass();
+      return allOf(results);
     }
 
     const rulesInOrder =

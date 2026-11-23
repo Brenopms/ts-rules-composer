@@ -5,7 +5,26 @@
  * business failure gives `rejected` with no hook call.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { defineOutcomes, fail, not, pass, pipeRules, type Rule } from "../lib";
+import {
+  composeRules,
+  defineOutcomes,
+  every,
+  fail,
+  inject,
+  match,
+  named,
+  not,
+  oneOf,
+  pass,
+  pipeRules,
+  type Rule,
+  type RuleResult,
+  requireContextRule,
+  validateField,
+  withDebug,
+  withFallback,
+  withTap,
+} from "../lib";
 
 type Applicant = { age: number };
 
@@ -24,6 +43,9 @@ const down: Rule<Applicant> = async () => {
   throw outage;
 };
 
+const passes: Rule<Applicant> = () => pass();
+const denied: Rule<Applicant> = () => fail("Sanctions hit");
+
 const adult: Applicant = { age: 30 };
 const minor: Applicant = { age: 16 };
 
@@ -36,7 +58,7 @@ describe("rule-error-provenance probe table", () => {
     onErrorCaught.mockClear();
   });
 
-  it.each<[string, Rule<Applicant>, Applicant, Expected]>([
+  it.each<[string, Rule<Applicant, unknown>, Applicant, Expected]>([
     [
       "down (raw throwing rule)",
       down,
@@ -68,6 +90,36 @@ describe("rule-error-provenance probe table", () => {
       { outcome: "verified" },
     ],
     [
+      "every([down, passes])",
+      every([down, passes]),
+      adult,
+      { outcome: "manual_review", cause: outage },
+    ],
+    [
+      "every([down, denied]) (settled by denied)",
+      every([down, denied]),
+      adult,
+      { outcome: "rejected" },
+    ],
+    [
+      "oneOf([down, denied])",
+      oneOf([down, denied]),
+      adult,
+      { outcome: "manual_review", cause: outage },
+    ],
+    [
+      "oneOf([down, passes]) (settled by passes)",
+      oneOf([down, passes]),
+      adult,
+      { outcome: "verified" },
+    ],
+    [
+      "withFallback(down, passes) (failover kept)",
+      withFallback(down, passes),
+      adult,
+      { outcome: "verified" },
+    ],
+    [
       "pipeRules([isAdult]), applicant is 16",
       pipeRules([isAdult]),
       minor,
@@ -85,5 +137,100 @@ describe("rule-error-provenance probe table", () => {
     } else {
       expect(onErrorCaught).not.toHaveBeenCalled();
     }
+  });
+});
+
+describe("three-valued aggregates", () => {
+  const caughtOf = async (rule: Rule<Applicant, unknown>) => {
+    const result = await rule(adult);
+    return result.outcome === "failed" && Object.hasOwn(result, "caughtCause")
+      ? { caughtCause: result.caughtCause }
+      : { outcome: result.outcome };
+  };
+
+  it("pipeRules([down, denied]) is U, every([down, denied]) is F", async () => {
+    expect(await caughtOf(pipeRules([down, denied]))).toStrictEqual({
+      caughtCause: outage,
+    });
+    expect(await caughtOf(every([down, denied]))).toStrictEqual({
+      outcome: "failed",
+    });
+  });
+
+  it.each<[string, Rule<Applicant, unknown>, object]>([
+    [
+      "not(every([down, passes]))",
+      every([down, passes]),
+      { caughtCause: outage },
+    ],
+    [
+      "not(every([passes, down]))",
+      every([passes, down]),
+      { caughtCause: outage },
+    ],
+    [
+      "not(every([down, denied]))",
+      every([down, denied]),
+      { outcome: "passed" },
+    ],
+    [
+      "not(every([denied, down]))",
+      every([denied, down]),
+      { outcome: "passed" },
+    ],
+    [
+      "not(oneOf([down, denied]))",
+      oneOf([down, denied]),
+      { caughtCause: outage },
+    ],
+    [
+      "not(oneOf([denied, down]))",
+      oneOf([denied, down]),
+      { caughtCause: outage },
+    ],
+    [
+      "not(oneOf([down, passes]))",
+      oneOf([down, passes]),
+      { outcome: "failed" },
+    ],
+    [
+      "not(oneOf([passes, down]))",
+      oneOf([passes, down]),
+      { outcome: "failed" },
+    ],
+  ])("%s", async (_, aggregate, expected) => {
+    expect(await caughtOf(not(aggregate, "Must not pass"))).toStrictEqual(
+      expected,
+    );
+  });
+});
+
+describe("forwarders return a caught child result by identity", () => {
+  const caughtResult: RuleResult = {
+    outcome: "failed",
+    error: "down",
+    caughtCause: outage,
+  };
+  const caughtRule =
+    <TInput>(): Rule<TInput> =>
+    () =>
+      caughtResult;
+  const context = { userId: "u1" };
+
+  it.each<[string, Rule<Applicant, string, typeof context>]>([
+    ["pipeRules", pipeRules([caughtRule<Applicant>()])],
+    ["composeRules", composeRules([caughtRule<Applicant>()])],
+    ["rule match (selected case)", match(() => "a", { a: caughtRule() })],
+    ["withTap", withTap<Applicant>(() => {})(caughtRule())],
+    ["withDebug", withDebug(caughtRule<Applicant>(), "debugged")],
+    ["inject", inject("dependency", () => caughtRule<Applicant>())],
+    ["named", named("named", caughtRule<Applicant>())],
+    ["requireContextRule", requireContextRule("No context", caughtRule())],
+    [
+      "validateField",
+      validateField((applicant: Applicant) => applicant.age, caughtRule()),
+    ],
+  ])("%s", async (_, rule) => {
+    expect(await rule(adult, context)).toBe(caughtResult);
   });
 });
