@@ -10,6 +10,7 @@ import {
   defineOutcomes,
   every,
   fail,
+  ifElse,
   inject,
   match,
   named,
@@ -20,7 +21,9 @@ import {
   type Rule,
   type RuleResult,
   requireContextRule,
+  unless,
   validateField,
+  when,
   withDebug,
   withFallback,
   withTap,
@@ -44,6 +47,9 @@ const down: Rule<Applicant> = async () => {
 };
 
 const passes: Rule<Applicant> = () => pass();
+const predicateDown = (): boolean => {
+  throw outage;
+};
 const denied: Rule<Applicant> = () => fail("Sanctions hit");
 
 const adult: Applicant = { age: 30 };
@@ -118,6 +124,24 @@ describe("rule-error-provenance probe table", () => {
       withFallback(down, passes),
       adult,
       { outcome: "verified" },
+    ],
+    [
+      "rule ifElse with a throwing predicate",
+      ifElse(predicateDown, passes, passes),
+      adult,
+      { outcome: "manual_review", cause: outage },
+    ],
+    [
+      "when with a throwing predicate",
+      when(predicateDown, passes),
+      adult,
+      { outcome: "manual_review", cause: outage },
+    ],
+    [
+      "unless with a throwing predicate",
+      unless(predicateDown, passes),
+      adult,
+      { outcome: "manual_review", cause: outage },
     ],
     [
       "pipeRules([isAdult]), applicant is 16",
