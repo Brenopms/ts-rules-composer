@@ -22,7 +22,7 @@
       "style": {
         "useImportType": "error",
         "useExportType": "error",
-        "useBlockStatements": "warn"
+        "useBlockStatements": "error"
       },
       "correctness": {
         "noUnusedVariables": {
