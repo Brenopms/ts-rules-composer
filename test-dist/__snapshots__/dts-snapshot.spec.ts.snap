@@ -496,6 +496,8 @@ export declare const inject: <TInput, TError, TDep, TContext = unknown>(dependen
  * - The context type of the wrapped rule is preserved and forwarded to it
  * - Only transforms failed results, passes successful results through unchanged
  * - The transform function is not called for successful results
+ * - A caught failure (one carrying \`caughtCause\`) keeps its cause by identity;
+ *   only its \`error\` payload is transformed
  */
 export declare const mapError: <TInput, TError, TNewError, TContext = unknown>(rule: Rule<TInput, TError, TContext>, transform: (error: TError) => TNewError) => Rule<TInput, TNewError, TContext>;
 /**
@@ -1764,6 +1766,8 @@ export declare const inject: <TInput, TError, TDep, TContext = unknown>(dependen
  * - The context type of the wrapped rule is preserved and forwarded to it
  * - Only transforms failed results, passes successful results through unchanged
  * - The transform function is not called for successful results
+ * - A caught failure (one carrying \`caughtCause\`) keeps its cause by identity;
+ *   only its \`error\` payload is transformed
  */
 export declare const mapError: <TInput, TError, TNewError, TContext = unknown>(rule: Rule<TInput, TError, TContext>, transform: (error: TError) => TNewError) => Rule<TInput, TNewError, TContext>;
 /**

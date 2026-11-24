@@ -12,6 +12,7 @@ import {
   fail,
   ifElse,
   inject,
+  mapError,
   match,
   named,
   not,
@@ -94,6 +95,24 @@ describe("rule-error-provenance probe table", () => {
       not(isAdult, "Must not be an adult"),
       minor,
       { outcome: "verified" },
+    ],
+    [
+      "mapError(down, f)",
+      mapError(down, (error) => `KYC: ${error}`),
+      adult,
+      { outcome: "manual_review", cause: outage },
+    ],
+    [
+      "mapError(pipeRules([down]), f)",
+      mapError(pipeRules([down]), (error) => `KYC: ${error}`),
+      adult,
+      { outcome: "manual_review", cause: outage },
+    ],
+    [
+      "mapError(isAdult, f), applicant is 16 (business failure)",
+      mapError(isAdult, (error) => `KYC: ${error}`),
+      minor,
+      { outcome: "rejected" },
     ],
     [
       "every([down, passes])",
