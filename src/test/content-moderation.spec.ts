@@ -29,8 +29,12 @@ type ModerationOutcome = OutcomeOf<typeof moderation>;
 
 const toxicity: Decision<Post, ModerationOutcome> = async (post) => {
   const score = await toxicityService.score(post.text);
-  if (score > 0.9) return moderation.outcome("remove");
-  if (score > 0.6) return moderation.outcome("review");
+  if (score > 0.9) {
+    return moderation.outcome("remove");
+  }
+  if (score > 0.6) {
+    return moderation.outcome("review");
+  }
   return moderation.outcome("allow");
 };
 

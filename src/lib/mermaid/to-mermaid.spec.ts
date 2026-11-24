@@ -144,7 +144,9 @@ describe("toMermaid edge cases", () => {
       const nodes = declared(text);
 
       expect(new Set(nodes).size).toBe(nodes.length);
-      for (const id of referenced(text)) expect(nodes).toContain(id);
+      for (const id of referenced(text)) {
+        expect(nodes).toContain(id);
+      }
     });
 
     it("closes every group it opens", () => {

@@ -45,8 +45,12 @@ describe("JSDoc examples", () => {
       app,
     ) => {
       const score = await creditBureau.score(app.applicantId);
-      if (score >= 700) return credit.outcome("approved");
-      if (score >= 600) return credit.outcome("review");
+      if (score >= 700) {
+        return credit.outcome("approved");
+      }
+      if (score >= 600) {
+        return credit.outcome("review");
+      }
       return credit.outcome("declined");
     };
 

@@ -37,8 +37,12 @@ export const mapError = <TInput, TError, TNewError, TContext = unknown>(
   return attachNode<Rule<TInput, TNewError, TContext>>(
     async (input: TInput, context?: TContext) => {
       const result = await rule(input, context);
-      if (result.outcome !== "failed") return pass();
-      if (!isCaught(result)) return fail(transform(result.error));
+      if (result.outcome !== "failed") {
+        return pass();
+      }
+      if (!isCaught(result)) {
+        return fail(transform(result.error));
+      }
       // A caught failure stays unknown: only its payload is mapped. The cause
       // is read before the transform runs, so the transform can't swap it.
       const cause = result.caughtCause;

@@ -1,5 +1,7 @@
 export const shallowClone = <T>(obj: T): T => {
-  if (!obj) return {} as T;
+  if (!obj) {
+    return {} as T;
+  }
   try {
     return { ...obj };
   } catch (e) {

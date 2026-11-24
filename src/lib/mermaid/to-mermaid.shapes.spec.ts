@@ -273,6 +273,8 @@ describe("toMermaid node shapes", () => {
       ]),
     );
 
-    for (const fn of [spy, selector, test]) expect(fn).not.toHaveBeenCalled();
+    for (const fn of [spy, selector, test]) {
+      expect(fn).not.toHaveBeenCalled();
+    }
   });
 });

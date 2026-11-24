@@ -75,7 +75,9 @@ const coverage: Decision<Claim, ClaimOutcome> = claims.ifElse(
 
 const fraudCheck: Decision<Claim, ClaimOutcome> = async (claim) => {
   const score = await fraudService.score(claim);
-  if (Number.isNaN(score)) return claims.outcome(claims.onError);
+  if (Number.isNaN(score)) {
+    return claims.outcome(claims.onError);
+  }
   return claims.outcome(score > 0.7 ? "investigate" : "pay");
 };
 

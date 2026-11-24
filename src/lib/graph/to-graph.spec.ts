@@ -261,11 +261,17 @@ describe("toGraph on a pipeline using every combinator", () => {
   type Json = { id?: string; kind?: string } & Record<string, unknown>;
   const walk = (value: unknown, visit: (node: Json) => void): void => {
     if (Array.isArray(value)) {
-      for (const item of value) walk(item, visit);
+      for (const item of value) {
+        walk(item, visit);
+      }
     } else if (value && typeof value === "object") {
       const node = value as Json;
-      if (typeof node.id === "string") visit(node);
-      for (const child of Object.values(node)) walk(child, visit);
+      if (typeof node.id === "string") {
+        visit(node);
+      }
+      for (const child of Object.values(node)) {
+        walk(child, visit);
+      }
     }
   };
 
@@ -316,6 +322,8 @@ describe("toGraph on a pipeline using every combinator", () => {
     const s = spies();
     toGraph(build(s));
 
-    for (const spy of Object.values(s)) expect(spy).not.toHaveBeenCalled();
+    for (const spy of Object.values(s)) {
+      expect(spy).not.toHaveBeenCalled();
+    }
   });
 });

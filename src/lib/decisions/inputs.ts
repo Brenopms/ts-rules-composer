@@ -26,7 +26,9 @@ export const localOnError = <O extends string>(
   override?: Override<O>,
 ): O => {
   const value = override?.onError;
-  if (value === undefined) return set.onError;
+  if (value === undefined) {
+    return set.onError;
+  }
   if (!set.isDeclared(value)) {
     throw notDeclared(`${combinator}: onError`, value);
   }
@@ -39,13 +41,17 @@ export const toDecision = <O extends string, TInput, TContext>(
   where: string,
   value: Branch<TInput, O, TContext>,
 ): Decision<TInput, O, TContext> => {
-  if (typeof value === "function") return value;
+  if (typeof value === "function") {
+    return value;
+  }
   if (typeof value !== "string") {
     throw new TypeError(
       `${where} must be a declared outcome or a decision function`,
     );
   }
-  if (!set.isDeclared(value)) throw notDeclared(where, value);
+  if (!set.isDeclared(value)) {
+    throw notDeclared(where, value);
+  }
   return () => ({ outcome: value });
 };
 
@@ -58,7 +64,9 @@ export const toCaseTable = <O extends string, TInput, TContext>(
   set: OutcomeSet<O>,
   cases: Partial<Record<PropertyKey, Branch<TInput, O, TContext>>>,
 ): Record<PropertyKey, Decision<TInput, O, TContext>> => {
-  if (!isObject(cases)) throw new TypeError("match: cases must be an object");
+  if (!isObject(cases)) {
+    throw new TypeError("match: cases must be an object");
+  }
   const table: Record<
     PropertyKey,
     Decision<TInput, O, TContext>
@@ -93,7 +101,9 @@ export const toMapping = <O extends string>(
   if (!set.isDeclared(failed)) {
     throw notDeclared("mapOutcome: mapping.failed", failed);
   }
-  if (passed === undefined) return { failed, passed: lastOutcome };
+  if (passed === undefined) {
+    return { failed, passed: lastOutcome };
+  }
   if (!set.isDeclared(passed)) {
     throw notDeclared("mapOutcome: mapping.passed", passed);
   }
@@ -130,10 +140,14 @@ const readCombine = <O extends string>(
   message: string,
 ): Resolver<O>["combine"] => {
   const combine: unknown = isObject(resolver) ? resolver.combine : undefined;
-  if (typeof combine !== "function") throw new TypeError(message);
+  if (typeof combine !== "function") {
+    throw new TypeError(message);
+  }
   return (current, next) => {
     const merged: unknown = Reflect.apply(combine, resolver, [current, next]);
-    if (set.isDeclared(merged)) return merged;
+    if (set.isDeclared(merged)) {
+      return merged;
+    }
     ignoreRejection(merged);
     throw new TypeError(
       `resolver.combine returned ${display(merged)}, which is not a declared outcome`,
@@ -153,12 +167,16 @@ export const toResolver = <O extends string>(
   resolver: Resolver<O> | undefined,
   fallback: Resolver<O>,
 ): Resolver<O> => {
-  if (resolver === undefined) return fallback;
+  if (resolver === undefined) {
+    return fallback;
+  }
   const message =
     "combine: resolver must be an object with combine and isFinal functions";
   const combine = readCombine(set, resolver, message);
   const isFinal: unknown = resolver.isFinal;
-  if (typeof isFinal !== "function") throw new TypeError(message);
+  if (typeof isFinal !== "function") {
+    throw new TypeError(message);
+  }
   return {
     combine,
     isFinal: (current) => {
@@ -177,7 +195,9 @@ export const toMerger = <O extends string>(
   resolver: Pick<Resolver<O>, "combine"> | undefined,
   fallback: Resolver<O>,
 ): Pick<Resolver<O>, "combine"> => {
-  if (resolver === undefined) return fallback;
+  if (resolver === undefined) {
+    return fallback;
+  }
   return {
     combine: readCombine(
       set,

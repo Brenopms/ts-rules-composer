@@ -377,7 +377,9 @@ export const defineOutcomes = <const T extends readonly [string, ...string[]]>(
     onError,
     resolvers,
     outcome: (outcome) => {
-      if (!isDeclared(outcome)) throw notDeclared("outcome:", outcome);
+      if (!isDeclared(outcome)) {
+        throw notDeclared("outcome:", outcome);
+      }
       return { outcome };
     },
     ifElse: (predicate, whenTrue, whenFalse, override) => {
@@ -391,7 +393,9 @@ export const defineOutcomes = <const T extends readonly [string, ...string[]]>(
           toBoolean,
           hook,
         );
-        if (!condition.ok) return { outcome: fallback };
+        if (!condition.ok) {
+          return { outcome: fallback };
+        }
         return runDecision(
           branch(condition.value, yes, no),
           input,
@@ -411,7 +415,9 @@ export const defineOutcomes = <const T extends readonly [string, ...string[]]>(
           toKey,
           hook,
         );
-        if (!key.ok) return { outcome: fallback };
+        if (!key.ok) {
+          return { outcome: fallback };
+        }
         return runDecision(
           switchCase(
             key.value,
@@ -450,7 +456,9 @@ export const defineOutcomes = <const T extends readonly [string, ...string[]]>(
           toRuleOutcome,
           hook,
         );
-        if (!source.ok) return { outcome: fallback };
+        if (!source.ok) {
+          return { outcome: fallback };
+        }
         return { outcome: target[source.value] };
       };
     },
