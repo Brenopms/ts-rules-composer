@@ -1,5 +1,6 @@
 import { attachNode } from "../../graph/node";
 import { fail, pass } from "../../helpers";
+import { caughtFailure, isCaught } from "../../helpers/result/caught";
 import type { Rule } from "../../types";
 
 /**
@@ -26,6 +27,8 @@ import type { Rule } from "../../types";
  * - The context type of the wrapped rule is preserved and forwarded to it
  * - Only transforms failed results, passes successful results through unchanged
  * - The transform function is not called for successful results
+ * - A caught failure (one carrying `caughtCause`) keeps its cause by identity;
+ *   only its `error` payload is transformed
  */
 export const mapError = <TInput, TError, TNewError, TContext = unknown>(
   rule: Rule<TInput, TError, TContext>,
@@ -34,9 +37,11 @@ export const mapError = <TInput, TError, TNewError, TContext = unknown>(
   return attachNode<Rule<TInput, TNewError, TContext>>(
     async (input: TInput, context?: TContext) => {
       const result = await rule(input, context);
-      return result.outcome === "failed"
-        ? fail(transform(result.error))
-        : pass();
+      if (result.outcome !== "failed") return pass();
+      // A caught failure stays unknown: only its payload is mapped.
+      return isCaught(result)
+        ? caughtFailure(transform(result.error), result.caughtCause)
+        : fail(transform(result.error));
     },
     {
       kind: "decorator",

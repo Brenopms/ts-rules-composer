@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { fail, pass } from "../../helpers";
-import type { Rule } from "../../types";
+import type { Rule, RuleResult } from "../../types";
 import { mapError } from "./map-error";
+import { withSafeError } from "./with-safe-error";
 
 describe("mapError combinator", () => {
   const mockTransform = vi.fn((err: string) => `Mapped: ${err}`);
@@ -68,6 +69,90 @@ describe("mapError combinator", () => {
     const result = await mappedRule({});
 
     expect(result).toEqual(fail("Mapped: Async error"));
+  });
+
+  describe("caught failures keep their cause", () => {
+    const outage = new Error("service down");
+    const caughtRule =
+      (cause: unknown): Rule<object, string> =>
+      () => ({ outcome: "failed", error: "down", caughtCause: cause });
+
+    it("transforms the payload and keeps the cause by identity", async () => {
+      const result = await mapError(caughtRule(outage), mockTransform)({});
+
+      expect(result).toStrictEqual({
+        outcome: "failed",
+        error: "Mapped: down",
+        caughtCause: outage,
+      });
+      expect(Object.hasOwn(result, "caughtCause")).toBe(true);
+      expect((result as { caughtCause: unknown }).caughtCause).toBe(outage);
+      expect(mockTransform).toHaveBeenCalledOnce();
+      expect(mockTransform).toHaveBeenCalledWith("down");
+    });
+
+    it("keeps an own undefined cause (throw undefined)", async () => {
+      const result = await mapError(caughtRule(undefined), mockTransform)({});
+
+      expect(Object.hasOwn(result, "caughtCause")).toBe(true);
+      expect(result).toStrictEqual({
+        outcome: "failed",
+        error: "Mapped: down",
+        caughtCause: undefined,
+      });
+    });
+
+    it("applies a custom transform that changes the error type", async () => {
+      const mapped = mapError(caughtRule(outage), (error) => ({
+        code: error.length,
+      }));
+      const result = await mapped({});
+
+      expectTypeOf(mapped).toEqualTypeOf<Rule<object, { code: number }>>();
+      expect(result).toStrictEqual({
+        outcome: "failed",
+        error: { code: 4 },
+        caughtCause: outage,
+      });
+    });
+
+    it("keeps the cause withSafeError attaches to a throw", async () => {
+      const mapped = mapError(
+        withSafeError(
+          () => {
+            throw outage;
+          },
+          (thrown) => (thrown as Error).message,
+        ),
+        (error: string) => `Mapped: ${error}`,
+      );
+
+      expect(await mapped({})).toStrictEqual({
+        outcome: "failed",
+        error: "Mapped: service down",
+        caughtCause: outage,
+      });
+    });
+
+    it("ignores an inherited caughtCause (not caught)", async () => {
+      const inherited = Object.assign(Object.create({ caughtCause: outage }), {
+        outcome: "failed",
+        error: "down",
+      });
+      const result = await mapError(
+        (): RuleResult<string> => inherited,
+        mockTransform,
+      )({});
+
+      expect(result).toStrictEqual(fail("Mapped: down"));
+      expect(Object.hasOwn(result, "caughtCause")).toBe(false);
+    });
+
+    it("unmarked failures carry no caughtCause", async () => {
+      const result = await mapError(() => fail("no"), mockTransform)({});
+
+      expect(Object.hasOwn(result, "caughtCause")).toBe(false);
+    });
   });
 
   it("should propagate rule errors (uncaught exceptions)", async () => {
