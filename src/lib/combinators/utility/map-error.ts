@@ -38,10 +38,11 @@ export const mapError = <TInput, TError, TNewError, TContext = unknown>(
     async (input: TInput, context?: TContext) => {
       const result = await rule(input, context);
       if (result.outcome !== "failed") return pass();
-      // A caught failure stays unknown: only its payload is mapped.
-      return isCaught(result)
-        ? caughtFailure(transform(result.error), result.caughtCause)
-        : fail(transform(result.error));
+      if (!isCaught(result)) return fail(transform(result.error));
+      // A caught failure stays unknown: only its payload is mapped. The cause
+      // is read before the transform runs, so the transform can't swap it.
+      const cause = result.caughtCause;
+      return caughtFailure(transform(result.error), cause);
     },
     {
       kind: "decorator",

@@ -134,6 +134,21 @@ describe("mapError combinator", () => {
       });
     });
 
+    it("keeps the original cause when the transform replaces it", async () => {
+      const replacement = new Error("replacement");
+      const shared = { outcome: "failed", error: "down", caughtCause: outage };
+      const mapped = mapError(
+        (): RuleResult<string> => shared as RuleResult<string>,
+        (error: string) => {
+          shared.caughtCause = replacement;
+          return error;
+        },
+      );
+      const result = await mapped({});
+
+      expect((result as { caughtCause: unknown }).caughtCause).toBe(outage);
+    });
+
     it("ignores an inherited caughtCause (not caught)", async () => {
       const inherited = Object.assign(Object.create({ caughtCause: outage }), {
         outcome: "failed",
