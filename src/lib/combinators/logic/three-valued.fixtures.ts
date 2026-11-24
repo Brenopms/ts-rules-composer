@@ -21,8 +21,12 @@ export const caughtAt = (index: number): RuleResult => ({
 });
 
 const resultOf = (cell: Cell, index: number): RuleResult => {
-  if (cell === "T") return pass();
-  if (cell === "F") return fail(`f${index}`);
+  if (cell === "T") {
+    return pass();
+  }
+  if (cell === "F") {
+    return fail(`f${index}`);
+  }
   return caughtAt(index);
 };
 

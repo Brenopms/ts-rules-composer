@@ -21,7 +21,8 @@
       "recommended": true,
       "style": {
         "useImportType": "error",
-        "useExportType": "error"
+        "useExportType": "error",
+        "useBlockStatements": "warn"
       },
       "correctness": {
         "noUnusedVariables": {

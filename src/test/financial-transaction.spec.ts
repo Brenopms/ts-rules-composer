@@ -55,16 +55,24 @@ const validateCurrency: Rule<Transaction> = (tx: Transaction) =>
 
 // 2. Payment method specific validators
 const validateCardNumber: Rule<Transaction> = (tx: Transaction) => {
-  if (!tx.cardNumber) return fail("Card number required");
+  if (!tx.cardNumber) {
+    return fail("Card number required");
+  }
   // Simple Luhn check for example purposes
   const digits = tx.cardNumber.replace(/\D/g, "").split("").map(Number);
-  if (digits.length < 13) return fail("Invalid card number");
+  if (digits.length < 13) {
+    return fail("Invalid card number");
+  }
 
   let sum = 0;
   for (let i = 0; i < digits.length; i++) {
     let digit = digits[digits.length - 1 - i];
-    if (i % 2 === 1) digit *= 2;
-    if (digit > 9) digit -= 9;
+    if (i % 2 === 1) {
+      digit *= 2;
+    }
+    if (digit > 9) {
+      digit -= 9;
+    }
     sum += digit;
   }
 
@@ -72,7 +80,9 @@ const validateCardNumber: Rule<Transaction> = (tx: Transaction) => {
 };
 
 const validateExpiry: Rule<Transaction> = (tx: Transaction) => {
-  if (!tx.expiry) return fail("Expiry required");
+  if (!tx.expiry) {
+    return fail("Expiry required");
+  }
   const [month, year] = tx.expiry.split("/").map(Number);
   const now = new Date();
   const currentYear = now.getFullYear() % 100;
@@ -94,14 +104,18 @@ const bankAuthCheck: Rule<Transaction> = async (tx: Transaction) => {
 };
 
 const validateWalletAddress: Rule<Transaction> = (tx: Transaction) => {
-  if (!tx.walletAddress) return fail("Wallet address required");
+  if (!tx.walletAddress) {
+    return fail("Wallet address required");
+  }
   return /^0x[a-fA-F0-9]{40}$/.test(tx.walletAddress)
     ? pass()
     : fail("Invalid wallet address");
 };
 
 const validateIBAN: Rule<Transaction> = (tx: Transaction) => {
-  if (!tx.iban) return fail("IBAN required");
+  if (!tx.iban) {
+    return fail("IBAN required");
+  }
   // Simple IBAN format check
   return /^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(tx.iban)
     ? pass()

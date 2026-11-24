@@ -38,7 +38,9 @@ export const not = <TInput, TError = string, TContext = unknown>(
       const normalizedRule = getNormalizedRule(rule, options);
 
       const result = await normalizedRule(input, context);
-      if (result.outcome === "passed") return fail(error);
+      if (result.outcome === "passed") {
+        return fail(error);
+      }
       // An unknown stays unknown: a caught failure is not a "no".
       return isCaught(result) ? result : pass();
     },

@@ -27,7 +27,9 @@ export const ignoreRejection = (value: unknown): void => {
 
 /** Calls the hook; its throws and rejections are swallowed. */
 export const notify = (hook: ErrorHook | undefined, error: unknown): void => {
-  if (hook === undefined) return;
+  if (hook === undefined) {
+    return;
+  }
   try {
     ignoreRejection(hook(error));
   } catch {

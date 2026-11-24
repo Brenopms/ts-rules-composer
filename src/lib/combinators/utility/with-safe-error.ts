@@ -35,7 +35,9 @@ export const withSafeError = <TInput, TError = string, TContext = unknown>(
   rule: Rule<TInput, TError, TContext>,
   errorTransform: (error: unknown) => TError = (e) => {
     // Preserve object structure if TError is object-like
-    if (typeof e === "object" && e !== null) return e as TError;
+    if (typeof e === "object" && e !== null) {
+      return e as TError;
+    }
     // Default to string for primitives/errors
     return (e instanceof Error ? e.message : String(e)) as TError;
   },

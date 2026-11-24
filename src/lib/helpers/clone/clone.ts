@@ -1,5 +1,7 @@
 export const clone = <T>(obj: T): T => {
-  if (!obj) return {} as T;
+  if (!obj) {
+    return {} as T;
+  }
   try {
     return JSON.parse(JSON.stringify(obj));
   } catch (e) {

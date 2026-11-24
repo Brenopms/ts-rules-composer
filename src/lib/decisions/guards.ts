@@ -35,9 +35,13 @@ export const toList = <T>(
   where: string,
   checkEntry: (entry: unknown, at: string) => T,
 ): T[] => {
-  if (!Array.isArray(value)) throw new TypeError(`${where} must be an array`);
+  if (!Array.isArray(value)) {
+    throw new TypeError(`${where} must be an array`);
+  }
   const length = value.length;
-  if (length === 0) throw new TypeError(`${where} must not be empty`);
+  if (length === 0) {
+    throw new TypeError(`${where} must not be empty`);
+  }
   const list: T[] = [];
   for (let index = 0; index < length; index++) {
     const entry: unknown = Object.hasOwn(value, index)
@@ -66,7 +70,9 @@ export const expectBoolean =
     } = {},
   ) =>
   (value: unknown): boolean => {
-    if (typeof value === "boolean") return value;
+    if (typeof value === "boolean") {
+      return value;
+    }
     onInvalid?.(value);
     throw new TypeError(
       `${what} must return a boolean, got ${describe(value)}`,

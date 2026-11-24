@@ -17,7 +17,9 @@ const allOf = <TError>(
   results: readonly RuleResult<TError>[],
 ): RuleResult<TError[]> => {
   const failures: Failed<TError>[] = results.filter(isFailed);
-  if (failures.length === 0) return pass();
+  if (failures.length === 0) {
+    return pass();
+  }
   return collectedFailure(
     failures.map((failure) => failure.error),
     failures.every(isCaught) ? failures[0] : undefined,
