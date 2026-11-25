@@ -123,11 +123,11 @@ describe("match combinator", () => {
   });
 
   it("should work with symbol keys", async () => {
-    const TEST_SYMBOL = Symbol("test");
+    const testSymbol = Symbol("test");
     const rules = {
-      [TEST_SYMBOL]: mockPass,
+      [testSymbol]: mockPass,
     };
-    const matcher = match(() => TEST_SYMBOL, rules);
+    const matcher = match(() => testSymbol, rules);
     await matcher({});
 
     expect(mockPass).toHaveBeenCalled();
