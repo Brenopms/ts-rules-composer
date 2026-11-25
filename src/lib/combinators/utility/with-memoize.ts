@@ -9,8 +9,18 @@ type CacheEntry<TError> = {
 };
 
 // An unsafe rule may return anything; only an object can be a caught failure.
-const isCaughtResult = (value: unknown): boolean =>
-  typeof value === "object" && value !== null && isCaught(value);
+const isObject = (value: unknown): value is object =>
+  typeof value === "object" && value !== null;
+
+// A result that throws when inspected is kept, as before, rather than letting
+// the throw escape the detached settlement handler as an unhandled rejection.
+const isCaughtResult = (value: unknown): boolean => {
+  try {
+    return isObject(value) && isCaught(value);
+  } catch {
+    return false;
+  }
+};
 
 /**
  * Creates a memoized version of a rule that caches results based on input keys.

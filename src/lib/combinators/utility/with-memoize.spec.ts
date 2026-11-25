@@ -335,6 +335,47 @@ describe("withMemoize", () => {
       expect(rule).toHaveBeenCalledTimes(1);
     });
 
+    // An unsafe rule may return an object whose `outcome` getter throws.
+    const uninspectable = () =>
+      Object.defineProperty({ error: "down" }, "outcome", {
+        enumerable: true,
+        get() {
+          throw new Error("outcome unavailable");
+        },
+      }) as unknown as RuleResult;
+
+    it("caches a synchronous result it can't inspect (unsafe), as before", async () => {
+      const result = uninspectable();
+      const rule = vi.fn<Rule<Input>>(() => result);
+      const memoized = withMemoize(rule, keyFn, {
+        errorHandlingMode: "unsafe",
+      });
+
+      expect(await memoized({ id: "1" })).toBe(result);
+      expect(await memoized({ id: "1" })).toBe(result);
+      expect(rule).toHaveBeenCalledOnce();
+    });
+
+    it("caches a resolved result it can't inspect (unsafe), with no unhandled rejection", async () => {
+      const unhandled = vi.fn();
+      process.on("unhandledRejection", unhandled);
+      const result = uninspectable();
+      const rule = vi.fn<Rule<Input>>(() => Promise.resolve(result));
+      const memoized = withMemoize(rule, keyFn, {
+        errorHandlingMode: "unsafe",
+      });
+
+      try {
+        expect(await memoized({ id: "1" })).toBe(result);
+        await flush();
+        expect(await memoized({ id: "1" })).toBe(result);
+        expect(rule).toHaveBeenCalledOnce();
+        expect(unhandled).not.toHaveBeenCalled();
+      } finally {
+        process.off("unhandledRejection", unhandled);
+      }
+    });
+
     type Settle = "caught fulfilment" | "rejection";
     const settle = (
       stale: ReturnType<typeof deferred<RuleResult>>,
