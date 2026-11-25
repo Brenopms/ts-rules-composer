@@ -660,15 +660,20 @@ type WithRetryOptions<TError> = {
  * });
  * @caveats
  * - Retries both failed RuleResults and thrown exceptions by default
- * - A failed result is a deliberate decision, not a transient fault: do not retry
- *   policy decisions. Use \`retryOn: "thrown"\` for guardrails and other rules
- *   where a "no" must stay a "no"
+ * - A business failure (\`fail(...)\`) is a deliberate decision, not a transient
+ *   fault: do not retry policy decisions. Use \`retryOn: "thrown"\` for guardrails
+ *   and other rules where a "no" must stay a "no"
+ * - \`"thrown"\` covers exceptions and caught failures (results carrying
+ *   \`caughtCause\`, i.e. outages); \`shouldRetry\` then receives the thrown value
+ *   or the \`caughtCause\`. Business failures are \`"failed"\` and pass their \`error\`
  * - A failure excluded by \`retryOn\` is returned immediately (a thrown exception
- *   becomes a failed result carrying the thrown value)
+ *   becomes a caught failure carrying the thrown value)
  * - \`retryOn\` and \`shouldRetry\` compose: an attempt is retried only if both allow it
  * - By default the final error is "MAX_RETRIES_EXCEEDED" if all attempts fail,
  *   which hides why the rule failed; use \`onExhausted: "last-error"\` to keep it
  * - With "last-error" the final error may be a thrown value, as with \`shouldRetry\`
+ * - The final failure keeps the last attempt's \`caughtCause\` when that attempt
+ *   was thrown or caught
  */
 export declare function withRetry<TInput, TError = string, TContext = unknown>(rule: Rule<TInput, TError, TContext>, options: WithRetryOptions<TError> & {
   onExhausted: "last-error";
@@ -1032,10 +1037,10 @@ interface OutcomeToolkit<O extends string> {
    * dropped. The rule runs without \`withSafeError\`, so a rule that throws,
    * rejects or returns anything but an object with an own \`outcome\` of
    * \`"passed"\` or \`"failed"\` gives \`onError\` (the override, else the
-   * toolkit's). A \`failed\` the rule returns always gives \`mapping.failed\`,
-   * including one made upstream from an outage: a default (\`"safe"\`)
-   * \`pipeRules\` turns a child's throw into \`failed\` before \`mapOutcome\` sees
-   * it. Map outage-prone rules on their own. The rule must be a
+   * toolkit's). A business \`failed\` (built with \`fail()\`) gives
+   * \`mapping.failed\`. A caught failure (an own \`caughtCause\`, e.g. from a
+   * default \`pipeRules\` child that threw) is an outage: it gives \`onError\`
+   * and calls \`onErrorCaught\` with the cause. The rule must be a
    * function and each mapping value a declared outcome, checked when
    * \`mapOutcome\` is called (\`TypeError\` otherwise).
    * Never throws or rejects.
@@ -1935,15 +1940,20 @@ type WithRetryOptions<TError> = {
  * });
  * @caveats
  * - Retries both failed RuleResults and thrown exceptions by default
- * - A failed result is a deliberate decision, not a transient fault: do not retry
- *   policy decisions. Use \`retryOn: "thrown"\` for guardrails and other rules
- *   where a "no" must stay a "no"
+ * - A business failure (\`fail(...)\`) is a deliberate decision, not a transient
+ *   fault: do not retry policy decisions. Use \`retryOn: "thrown"\` for guardrails
+ *   and other rules where a "no" must stay a "no"
+ * - \`"thrown"\` covers exceptions and caught failures (results carrying
+ *   \`caughtCause\`, i.e. outages); \`shouldRetry\` then receives the thrown value
+ *   or the \`caughtCause\`. Business failures are \`"failed"\` and pass their \`error\`
  * - A failure excluded by \`retryOn\` is returned immediately (a thrown exception
- *   becomes a failed result carrying the thrown value)
+ *   becomes a caught failure carrying the thrown value)
  * - \`retryOn\` and \`shouldRetry\` compose: an attempt is retried only if both allow it
  * - By default the final error is "MAX_RETRIES_EXCEEDED" if all attempts fail,
  *   which hides why the rule failed; use \`onExhausted: "last-error"\` to keep it
  * - With "last-error" the final error may be a thrown value, as with \`shouldRetry\`
+ * - The final failure keeps the last attempt's \`caughtCause\` when that attempt
+ *   was thrown or caught
  */
 export declare function withRetry<TInput, TError = string, TContext = unknown>(rule: Rule<TInput, TError, TContext>, options: WithRetryOptions<TError> & {
   onExhausted: "last-error";
@@ -2307,10 +2317,10 @@ interface OutcomeToolkit<O extends string> {
    * dropped. The rule runs without \`withSafeError\`, so a rule that throws,
    * rejects or returns anything but an object with an own \`outcome\` of
    * \`"passed"\` or \`"failed"\` gives \`onError\` (the override, else the
-   * toolkit's). A \`failed\` the rule returns always gives \`mapping.failed\`,
-   * including one made upstream from an outage: a default (\`"safe"\`)
-   * \`pipeRules\` turns a child's throw into \`failed\` before \`mapOutcome\` sees
-   * it. Map outage-prone rules on their own. The rule must be a
+   * toolkit's). A business \`failed\` (built with \`fail()\`) gives
+   * \`mapping.failed\`. A caught failure (an own \`caughtCause\`, e.g. from a
+   * default \`pipeRules\` child that threw) is an outage: it gives \`onError\`
+   * and calls \`onErrorCaught\` with the cause. The rule must be a
    * function and each mapping value a declared outcome, checked when
    * \`mapOutcome\` is called (\`TypeError\` otherwise).
    * Never throws or rejects.

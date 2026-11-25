@@ -411,7 +411,7 @@ Configure via `RuleSafetyOptions`:
 
 **Modes**:
 
-- `safe`: (Default) All errors are caught and converted to validation failures
+- `safe`: (Default) All errors are caught and converted to validation failures. These failures keep the original error as `caughtCause`, so they stay distinguishable from business failures (see [Migrating from 1.x](#caught-failures-outages-stay-unknown)).
 - `unsafe`: Lets exceptions propagate (for performance-critical paths). `errorTransform` has no effect in this mode, so passing both is a compile error.
 
 ### Error Flow
@@ -549,10 +549,10 @@ const pipeline = pipeRules([
 When a rule decides whether something is allowed (a permission check, a safety policy, an LLM or fraud judge), a wrong "pass" costs more than a wrong "fail". These defaults and habits keep the failure side safe.
 
 - **Fail closed on errors.** In the default `safe` mode a thrown exception becomes a failed result, so a crashing check never passes. Do not use `errorHandlingMode: "unsafe"` on policy rules unless the caller handles exceptions. See [Error handling modes](#error-handling-modes).
-- **Never retry a decision.** `withRetry` retries failed results by default, so a "no" can be retried into a "yes". For policy checks use `retryOn: "thrown"`, which retries only transient exceptions. See [`withRetry`](#withretryrule-options).
+- **Never retry a decision.** `withRetry` retries failed results by default, so a "no" can be retried into a "yes". For policy checks use `retryOn: "thrown"`, which retries only transient faults: exceptions and caught failures (outages), never a business `fail(...)`. See [`withRetry`](#withretryrule-options).
 - **Keep the reason when retries run out.** `onExhausted: "last-error"` returns the final error instead of `"MAX_RETRIES_EXCEEDED"`.
 - **Key caches by identity.** `withMemoize` shares entries between callers with the same key, so include everything the verdict depends on (user, tenant, input id), build keys with `JSON.stringify([...])` rather than joining strings, and key by context when the result depends on who is asking. See [`withMemoize`](#withmemoizerule-keyfn-options).
-- **Time out as a failure.** `withTimeout` returns your `timeoutError` as a failed result, so a slow dependency blocks the action instead of letting it through.
+- **Time out as a failure.** `withTimeout` returns your `timeoutError` as a failed result, so a slow dependency blocks the action instead of letting it through. It is a caught failure, so a decision toolkit routes it to `onError` rather than reading it as a "no".
 - **Test the failure paths.** Assert that thrown errors, timeouts and exhausted retries all produce `outcome: "failed"`.
 
 ## Context Cloning Options
@@ -782,6 +782,8 @@ const isNotBanned = not(
 )
 ```
 
+A caught failure (an outage, carrying `caughtCause`) is returned unchanged: an unknown result is not inverted into a pass.
+
 #### `withSafeError(rule, errorTransform?)`  
 
 Wraps a rule to catch errors and convert them to failed RuleResults
@@ -830,6 +832,10 @@ const perUser = withMemoize(
 )
 ```
 
+Rejections and caught failures (outages) are evicted once they settle, so the
+next call runs the rule again. Callers already waiting still get them. Passes
+and business failures are cached.
+
 #### `withTimeout(rule, ms, timeoutError, options?)`  
 
 Adds execution timeout  
@@ -853,17 +859,24 @@ const resilientRule = withRetry(
 )
 ```
 
-By default both failed results and thrown exceptions are retried. A failed
-result is a decision, not a transient fault: for policy checks and guardrails
-use `retryOn: "thrown"` so a "no" is never retried into a "yes".
+By default both failed results and thrown exceptions are retried. A business
+failure (`fail(...)`) is a decision, not a transient fault: for policy checks
+and guardrails use `retryOn: "thrown"` so a "no" is never retried into a "yes".
 
 ```typescript
 const policy = withRetry(judgeRule, { attempts: 3, retryOn: "thrown" })
 ```
 
+`"thrown"` covers exceptions **and caught failures**: outages that a safe
+wrapper, `withTimeout` or `withLazyContext` already turned into a failed result
+carrying `caughtCause`. For those, `shouldRetry` receives the thrown value or
+the `caughtCause`. A business failure is `"failed"`, and `shouldRetry` receives
+its `error`.
+
 When every attempt fails the rule returns `"MAX_RETRIES_EXCEEDED"`, which hides
 why it failed. Pass `onExhausted: "last-error"` to return the final error
-unchanged; the error type then stays `TError`.
+unchanged; the error type then stays `TError`. Either way, if the last attempt
+was thrown or caught, the final failure keeps its `caughtCause`.
 
 ```typescript
 const keepsReason = withRetry(flakyServiceCheck, {
@@ -1045,6 +1058,42 @@ Invalid rule - returned a 1.x result ({ status }); 2.0 results use { outcome }
 ```
 
 **Unsafe mode does not check results. With `errorHandlingMode: "unsafe"`, a `pipeRules`, `composeRules` or `every` pipeline skips a 1.x `{ status: "failed" }` result and can return a pass, so the check fails open.** The compiler catches this only for results it can type-check. If a rule is plain JavaScript, or returns a value typed `any` or forced with `as`, finish the rename before you use unsafe mode.
+
+### Caught failures (outages) stay unknown
+
+In 1.x, a rule that threw became an ordinary `fail(...)`, so an outage looked like a "no". In 2.0, a failure the library builds from a caught error carries the caught value as **`caughtCause`**, and the combinators keep it apart from a business failure built with `fail()`. The `error` payload is the same as in 1.x everywhere.
+
+| Where | 2.0 behaviour |
+|---|---|
+| `withSafeError`, `withSafePredicate`, safe-mode combinators | A throw, a rejection or a malformed result gives `{ outcome: "failed", error, caughtCause }`. |
+| `withTimeout` | The timeout failure is caught: `error` and `caughtCause` are both `timeoutError`. A child that finishes first is returned unchanged. |
+| `withLazyContext` | A loader or rule throw is caught: the same message as `error`, the thrown value as `caughtCause`. |
+| `not` | Still inverts a business failure, but returns a caught failure unchanged: an unknown result is not a pass. |
+| `every` / `oneOf` | May return a caught failure. `every` does when an outage isn't settled by a business failure; `oneOf` does when nothing passed and a child had an outage. The cause is the first outage in declaration order. |
+| rule `ifElse` / `when` / `unless` | A throwing predicate's failure keeps its cause. |
+| `mapError` | Maps `error` and keeps the cause. |
+| `withFallback` | Unchanged: the fallback runs for outages too. |
+| `withRetry` | A caught failure counts as `"thrown"`: `retryOn: "failed"` no longer retries it, `retryOn: "thrown"` does, and `shouldRetry` receives its `caughtCause`. The final failure is caught if the last attempt was thrown or caught. |
+| `withMemoize` | Caught failures are evicted once they settle, so the next call runs the rule again. Business failures are still cached. |
+| `defineOutcomes` toolkits | `mapOutcome` maps a caught failure to `onError` and calls `onErrorCaught` with the cause, instead of `mapping.failed`. In a toolkit that declares `"failed"`, a caught child labelled `"failed"` gives the local `onError` (or contributes it to a `combine`). |
+
+`onErrorCaught` is called only when a caught failure reaches a decision. An outage inside an `every` that a business failure settles is not reported.
+
+**Exact assertions.** `caughtCause` is a plain, enumerable property, so it shows up in `toEqual`, `toStrictEqual` and logs. Assert the parts, or include the cause:
+
+```ts
+// 1.x
+expect(await rule(input)).toEqual(fail("Bank auth timeout"));
+
+// 2.0
+const result = await rule(input);
+expect(result.outcome).toBe("failed");
+expect(result).toEqual({ ...fail("Bank auth timeout"), caughtCause: "Bank auth timeout" });
+```
+
+**`caughtCause` is a reserved name.** Don't build a failure with your own `caughtCause` property: the library reads it as an outage (`onError` and a hook call in decisions, `"thrown"` in `withRetry`, not inverted by `not`, evicted by `withMemoize`). A raw rule that returns one as a decision child is routed to `onError` too.
+
+**Serialization.** JSON can lose the marker or the original cause: `undefined`, functions and symbols are dropped (so `caughtCause: undefined` disappears), most `Error` objects become `{}`, and a `bigint` makes `JSON.stringify` throw. A spread copy (`{ ...result }`) keeps both.
 
 ## Contributing
 

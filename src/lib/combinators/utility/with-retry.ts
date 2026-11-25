@@ -94,15 +94,20 @@ const failureOf = <E>(attempt: FailedAttempt, payload: E): RuleResult<E> =>
  * });
  * @caveats
  * - Retries both failed RuleResults and thrown exceptions by default
- * - A failed result is a deliberate decision, not a transient fault: do not retry
- *   policy decisions. Use `retryOn: "thrown"` for guardrails and other rules
- *   where a "no" must stay a "no"
+ * - A business failure (`fail(...)`) is a deliberate decision, not a transient
+ *   fault: do not retry policy decisions. Use `retryOn: "thrown"` for guardrails
+ *   and other rules where a "no" must stay a "no"
+ * - `"thrown"` covers exceptions and caught failures (results carrying
+ *   `caughtCause`, i.e. outages); `shouldRetry` then receives the thrown value
+ *   or the `caughtCause`. Business failures are `"failed"` and pass their `error`
  * - A failure excluded by `retryOn` is returned immediately (a thrown exception
- *   becomes a failed result carrying the thrown value)
+ *   becomes a caught failure carrying the thrown value)
  * - `retryOn` and `shouldRetry` compose: an attempt is retried only if both allow it
  * - By default the final error is "MAX_RETRIES_EXCEEDED" if all attempts fail,
  *   which hides why the rule failed; use `onExhausted: "last-error"` to keep it
  * - With "last-error" the final error may be a thrown value, as with `shouldRetry`
+ * - The final failure keeps the last attempt's `caughtCause` when that attempt
+ *   was thrown or caught
  */
 export function withRetry<TInput, TError = string, TContext = unknown>(
   rule: Rule<TInput, TError, TContext>,
