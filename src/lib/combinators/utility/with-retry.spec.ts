@@ -509,6 +509,26 @@ describe("withRetry combinator", () => {
       expect(result).toStrictEqual(fail("no"));
     });
 
+    it("reads a business failure's error once (shouldRetry and the payload see the same value)", async () => {
+      const read = vi.fn(() => ({ code: "no" }));
+      const withGetter = {
+        outcome: "failed" as const,
+        get error() {
+          return read();
+        },
+      };
+      const shouldRetry = vi.fn<(error: unknown, attempt: number) => boolean>(
+        () => false,
+      );
+
+      const result = await withRetry(() => withGetter, { shouldRetry })({});
+
+      expect(read).toHaveBeenCalledOnce();
+      expect(result.outcome === "failed" && result.error).toBe(
+        shouldRetry.mock.calls[0]?.[0],
+      );
+    });
+
     it("with no attempts, returns an unmarked failure without calling the rule", async () => {
       const rule = vi.fn(() => marked);
 
