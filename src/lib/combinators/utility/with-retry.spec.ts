@@ -277,7 +277,8 @@ describe("withRetry combinator", () => {
       const result = await rule({});
 
       expect(throws).toHaveBeenCalledTimes(1);
-      expect(result).toEqual(fail(error));
+      // A thrown attempt ends as a caught failure: payload and cause are the throw.
+      expect(result).toEqual({ ...fail(error), caughtCause: error });
     });
 
     it("composes with shouldRetry: both must allow the retry", async () => {
@@ -337,7 +338,7 @@ describe("withRetry combinator", () => {
         onExhausted: "last-error",
       })({});
 
-      expect(result).toEqual(fail(boom));
+      expect(result).toEqual({ ...fail(boom), caughtCause: boom });
     });
 
     it('"last-error" return type excludes "MAX_RETRIES_EXCEEDED"', () => {
@@ -383,6 +384,185 @@ describe("withRetry combinator", () => {
         withRetry(ctxRule, { onExhausted: "last-error" }),
       ).toEqualTypeOf<Rule<string, string, { userId: string }>>();
     });
+  });
+
+  describe("caught failures (rule-error-provenance)", () => {
+    const outage = new Error("sanctions service down");
+    const marked = {
+      outcome: "failed",
+      error: "mapped",
+      caughtCause: outage,
+    } as const;
+    const causeOf = (result: object) =>
+      Object.hasOwn(result, "caughtCause")
+        ? (result as { caughtCause: unknown }).caughtCause
+        : "no own caughtCause";
+
+    it('retryOn "failed" does not retry a marked attempt', async () => {
+      const rule = vi.fn(() => marked);
+
+      const result = await withRetry(rule, {
+        attempts: 3,
+        delayMs: 0,
+        retryOn: "failed",
+      })({});
+
+      expect(rule).toHaveBeenCalledTimes(1);
+      expect(result).toStrictEqual(marked);
+    });
+
+    it('retryOn "thrown" retries a marked attempt', async () => {
+      const rule = vi
+        .fn()
+        .mockImplementationOnce(() => marked)
+        .mockImplementationOnce(() => pass());
+
+      const result = await withRetry(rule, {
+        attempts: 3,
+        delayMs: 0,
+        retryOn: "thrown",
+      })({});
+
+      expect(rule).toHaveBeenCalledTimes(2);
+      expect(result).toEqual(pass());
+    });
+
+    it("counts a marked attempt with an undefined cause as thrown", async () => {
+      const rule = vi.fn(() => ({
+        outcome: "failed" as const,
+        error: "mapped",
+        caughtCause: undefined,
+      }));
+
+      const result = await withRetry(rule, {
+        attempts: 3,
+        delayMs: 0,
+        retryOn: "failed",
+      })({});
+
+      expect(rule).toHaveBeenCalledTimes(1);
+      expect(Object.hasOwn(result, "caughtCause")).toBe(true);
+      expect(causeOf(result)).toBeUndefined();
+    });
+
+    it("passes shouldRetry the thrown value, the caught cause, or the business error", async () => {
+      const boom = new Error("boom");
+      const rule = vi
+        .fn()
+        .mockRejectedValueOnce(boom)
+        .mockImplementationOnce(() => marked)
+        .mockImplementationOnce(() => fail("no"))
+        .mockImplementationOnce(() => pass());
+      const shouldRetry = vi.fn<(error: unknown, attempt: number) => boolean>(
+        () => true,
+      );
+
+      const result = await withRetry(rule, {
+        attempts: 4,
+        delayMs: 0,
+        shouldRetry,
+      })({});
+
+      expect(result).toEqual(pass());
+      expect(rule).toHaveBeenCalledTimes(4);
+      expect(shouldRetry.mock.calls).toStrictEqual([
+        [boom, 1],
+        [outage, 2],
+        ["no", 3],
+      ]);
+      expect(shouldRetry.mock.calls[1]?.[0]).toBe(outage);
+    });
+
+    it('under the default "both", a throw, a business failure, then a pass returns the pass', async () => {
+      const rule = vi
+        .fn()
+        .mockRejectedValueOnce(outage)
+        .mockImplementationOnce(() => fail("no"))
+        .mockImplementationOnce(() => pass());
+
+      const result = await withRetry(rule, { attempts: 3, delayMs: 0 })({});
+
+      expect(result).toEqual(pass());
+      expect(rule).toHaveBeenCalledTimes(3);
+    });
+
+    it("treats an inherited caughtCause as a business failure (own keys only)", async () => {
+      const inherited = Object.assign(Object.create({ caughtCause: outage }), {
+        outcome: "failed",
+        error: "no",
+      });
+      const rule = vi.fn(() => inherited);
+      const shouldRetry = vi.fn<(error: unknown, attempt: number) => boolean>(
+        () => true,
+      );
+
+      const result = await withRetry(rule, {
+        attempts: 2,
+        delayMs: 0,
+        retryOn: "failed",
+        shouldRetry,
+        onExhausted: "last-error",
+      })({});
+
+      expect(rule).toHaveBeenCalledTimes(2);
+      expect(shouldRetry).toHaveBeenCalledWith("no", 1);
+      expect(result).toStrictEqual(fail("no"));
+    });
+
+    it("with no attempts, returns an unmarked failure without calling the rule", async () => {
+      const rule = vi.fn(() => marked);
+
+      const result = await withRetry(rule, { attempts: 0 })({});
+
+      expect(rule).not.toHaveBeenCalled();
+      expect(result).toStrictEqual(fail("MAX_RETRIES_EXCEEDED"));
+    });
+
+    type Final = "thrown" | "marked" | "business";
+    type Ending = "early veto" | "last-error" | "max-retries";
+
+    const finalRule = (final: Final) => {
+      if (final === "thrown") {
+        return vi.fn(() => Promise.reject(outage));
+      }
+      if (final === "marked") {
+        return vi.fn(() => marked);
+      }
+      return vi.fn(() => fail("mapped"));
+    };
+
+    const endWith = (final: Final, ending: Ending) => {
+      const rule = finalRule(final);
+      if (ending === "early veto") {
+        return withRetry(rule, {
+          attempts: 3,
+          delayMs: 0,
+          shouldRetry: () => false,
+        });
+      }
+      return withRetry(rule, { attempts: 2, delayMs: 0, onExhausted: ending });
+    };
+
+    it.each<[Final, Ending, unknown, unknown]>([
+      ["thrown", "early veto", outage, outage],
+      ["thrown", "last-error", outage, outage],
+      ["thrown", "max-retries", "MAX_RETRIES_EXCEEDED", outage],
+      ["marked", "early veto", "mapped", outage],
+      ["marked", "last-error", "mapped", outage],
+      ["marked", "max-retries", "MAX_RETRIES_EXCEEDED", outage],
+      ["business", "early veto", "mapped", "no own caughtCause"],
+      ["business", "last-error", "mapped", "no own caughtCause"],
+      ["business", "max-retries", "MAX_RETRIES_EXCEEDED", "no own caughtCause"],
+    ])(
+      "final %s attempt, %s → error %o, cause %o",
+      async (final, ending, error, cause) => {
+        const result = await endWith(final, ending)({});
+
+        expect(result.outcome).toBe("failed");
+        expect(result.outcome === "failed" && result.error).toBe(error);
+        expect(causeOf(result)).toBe(cause);
+      },
+    );
   });
 
   // Type safety tests

@@ -1,6 +1,7 @@
 import { attachNode, jsonNumber } from "../../graph/node";
 import { calculateDelay, fail } from "../../helpers";
-import type { Rule } from "../../types";
+import { caughtFailure, isCaught } from "../../helpers/result/caught";
+import type { Rule, RuleResult } from "../../types";
 
 export type RetryOn = "failed" | "thrown" | "both";
 
@@ -17,6 +18,55 @@ type WithRetryOptions<TError> = {
   shouldRetry?: (error: TError | unknown, attempt: number) => boolean;
   retryOn?: RetryOn;
 };
+
+/**
+ * A failed attempt: its kind for `retryOn`, its payload, and the reason
+ * `shouldRetry` sees (for a `"thrown"` attempt, also the terminal cause).
+ */
+type FailedAttempt = {
+  readonly kind: "failed" | "thrown";
+  readonly error: unknown;
+  readonly reason: unknown;
+};
+
+type Attempt<TError> =
+  | { readonly kind: "passed"; readonly result: RuleResult<TError> }
+  | FailedAttempt;
+
+const thrownAttempt = (error: unknown): FailedAttempt => ({
+  kind: "thrown",
+  error,
+  reason: error,
+});
+
+// A caught failure is an outage, so it counts as thrown, with its cause as reason.
+const toAttempt = <TError>(result: RuleResult<TError>): Attempt<TError> => {
+  if (result.outcome === "passed") {
+    return { kind: "passed", result };
+  }
+  if (isCaught(result)) {
+    return { kind: "thrown", error: result.error, reason: result.caughtCause };
+  }
+  return { kind: "failed", error: result.error, reason: result.error };
+};
+
+const runAttempt = async <TInput, TError, TContext>(
+  rule: Rule<TInput, TError, TContext>,
+  input: TInput,
+  context: TContext | undefined,
+): Promise<Attempt<TError>> => {
+  try {
+    return toAttempt(await rule(input, context));
+  } catch (error) {
+    return thrownAttempt(error);
+  }
+};
+
+/** The terminal failure: caught iff the attempt was thrown, with its reason as cause. */
+const failureOf = <E>(attempt: FailedAttempt, payload: E): RuleResult<E> =>
+  attempt.kind === "thrown"
+    ? caughtFailure(payload, attempt.reason)
+    : fail(payload);
 
 /**
  * Wraps a rule with retry logic for handling transient failures.
@@ -80,46 +130,45 @@ export function withRetry<TInput, TError = string, TContext = unknown>(
     onExhausted = "max-retries",
   } = options;
 
+  type Result = RuleResult<TError | "MAX_RETRIES_EXCEEDED">;
+
+  const isRetryAllowed = (failed: FailedAttempt, attempt: number) =>
+    (retryOn === "both" || retryOn === failed.kind) &&
+    shouldRetry(failed.reason as TError, attempt);
+
+  const waitBeforeRetry = async (attempt: number) => {
+    if (attempt < attempts && delayMs > 0) {
+      const delay = calculateDelay(options?.retryStrategy, attempt, delayMs);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  };
+
+  // No attempt ran (attempts < 1): an unmarked failure, as before.
+  const exhausted = (last: FailedAttempt | undefined): Result => {
+    const payload =
+      onExhausted === "last-error"
+        ? (last?.error as TError)
+        : ("MAX_RETRIES_EXCEEDED" as const);
+    return last === undefined ? fail(payload) : failureOf(last, payload);
+  };
+
   return attachNode<Rule<TInput, TError | "MAX_RETRIES_EXCEEDED", TContext>>(
-    async (input, context) => {
-      let lastError: TError | unknown;
-      let wasThrown: boolean;
+    async (input, context): Promise<Result> => {
+      let last: FailedAttempt | undefined;
 
       for (let attempt = 1; attempt <= attempts; attempt++) {
-        try {
-          const result = await rule(input, context);
-          if (result.outcome === "passed") {
-            return result;
-          }
-          lastError = result.error;
-          wasThrown = false;
-        } catch (error) {
-          lastError = error;
-          wasThrown = true;
+        const tried = await runAttempt(rule, input, context);
+        if (tried.kind === "passed") {
+          return tried.result;
         }
-
-        const kindAllowed =
-          retryOn === "both" || retryOn === (wasThrown ? "thrown" : "failed");
-
-        // Check if we should retry the last error
-        if (!kindAllowed || !shouldRetry(lastError as TError, attempt)) {
-          return fail(lastError as TError);
+        last = tried;
+        if (!isRetryAllowed(tried, attempt)) {
+          return failureOf(tried, tried.error as TError);
         }
-
-        // Delay if not the last attempt
-        if (attempt < attempts && delayMs > 0) {
-          const delay = calculateDelay(
-            options?.retryStrategy,
-            attempt,
-            delayMs,
-          );
-          await new Promise((resolve) => setTimeout(resolve, delay));
-        }
+        await waitBeforeRetry(attempt);
       }
 
-      return onExhausted === "last-error"
-        ? fail(lastError as TError)
-        : fail("MAX_RETRIES_EXCEEDED" as const);
+      return exhausted(last);
     },
     {
       kind: "decorator",
