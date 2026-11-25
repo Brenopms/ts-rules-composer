@@ -1,5 +1,6 @@
 import { attachNode, jsonNumber } from "../../graph/node";
-import { fail, getNormalizedRule } from "../../helpers";
+import { getNormalizedRule } from "../../helpers";
+import { caughtFailure } from "../../helpers/result/caught";
 import type { Rule, RuleResult, RuleSafetyOptions } from "../../types";
 
 /**
@@ -25,6 +26,8 @@ import type { Rule, RuleResult, RuleSafetyOptions } from "../../types";
  * @caveats
  * - The original rule's execution isn't aborted when timeout occurs
  * - Only fails if the rule doesn't complete before timeout, not if it fails before timeout
+ * - A timeout failure is a caught failure (`caughtCause` = `timeoutError`), so
+ *   decisions route it to `onError`; a child that wins is returned unchanged
  */
 export const withTimeout = <TInput, TError, TContext>(
   rule: Rule<TInput, TError, TContext>,
@@ -36,7 +39,11 @@ export const withTimeout = <TInput, TError, TContext>(
     async (input, context) => {
       const safeRule = getNormalizedRule(rule, options);
       const timeout = new Promise<RuleResult<TError>>((resolve) =>
-        setTimeout(() => resolve(fail(timeoutError)), timeoutMs),
+        // A timeout is an outage, not a verdict: its payload is also its cause.
+        setTimeout(
+          () => resolve(caughtFailure(timeoutError, timeoutError)),
+          timeoutMs,
+        ),
       );
       return Promise.race([safeRule(input, context), timeout]);
     },

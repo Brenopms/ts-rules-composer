@@ -27,7 +27,9 @@ import {
   when,
   withDebug,
   withFallback,
+  withLazyContext,
   withTap,
+  withTimeout,
 } from "../lib";
 
 type Applicant = { age: number };
@@ -52,6 +54,9 @@ const predicateDown = (): boolean => {
   throw outage;
 };
 const denied: Rule<Applicant> = () => fail("Sanctions hit");
+// Never settles, so the timer always wins (and no child timer is left behind).
+const slow: Rule<Applicant> = () => new Promise<never>(() => {});
+const loaderDown = (): Promise<never> => Promise.reject(outage);
 
 const adult: Applicant = { age: 30 };
 const minor: Applicant = { age: 16 };
@@ -163,6 +168,36 @@ describe("rule-error-provenance probe table", () => {
       { outcome: "manual_review", cause: outage },
     ],
     [
+      'withTimeout(slow, 10, "timeout") timing out',
+      withTimeout(slow, 10, "timeout"),
+      adult,
+      { outcome: "manual_review", cause: "timeout" },
+    ],
+    [
+      'not(withTimeout(slow, 10, "timeout"), e)',
+      not(withTimeout(slow, 10, "timeout"), "Must not pass"),
+      adult,
+      { outcome: "manual_review", cause: "timeout" },
+    ],
+    [
+      'withTimeout(denied, 10, "timeout"), child wins (business failure)',
+      withTimeout(denied, 10, "timeout"),
+      adult,
+      { outcome: "rejected" },
+    ],
+    [
+      "withLazyContext(loaderDown, passes)",
+      withLazyContext(loaderDown, passes),
+      adult,
+      { outcome: "manual_review", cause: outage },
+    ],
+    [
+      "not(withLazyContext(loaderDown, passes), e)",
+      not(withLazyContext(loaderDown, passes), "Must not pass"),
+      adult,
+      { outcome: "manual_review", cause: outage },
+    ],
+    [
       "pipeRules([isAdult]), applicant is 16",
       pipeRules([isAdult]),
       minor,
@@ -268,6 +303,14 @@ describe("forwarders return a caught child result by identity", () => {
     ["withDebug", withDebug(caughtRule<Applicant>(), "debugged")],
     ["inject", inject("dependency", () => caughtRule<Applicant>())],
     ["named", named("named", caughtRule<Applicant>())],
+    [
+      "withTimeout (child wins)",
+      withTimeout(caughtRule<Applicant>(), 1000, "timeout"),
+    ],
+    [
+      "withLazyContext",
+      withLazyContext(() => context, caughtRule<Applicant>()),
+    ],
     ["requireContextRule", requireContextRule("No context", caughtRule())],
     [
       "validateField",

@@ -9,7 +9,7 @@ import {
 } from "vitest";
 import { getRuleError } from "../../../test/helpers/get-rule-error";
 import { fail, pass } from "../../helpers";
-import type { Rule } from "../../types";
+import type { Rule, RuleResult } from "../../types";
 import { withTimeout } from "./with-timeout";
 
 describe("withTimeout", () => {
@@ -100,6 +100,61 @@ describe("withTimeout", () => {
     expect(result.outcome).toBe("passed");
     expect(contextRule).toHaveBeenCalledWith("input", { id: 1 });
   });
+
+  it("marks a timeout as caught, with timeoutError as payload and cause", async () => {
+    const timeoutError = { code: "TIMEOUT" };
+    const rule = withTimeout<string, unknown, unknown>(
+      createSlowRule(200),
+      100,
+      timeoutError,
+    );
+
+    const resultPromise = rule("input");
+    vi.advanceTimersByTime(100);
+    const result = await resultPromise;
+
+    expect(result).toStrictEqual({
+      outcome: "failed",
+      error: timeoutError,
+      caughtCause: timeoutError,
+    });
+    expect(result.outcome === "failed" && result.caughtCause).toBe(
+      timeoutError,
+    );
+  });
+
+  it("marks a timeout as caught when timeoutError is undefined", async () => {
+    const rule = withTimeout(createSlowRule(200), 100, undefined);
+
+    const resultPromise = rule("input");
+    vi.advanceTimersByTime(100);
+    const result = await resultPromise;
+
+    expect(Object.hasOwn(result, "caughtCause")).toBe(true);
+    expect(result).toStrictEqual({
+      outcome: "failed",
+      error: undefined,
+      caughtCause: undefined,
+    });
+  });
+
+  it.each<[string, RuleResult<string>]>([
+    ["a business failure", fail("Expected error")],
+    [
+      "a caught failure",
+      { outcome: "failed", error: "down", caughtCause: new Error("down") },
+    ],
+  ])(
+    "forwards %s from a child that wins, by identity",
+    async (_, childResult) => {
+      const rule = withTimeout(() => childResult, 100, "Timeout error");
+
+      const resultPromise = rule("input");
+      vi.advanceTimersByTime(0);
+
+      expect(await resultPromise).toBe(childResult);
+    },
+  );
 
   it("should work with immediate timeout (0ms)", async () => {
     const slowRule = createSlowRule(10);
