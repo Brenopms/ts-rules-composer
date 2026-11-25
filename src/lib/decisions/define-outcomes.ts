@@ -203,8 +203,9 @@ export interface OutcomeToolkit<O extends string> {
 
   /**
    * Turns a rule (or any `"passed"`/`"failed"` decision) into a decision of
-   * this toolkit: `failed` gives `mapping.failed`, `passed` gives
-   * `mapping.passed`, else the last declared outcome. The rule's `error` is
+   * this toolkit: an unmarked `failed` gives `mapping.failed`, a caught one
+   * (an own `caughtCause`) gives `onError`, `passed` gives `mapping.passed`,
+   * else the last declared outcome. The rule's `error` is
    * dropped. The rule runs without `withSafeError`, so a rule that throws,
    * rejects or returns anything but an object with an own `outcome` of
    * `"passed"` or `"failed"` gives `onError` (the override, else the

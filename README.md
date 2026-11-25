@@ -549,7 +549,7 @@ const pipeline = pipeRules([
 When a rule decides whether something is allowed (a permission check, a safety policy, an LLM or fraud judge), a wrong "pass" costs more than a wrong "fail". These defaults and habits keep the failure side safe.
 
 - **Fail closed on errors.** In the default `safe` mode a thrown exception becomes a failed result, so a crashing check never passes. Do not use `errorHandlingMode: "unsafe"` on policy rules unless the caller handles exceptions. See [Error handling modes](#error-handling-modes).
-- **Never retry a decision.** `withRetry` retries failed results by default, so a "no" can be retried into a "yes". For policy checks use `retryOn: "thrown"`, which retries only transient faults: exceptions and caught failures (outages), never a business `fail(...)`. See [`withRetry`](#withretryrule-options).
+- **Never retry a decision.** `withRetry` retries failed results by default, so a "no" can be retried into a "yes". For policy checks use `retryOn: "thrown"`, which retries exceptions and caught failures (outages), never a business `fail(...)`. A caught failure isn't always transient (a bug or a malformed result is caught too), so filter by cause with `shouldRetry`. See [`withRetry`](#withretryrule-options).
 - **Keep the reason when retries run out.** `onExhausted: "last-error"` returns the final error instead of `"MAX_RETRIES_EXCEEDED"`.
 - **Key caches by identity.** `withMemoize` shares entries between callers with the same key, so include everything the verdict depends on (user, tenant, input id), build keys with `JSON.stringify([...])` rather than joining strings, and key by context when the result depends on who is asking. See [`withMemoize`](#withmemoizerule-keyfn-options).
 - **Time out as a failure.** `withTimeout` returns your `timeoutError` as a failed result, so a slow dependency blocks the action instead of letting it through. It is a caught failure, so a decision toolkit routes it to `onError` rather than reading it as a "no".
@@ -1072,12 +1072,12 @@ In 1.x, a rule that threw became an ordinary `fail(...)`, so an outage looked li
 | `every` / `oneOf` | May return a caught failure. `every` does when an outage isn't settled by a business failure; `oneOf` does when nothing passed and a child had an outage. The cause is the first outage in declaration order. |
 | rule `ifElse` / `when` / `unless` | A throwing predicate's failure keeps its cause. |
 | `mapError` | Maps `error` and keeps the cause. |
-| `withFallback` | Unchanged: the fallback runs for outages too. |
+| `withFallback` | Unchanged: the fallback runs for outages too, under the same `onlyFallbackOn` guard (it receives `error`). If the guard refuses, the caught failure is returned unchanged. |
 | `withRetry` | A caught failure counts as `"thrown"`: `retryOn: "failed"` no longer retries it, `retryOn: "thrown"` does, and `shouldRetry` receives its `caughtCause`. The final failure is caught if the last attempt was thrown or caught. |
 | `withMemoize` | Caught failures are evicted once they settle, so the next call runs the rule again. Business failures are still cached. |
-| `defineOutcomes` toolkits | `mapOutcome` maps a caught failure to `onError` and calls `onErrorCaught` with the cause, instead of `mapping.failed`. In a toolkit that declares `"failed"`, a caught child labelled `"failed"` gives the local `onError` (or contributes it to a `combine`). |
+| `defineOutcomes` toolkits | `mapOutcome` maps a caught failure to `onError` and calls `onErrorCaught` with the cause, instead of `mapping.failed`. In a toolkit that declares `"failed"`, a caught child labelled `"failed"` gives the local `onError` (or contributes it to a `combine` / `combineAll` merge, where a stronger sibling can still win). |
 
-`onErrorCaught` is called only when a caught failure reaches a decision. An outage inside an `every` that a business failure settles is not reported.
+For an outage a rule combinator already caught, `onErrorCaught` fires only if the caught failure reaches the decision. An outage inside an `every` that a business failure settles is not reported. Throws, rejections and malformed results inside the decision itself call it as before.
 
 **Exact assertions.** `caughtCause` is a plain, enumerable property, so it shows up in `toEqual`, `toStrictEqual` and logs. Assert the parts, or include the cause:
 

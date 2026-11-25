@@ -646,7 +646,9 @@ type WithRetryOptions<TError> = {
  * @param options.attempts - Maximum number of attempts (default: 3)
  * @param options.delayMs - Delay between attempts in milliseconds (default: 100)
  * @param options.shouldRetry - Function to determine if a failure should be retried
- * @param options.retryOn - What to retry: "failed" results, "thrown" exceptions, or "both" (default)
+ * @param options.retryOn - What to retry: "failed" (business failures), "thrown"
+ *   (exceptions and caught failures, i.e. results carrying \`caughtCause\`), or
+ *   "both" (default). Use \`shouldRetry\` to filter by cause
  * @param options.onExhausted - What to return when every attempt fails:
  *   "max-retries" (default) returns "MAX_RETRIES_EXCEEDED"; "last-error"
  *   returns the final error unchanged and keeps the error type as \`TError\`
@@ -1032,8 +1034,9 @@ interface OutcomeToolkit<O extends string> {
   }) => Decision<TInput, O, TContext>;
   /**
    * Turns a rule (or any \`"passed"\`/\`"failed"\` decision) into a decision of
-   * this toolkit: \`failed\` gives \`mapping.failed\`, \`passed\` gives
-   * \`mapping.passed\`, else the last declared outcome. The rule's \`error\` is
+   * this toolkit: an unmarked \`failed\` gives \`mapping.failed\`, a caught one
+   * (an own \`caughtCause\`) gives \`onError\`, \`passed\` gives \`mapping.passed\`,
+   * else the last declared outcome. The rule's \`error\` is
    * dropped. The rule runs without \`withSafeError\`, so a rule that throws,
    * rejects or returns anything but an object with an own \`outcome\` of
    * \`"passed"\` or \`"failed"\` gives \`onError\` (the override, else the
@@ -1926,7 +1929,9 @@ type WithRetryOptions<TError> = {
  * @param options.attempts - Maximum number of attempts (default: 3)
  * @param options.delayMs - Delay between attempts in milliseconds (default: 100)
  * @param options.shouldRetry - Function to determine if a failure should be retried
- * @param options.retryOn - What to retry: "failed" results, "thrown" exceptions, or "both" (default)
+ * @param options.retryOn - What to retry: "failed" (business failures), "thrown"
+ *   (exceptions and caught failures, i.e. results carrying \`caughtCause\`), or
+ *   "both" (default). Use \`shouldRetry\` to filter by cause
  * @param options.onExhausted - What to return when every attempt fails:
  *   "max-retries" (default) returns "MAX_RETRIES_EXCEEDED"; "last-error"
  *   returns the final error unchanged and keeps the error type as \`TError\`
@@ -2312,8 +2317,9 @@ interface OutcomeToolkit<O extends string> {
   }) => Decision<TInput, O, TContext>;
   /**
    * Turns a rule (or any \`"passed"\`/\`"failed"\` decision) into a decision of
-   * this toolkit: \`failed\` gives \`mapping.failed\`, \`passed\` gives
-   * \`mapping.passed\`, else the last declared outcome. The rule's \`error\` is
+   * this toolkit: an unmarked \`failed\` gives \`mapping.failed\`, a caught one
+   * (an own \`caughtCause\`) gives \`onError\`, \`passed\` gives \`mapping.passed\`,
+   * else the last declared outcome. The rule's \`error\` is
    * dropped. The rule runs without \`withSafeError\`, so a rule that throws,
    * rejects or returns anything but an object with an own \`outcome\` of
    * \`"passed"\` or \`"failed"\` gives \`onError\` (the override, else the

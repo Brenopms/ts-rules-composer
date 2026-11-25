@@ -80,7 +80,9 @@ const failureOf = <E>(attempt: FailedAttempt, payload: E): RuleResult<E> =>
  * @param options.attempts - Maximum number of attempts (default: 3)
  * @param options.delayMs - Delay between attempts in milliseconds (default: 100)
  * @param options.shouldRetry - Function to determine if a failure should be retried
- * @param options.retryOn - What to retry: "failed" results, "thrown" exceptions, or "both" (default)
+ * @param options.retryOn - What to retry: "failed" (business failures), "thrown"
+ *   (exceptions and caught failures, i.e. results carrying `caughtCause`), or
+ *   "both" (default). Use `shouldRetry` to filter by cause
  * @param options.onExhausted - What to return when every attempt fails:
  *   "max-retries" (default) returns "MAX_RETRIES_EXCEEDED"; "last-error"
  *   returns the final error unchanged and keeps the error type as `TError`
