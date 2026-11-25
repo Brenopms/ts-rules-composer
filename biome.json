@@ -22,7 +22,20 @@
       "style": {
         "useImportType": "error",
         "useExportType": "error",
-        "useBlockStatements": "error"
+        "useBlockStatements": "error",
+        "useObjectSpread": "error",
+        "useReduceTypeParameter": "error",
+        "useNamingConvention": {
+          "level": "error",
+          "options": { "strictCase": false }
+        },
+        "useForOf": "error",
+        "useFilenamingConvention": "error",
+        "useErrorCause": "error",
+        "useDefaultSwitchClause": "error",
+        "useConst": "error",
+        "useConsistentMethodSignatures": "error",
+        "noContinue": "error"
       },
       "correctness": {
         "noUnusedVariables": {
@@ -39,6 +52,27 @@
         "rules": {
           "correctness": { "noUnusedVariables": "off" },
           "suspicious": { "noExplicitAny": "off" }
+        }
+      }
+    },
+    {
+      "includes": ["**/*.spec.ts", "examples/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useNamingConvention": {
+              "level": "error",
+              "options": {
+                "strictCase": false,
+                "conventions": [
+                  {
+                    "selector": { "kind": "objectLiteralProperty" },
+                    "formats": ["camelCase", "snake_case"]
+                  }
+                ]
+              }
+            }
+          }
         }
       }
     }

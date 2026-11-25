@@ -61,7 +61,7 @@ export interface OutcomeToolkit<O extends string> {
    *   return credit.outcome("declined");
    * };
    */
-  outcome(outcome: O): DecisionResult<O>;
+  outcome: (outcome: O) => DecisionResult<O>;
 
   /**
    * Built-in resolvers bound to this toolkit's declared order, for the
@@ -103,12 +103,12 @@ export interface OutcomeToolkit<O extends string> {
    *   "approved",
    * );
    */
-  ifElse<TInput, TContext = unknown>(
+  ifElse: <TInput, TContext = unknown>(
     predicate: Predicate<TInput, TContext>,
     whenTrue: Branch<TInput, O, TContext>,
     whenFalse: Branch<TInput, O, TContext>,
     options?: Override<O>,
-  ): Decision<TInput, O, TContext>;
+  ) => Decision<TInput, O, TContext>;
 
   /**
    * Picks an outcome by key: the accessor's key selects its own case
@@ -131,12 +131,12 @@ export interface OutcomeToolkit<O extends string> {
    *   "review",
    * );
    */
-  match<TInput, TKey extends PropertyKey, TContext = unknown>(
+  match: <TInput, TKey extends PropertyKey, TContext = unknown>(
     accessor: (input: TInput, context?: TContext) => TKey | Promise<TKey>,
     cases: Partial<Record<TKey, Branch<TInput, O, TContext>>>,
     defaultCase: Branch<TInput, O, TContext>,
     options?: Override<O>,
-  ): Decision<TInput, O, TContext>;
+  ) => Decision<TInput, O, TContext>;
 
   /**
    * Runs decisions one at a time, in order, and merges their outcomes with
@@ -161,13 +161,13 @@ export interface OutcomeToolkit<O extends string> {
    *   bureauScore,
    * ]);
    */
-  combine<TInput, TContext = unknown>(
+  combine: <TInput, TContext = unknown>(
     decisions: Decisions<TInput, O, TContext>,
     options?: Override<O> & {
       /** Default: precedence (declaration order). */
       readonly resolver?: Resolver<O>;
     },
-  ): Decision<TInput, O, TContext>;
+  ) => Decision<TInput, O, TContext>;
 
   /**
    * Runs every decision at once, waits for all of them, then merges their
@@ -193,13 +193,13 @@ export interface OutcomeToolkit<O extends string> {
    *   bureauScore,
    * ]);
    */
-  combineAll<TInput, TContext = unknown>(
+  combineAll: <TInput, TContext = unknown>(
     decisions: Decisions<TInput, O, TContext>,
     options?: Override<O> & {
       /** Default: precedence (declaration order). Only `combine` is used. */
       readonly resolver?: Pick<Resolver<O>, "combine">;
     },
-  ): Decision<TInput, O, TContext>;
+  ) => Decision<TInput, O, TContext>;
 
   /**
    * Turns a rule (or any `"passed"`/`"failed"` decision) into a decision of
@@ -225,11 +225,11 @@ export interface OutcomeToolkit<O extends string> {
    *   failed: "declined",
    * });
    */
-  mapOutcome<TInput, TContext = unknown>(
+  mapOutcome: <TInput, TContext = unknown>(
     rule: Decision<TInput, "passed" | "failed", TContext>,
     mapping: { readonly failed: O; readonly passed?: O },
     options?: Override<O>,
-  ): Decision<TInput, O, TContext>;
+  ) => Decision<TInput, O, TContext>;
 }
 
 /**
