@@ -47,7 +47,9 @@ const toAttempt = <TError>(result: RuleResult<TError>): Attempt<TError> => {
   if (isCaught(result)) {
     return { kind: "thrown", error: result.error, reason: result.caughtCause };
   }
-  return { kind: "failed", error: result.error, reason: result.error };
+  // Read once, so shouldRetry and the payload see the same value.
+  const error = result.error;
+  return { kind: "failed", error, reason: error };
 };
 
 const runAttempt = async <TInput, TError, TContext>(
