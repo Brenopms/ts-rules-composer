@@ -118,6 +118,7 @@ describe("withTimeout", () => {
       error: timeoutError,
       caughtCause: timeoutError,
     });
+    expect(result.outcome === "failed" && result.error).toBe(timeoutError);
     expect(result.outcome === "failed" && result.caughtCause).toBe(
       timeoutError,
     );
