@@ -253,7 +253,11 @@ describe("Transaction Validation", () => {
     );
 
     const result = await validateTransaction(transaction);
-    expect(result).toEqual(fail("Bank auth timeout"));
+    // The timeout is a caught failure: its payload is also its cause.
+    expect(result).toEqual({
+      ...fail("Bank auth timeout"),
+      caughtCause: "Bank auth timeout",
+    });
   });
 
   it("should enforce business transfer limits", async () => {

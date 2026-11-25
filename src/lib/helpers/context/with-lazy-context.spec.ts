@@ -31,7 +31,21 @@ describe("withLazyContext", () => {
     const lazyRule = withLazyContext(() => ({}), rule);
 
     const result = await lazyRule({});
-    expect(result).toEqual(expectedResult);
+    expect(result).toBe(expectedResult);
+  });
+
+  it("forwards a caught failure from the rule by identity", async () => {
+    const caughtResult = {
+      outcome: "failed",
+      error: "down",
+      caughtCause: new Error("down"),
+    } as const;
+    const lazyRule = withLazyContext(
+      () => ({}),
+      () => caughtResult,
+    );
+
+    expect(await lazyRule({})).toBe(caughtResult);
   });
 
   it("should handle sync context loading", async () => {
@@ -45,14 +59,33 @@ describe("withLazyContext", () => {
     expect(result.outcome).toBe("passed");
   });
 
-  it("should convert loader errors to failed results", async () => {
+  it("should convert loader errors to caught failures (cause = the rejection)", async () => {
+    const outage = new Error("DB down");
     const lazyRule = withLazyContext(
-      () => Promise.reject(new Error("DB down")),
+      () => Promise.reject(outage),
       () => pass(),
     );
 
     const result = await lazyRule({});
-    expect(result).toEqual(fail("DB down"));
+    expect(result).toStrictEqual({
+      outcome: "failed",
+      error: "DB down",
+      caughtCause: outage,
+    });
+    expect(result.outcome === "failed" && result.caughtCause).toBe(outage);
+  });
+
+  it("marks a synchronous loader throw with the thrown value as cause", async () => {
+    const outage = new Error("config missing");
+    const lazyRule = withLazyContext(
+      () => {
+        throw outage;
+      },
+      () => pass(),
+    );
+
+    const result = await lazyRule({});
+    expect(result.outcome === "failed" && result.caughtCause).toBe(outage);
   });
 
   it("should use a generic message when the loader throws a non-Error", async () => {
@@ -63,16 +96,27 @@ describe("withLazyContext", () => {
 
     const result = await lazyRule({});
 
-    expect(result).toEqual(fail("Context loading failed"));
+    expect(result).toStrictEqual({
+      outcome: "failed",
+      error: "Context loading failed",
+      caughtCause: "not an Error",
+    });
   });
 
-  it("should convert an async rule rejection to a failed result", async () => {
+  it("should convert an async rule rejection to a caught failure", async () => {
+    const outage = new Error("rule service down");
     const lazyRule = withLazyContext(
       () => ({}),
-      async () => Promise.reject(new Error("rule service down")),
+      async () => Promise.reject(outage),
     );
 
-    await expect(lazyRule({})).resolves.toEqual(fail("rule service down"));
+    const result = await lazyRule({});
+    expect(result).toStrictEqual({
+      outcome: "failed",
+      error: "rule service down",
+      caughtCause: outage,
+    });
+    expect(result.outcome === "failed" && result.caughtCause).toBe(outage);
   });
 
   it("should use the generic message when an async rule rejects with a non-Error", async () => {
@@ -81,7 +125,11 @@ describe("withLazyContext", () => {
       async () => Promise.reject("not an Error"),
     );
 
-    await expect(lazyRule({})).resolves.toEqual(fail("Context loading failed"));
+    await expect(lazyRule({})).resolves.toStrictEqual({
+      outcome: "failed",
+      error: "Context loading failed",
+      caughtCause: "not an Error",
+    });
   });
 
   it("should preserve input types", async () => {

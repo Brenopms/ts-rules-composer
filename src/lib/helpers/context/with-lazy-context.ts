@@ -1,6 +1,6 @@
 import { attachNode } from "../../graph/node";
 import type { Rule } from "../../types";
-import { fail } from "../result";
+import { caughtFailure } from "../result/caught";
 
 /**
  * Creates a rule that loads context lazily before execution.
@@ -16,7 +16,8 @@ import { fail } from "../result";
  *   validateUser
  * );
  * @caveats
- * - Context loading failures are converted to validation failures
+ * - Context loading failures, and throws or rejections from the rule, become
+ *   caught failures: the message as `error`, the thrown value as `caughtCause`
  * - The loader is called for every rule execution
  */
 export const withLazyContext = <TInput, TError, TContext>(
@@ -31,7 +32,7 @@ export const withLazyContext = <TInput, TError, TContext>(
       } catch (error) {
         const errorMessage =
           error instanceof Error ? error.message : "Context loading failed";
-        return fail(errorMessage as TError);
+        return caughtFailure(errorMessage as TError, error);
       }
     },
     { kind: "decorator", decorator: "lazyContext", rule, params: {} },
