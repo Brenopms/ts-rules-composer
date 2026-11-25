@@ -616,7 +616,9 @@ export declare const withDebug: <TInput, TError, TContext>(rule: Rule<TInput, TE
  * - Build keys unambiguously: joining values with a separator (\`\${a}:\${b}\`) can make
  *   different callers produce the same key; serialize them (\`JSON.stringify([a, b])\`)
  * - Cache cleanup happens during rule execution
- * - Rejected promises are automatically evicted from cache
+ * - Rejected promises and caught failures (results carrying \`caughtCause\`, i.e.
+ *   outages) are evicted once they settle, so the next call recomputes; callers
+ *   already waiting still get them. Business failures are cached like passes
  * - Successful results obey TTL rules
  * - Each call to withMemoize creates its own cache; it is not shared across memoized rules
  * - Entries are evicted oldest-inserted first (FIFO) once maxSize is reached; hits do not refresh recency
@@ -1889,7 +1891,9 @@ export declare const withDebug: <TInput, TError, TContext>(rule: Rule<TInput, TE
  * - Build keys unambiguously: joining values with a separator (\`\${a}:\${b}\`) can make
  *   different callers produce the same key; serialize them (\`JSON.stringify([a, b])\`)
  * - Cache cleanup happens during rule execution
- * - Rejected promises are automatically evicted from cache
+ * - Rejected promises and caught failures (results carrying \`caughtCause\`, i.e.
+ *   outages) are evicted once they settle, so the next call recomputes; callers
+ *   already waiting still get them. Business failures are cached like passes
  * - Successful results obey TTL rules
  * - Each call to withMemoize creates its own cache; it is not shared across memoized rules
  * - Entries are evicted oldest-inserted first (FIFO) once maxSize is reached; hits do not refresh recency

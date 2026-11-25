@@ -1,6 +1,16 @@
 import { attachNode } from "../../graph/node";
 import { getNormalizedRule } from "../../helpers";
+import { isCaught } from "../../helpers/result/caught";
 import type { Rule, RuleResult, RuleSafetyOptions } from "../../types";
+
+type CacheEntry<TError> = {
+  readonly result: Promise<RuleResult<TError>> | RuleResult<TError>;
+  readonly timestamp: number;
+};
+
+// An unsafe rule may return anything; only an object can be a caught failure.
+const isCaughtResult = (value: unknown): boolean =>
+  typeof value === "object" && value !== null && isCaught(value);
 
 /**
  * Creates a memoized version of a rule that caches results based on input keys.
@@ -38,7 +48,9 @@ import type { Rule, RuleResult, RuleSafetyOptions } from "../../types";
  * - Build keys unambiguously: joining values with a separator (`${a}:${b}`) can make
  *   different callers produce the same key; serialize them (`JSON.stringify([a, b])`)
  * - Cache cleanup happens during rule execution
- * - Rejected promises are automatically evicted from cache
+ * - Rejected promises and caught failures (results carrying `caughtCause`, i.e.
+ *   outages) are evicted once they settle, so the next call recomputes; callers
+ *   already waiting still get them. Business failures are cached like passes
  * - Successful results obey TTL rules
  * - Each call to withMemoize creates its own cache; it is not shared across memoized rules
  * - Entries are evicted oldest-inserted first (FIFO) once maxSize is reached; hits do not refresh recency
@@ -51,56 +63,72 @@ export const withMemoize = <TInput, TError = string, TContext = unknown>(
     maxSize?: number;
   } & RuleSafetyOptions<TError> = {},
 ): Rule<TInput, TError, TContext> => {
-  const cache = new Map<
-    string,
-    {
-      result: Promise<RuleResult<TError>> | RuleResult<TError>;
-      timestamp: number;
+  const cache = new Map<string, CacheEntry<TError>>();
+
+  // TTL or maxSize may have replaced this call's entry (possibly with the same
+  // promise, in unsafe mode), so only remove the entry object it stored.
+  const evict = (key: string, entry: CacheEntry<TError>) => {
+    if (cache.get(key) === entry) {
+      cache.delete(key);
     }
-  >();
+  };
+
+  const removeExpired = (now: number) => {
+    const { ttl } = options;
+    if (ttl) {
+      for (const [key, entry] of cache) {
+        if (now - entry.timestamp > ttl) {
+          cache.delete(key);
+        }
+      }
+    }
+  };
+
+  // FIFO: only a miss adds an entry, so only a miss evicts.
+  const makeRoom = () => {
+    if (options.maxSize && cache.size >= options.maxSize) {
+      const oldestKey = cache.keys().next().value;
+      if (oldestKey !== undefined) {
+        cache.delete(oldestKey);
+      }
+    }
+  };
+
+  const evictOnOutage = (key: string, entry: CacheEntry<TError>) => {
+    const { result } = entry;
+    if (result instanceof Promise) {
+      result.then(
+        (settled) => {
+          if (isCaughtResult(settled)) {
+            evict(key, entry);
+          }
+        },
+        () => evict(key, entry),
+      );
+    } else if (isCaughtResult(result)) {
+      evict(key, entry);
+    }
+  };
 
   return attachNode<Rule<TInput, TError, TContext>>(
     async (input: TInput, context?: TContext) => {
       const key = keyFn(input, context);
       const now = Date.now();
 
-      // Cache cleanup
-      if (options.ttl) {
-        for (const [key, entry] of cache) {
-          if (now - entry.timestamp > options.ttl) {
-            cache.delete(key);
-          }
-        }
-      }
+      removeExpired(now);
 
-      // Cache hit
       const cached = cache.get(key);
       if (cached) {
         return cached.result;
       }
 
-      // Size management (FIFO): only a miss adds an entry, so only a miss evicts
-      if (options.maxSize && cache.size >= options.maxSize) {
-        const oldestKey = cache.keys().next().value;
-        if (oldestKey !== undefined) {
-          cache.delete(oldestKey);
-        }
-      }
-
-      // Cache miss
+      makeRoom();
       const normalizedRule = getNormalizedRule(rule, options);
-      const result = normalizedRule(input, context);
-      cache.set(key, {
-        result,
-        timestamp: now,
-      });
+      const entry = { result: normalizedRule(input, context), timestamp: now };
+      cache.set(key, entry);
+      evictOnOutage(key, entry);
 
-      // Handle Promise cleanup if rejected
-      if (result instanceof Promise) {
-        result.catch(() => cache.delete(key));
-      }
-
-      return result;
+      return entry.result;
     },
     {
       kind: "decorator",
