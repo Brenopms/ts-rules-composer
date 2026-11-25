@@ -117,9 +117,9 @@ const createBuilder = () => {
           ...(raw.default
             ? { default: build(raw.default, `${id}.default`) }
             : {}),
-          ...(raw.defaultError !== undefined
-            ? { defaultError: describeError(raw.defaultError) }
-            : {}),
+          ...(raw.defaultError === undefined
+            ? {}
+            : { defaultError: describeError(raw.defaultError) }),
         };
       }
       // The node key is shared, so another version of this package could have

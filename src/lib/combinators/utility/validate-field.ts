@@ -56,7 +56,7 @@ export function validateField<
   return attachNode<Rule<TInput, TError, TContext>>(
     async (input: TInput, context?: TContext) => {
       const value = getter(input);
-      const finalValue = value !== undefined ? value : defaultValue;
+      const finalValue = value === undefined ? defaultValue : value;
       const safeRule = getNormalizedRule(rule, options);
 
       if (finalValue === undefined) {

@@ -35,7 +35,28 @@
         "useDefaultSwitchClause": "error",
         "useConst": "error",
         "useConsistentMethodSignatures": "error",
-        "noContinue": "error"
+        "noContinue": "error",
+        "noParameterAssign": "error",
+        "useConsistentArrayType": "error",
+        "noEnum": "error",
+        "noUselessElse": "error",
+        "useCollapsedElseIf": "error",
+        "useShorthandAssign": "error",
+        "noYodaExpression": "error",
+        "noInferrableTypes": "error",
+        "noExportedImports": "error",
+        "noProcessEnv": "error",
+        "noNegationElse": "error"
+      },
+      "suspicious": {
+        "noSkippedTests": "error",
+        "noEvolvingTypes": "error"
+      },
+      "complexity": {
+        "noExcessiveCognitiveComplexity": "warn"
+      },
+      "nursery": {
+        "noFloatingPromises": "warn"
       },
       "correctness": {
         "noUnusedVariables": {
