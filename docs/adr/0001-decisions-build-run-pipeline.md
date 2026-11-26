@@ -75,6 +75,13 @@ which calls does it make safe, and which engine does it route through.
   `caughtCause`. With one, the safe-call layer treats it as a failure of
   the call (`onError`, hook called with the cause), the same as a throw.
   See `docs/specs/SPEC-rule-error-provenance.md`.
+- **Amendment (2026-11-26, decision-graph):** production files in
+  `decisions/` may also import `../graph/node`, and nothing else from
+  `graph/`, so toolkit builders can record graph nodes. No cycle is
+  possible: `src/lib/graph/node.ts` imports nothing. The boundary is now
+  this allowlist grep, which must print nothing:
+  `grep -rn 'from "\.\./' src/lib/decisions --include='*.ts' | grep -v '\.spec\.ts' | grep -vE 'from "\.\./(types|graph/node)"'`.
+  See `docs/specs/SPEC-decision-graph.md` (assumption 8).
 
 ## Alternatives considered
 
