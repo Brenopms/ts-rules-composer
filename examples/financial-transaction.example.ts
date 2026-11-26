@@ -26,6 +26,15 @@ interface Transaction {
 
 const SUPPORTED_CURRENCIES = ["USD", "EUR", "GBP"];
 
+// Next month as "MM/YY", so the example card never expires.
+const getFutureExpiry = () => {
+  const date = new Date();
+  date.setMonth(date.getMonth() + 1);
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = String(date.getFullYear() % 100).padStart(2, "0");
+  return `${month}/${year}`;
+};
+
 // Mock services
 const fraudService = {
   assess: async (_tx: Transaction) => ({ score: 2 }),
@@ -180,7 +189,7 @@ const validateTransaction: Rule<Transaction> = pipeRules([
     paymentType: "credit_card",
     accountType: "personal",
     cardNumber: "4111111111111111", // Valid test Visa number
-    expiry: "12/25",
+    expiry: getFutureExpiry(),
   };
 
   const validResult = await validateTransaction(validTransaction);
@@ -194,7 +203,7 @@ const validateTransaction: Rule<Transaction> = pipeRules([
     paymentType: "credit_card",
     accountType: "personal",
     cardNumber: "4111111111111111",
-    expiry: "12/25",
+    expiry: getFutureExpiry(),
   };
 
   const invalidResult = await validateTransaction(invalidTransaction);
