@@ -1,6 +1,6 @@
 import type { GraphNode } from "../graph/node";
 import { toGraph } from "../graph/to-graph";
-import type { Rule } from "../types";
+import type { Decision, Rule } from "../types";
 
 /** A point control leaves a fragment from, with an optional edge label. */
 type Port = { id: string; label?: string };
@@ -384,17 +384,34 @@ const draw = (
  * - Anonymous functions print as `rule #n`; use `named` for a real name.
  * - `failEdges` defaults to `false`; pass `true` for dotted edges to `failed`.
  */
-export const toMermaid = <TInput, TError, TContext>(
+export function toMermaid<TInput, TError, TContext>(
   rule: Rule<TInput, TError, TContext>,
+  options?: MermaidOptions,
+): string;
+/**
+ * Renders a decision as Mermaid flowchart source, without running it.
+ *
+ * @example
+ * const text = toMermaid(credit.ifElse(isHighRisk, declined, approved));
+ * @caveats
+ * - Nothing is executed: decisions, predicates and selectors are never called.
+ */
+export function toMermaid<TInput, O extends string, TContext>(
+  decision: Decision<TInput, O, TContext>,
+  options?: MermaidOptions,
+): string;
+// Every Rule is also a Decision over "passed" | "failed", so one parameter type covers both.
+export function toMermaid(
+  fn: Decision<unknown, string, unknown>,
   options: MermaidOptions = {},
-): string => {
+): string {
   const {
     direction: requestedDirection = "TD",
     failEdges = false,
     verbose = false,
     maxLabelLength = 40,
   } = options;
-  const body = render(toGraph(rule).root, {
+  const body = render(toGraph(fn).root, {
     verbose,
     maxLabelLength: labelLimit(maxLabelLength),
   });
@@ -410,4 +427,4 @@ export const toMermaid = <TInput, TError, TContext>(
     ...linkAll(body.exits, "passed"),
     ...linkAll(fails, "failed", "-.->", "fail"),
   ].join("\n");
-};
+}

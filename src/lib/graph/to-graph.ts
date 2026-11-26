@@ -1,4 +1,4 @@
-import type { Rule } from "../types";
+import type { Decision, Rule } from "../types";
 import { usableName } from "./labels";
 import { type Fn, type GraphNode, type RuleGraph, readNode } from "./node";
 
@@ -149,11 +149,25 @@ const readLabel = (fn: Fn) => {
  *
  * @example
  * const graph = toGraph(pipeRules([hasItems, withinLimit]));
- * // { version: 1, root: { kind: "sequence", steps: [...] } }
+ * // { version: 2, root: { kind: "sequence", steps: [...] } }
  * @caveats
  * - Nothing is executed: rules, predicates and accessors are never called.
  * - Anonymous functions are labelled `rule #n`; use `named` for a real name.
  */
-export const toGraph = <TInput, TError, TContext>(
+export function toGraph<TInput, TError, TContext>(
   rule: Rule<TInput, TError, TContext>,
-): RuleGraph => ({ version: 1, root: createBuilder()(rule, "root") });
+): RuleGraph;
+/**
+ * Describes a decision as a JSON-serializable graph, without running it.
+ *
+ * @example
+ * const graph = toGraph(credit.ifElse(isHighRisk, declined, approved));
+ * @caveats
+ * - Nothing is executed: decisions, predicates and selectors are never called.
+ */
+export function toGraph<TInput, O extends string, TContext>(
+  decision: Decision<TInput, O, TContext>,
+): RuleGraph;
+export function toGraph(fn: Fn): RuleGraph {
+  return { version: 2, root: createBuilder()(fn, "root") };
+}

@@ -127,14 +127,19 @@ describe.each<[Entry, Entry]>([
 );
 
 describe("installed package types", () => {
-  const importing = `import { pass, pipeRules, toGraph, type RuleGraph } from "${PACKAGE_NAME}";
+  const importing = `import { defineOutcomes, pass, pipeRules, toGraph, type Decision, type RuleGraph } from "${PACKAGE_NAME}";
 import { toMermaid, type MermaidOptions } from "${PACKAGE_NAME}/mermaid";
 const options: MermaidOptions = { direction: "LR", failEdges: true, verbose: true, maxLabelLength: 20 };
 const graph: RuleGraph = toGraph(pipeRules([() => pass()]));
 const text: string = toMermaid(pipeRules([() => pass()]), options);
+const ship: Decision<number, "ship" | "hold"> = (n) => ({ outcome: n > 0 ? "ship" : "hold" });
+const credit = defineOutcomes(["declined", "review", "approved"], { onError: "review" });
+const policy = credit.ifElse((n: number) => n > 100, () => credit.outcome("declined"), () => credit.outcome("approved"));
+const decisionGraphs: RuleGraph[] = [toGraph(ship), toGraph(policy)];
+const decisionTexts: string[] = [toMermaid(ship), toMermaid(policy, options)];
 // @ts-expect-error direction is "TD" | "LR"
 const bad: MermaidOptions = { direction: "diagonal" };
-export { bad, graph, text };
+export { bad, decisionGraphs, decisionTexts, graph, text };
 `;
 
   it.each(["mts", "cts"])(

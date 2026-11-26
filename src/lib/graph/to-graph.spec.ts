@@ -2,12 +2,15 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   composeRules,
+  type Decision,
+  defineOutcomes,
   every,
   fail,
   ifElse,
   inject,
   mapError,
   match,
+  named,
   not,
   oneOf,
   pass,
@@ -25,6 +28,7 @@ import {
   withTap,
   withTimeout,
 } from "../index";
+import { toMermaid } from "../mermaid";
 import { attachNode } from "./node";
 import {
   getTotal,
@@ -39,7 +43,7 @@ import {
 describe("toGraph", () => {
   it("describes a plain function as a leaf labelled by its name", () => {
     expect(toGraph(hasItems)).toEqual({
-      version: 1,
+      version: 2,
       root: { id: "root", kind: "rule", label: "hasItems" },
     });
   });
@@ -325,5 +329,39 @@ describe("toGraph on a pipeline using every combinator", () => {
     for (const spy of Object.values(s)) {
       expect(spy).not.toHaveBeenCalled();
     }
+  });
+});
+
+describe("toGraph and toMermaid on a Decision", () => {
+  type Shipping = "ship" | "hold";
+  const credit = defineOutcomes(["declined", "review", "approved"], {
+    onError: "review",
+  });
+
+  it("describe a binary Decision as a leaf until decision kinds are recorded", () => {
+    const shipOrder = vi.fn<Decision<Order, Shipping>>(() => ({
+      outcome: "ship",
+    }));
+    const decision: Decision<Order, Shipping> = named("shipOrder", shipOrder);
+
+    expect(toGraph(decision)).toEqual({
+      version: 2,
+      root: { id: "root", kind: "rule", label: "shipOrder" },
+    });
+    expect(toMermaid(decision)).toContain('root["shipOrder"]');
+    expect(shipOrder).not.toHaveBeenCalled();
+  });
+
+  it("accept a toolkit-built Decision without running it", () => {
+    const approve = vi.fn(() => credit.outcome("approved"));
+    const decline = vi.fn(() => credit.outcome("declined"));
+    const isLargeOrder = vi.fn((order: Order) => order.total > 100);
+    const decision = credit.ifElse(isLargeOrder, decline, approve);
+
+    expect(toGraph(decision).version).toBe(2);
+    expect(toMermaid(decision)).toContain("flowchart TD");
+    expect(approve).not.toHaveBeenCalled();
+    expect(decline).not.toHaveBeenCalled();
+    expect(isLargeOrder).not.toHaveBeenCalled();
   });
 });
