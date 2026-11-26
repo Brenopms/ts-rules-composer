@@ -125,9 +125,12 @@ const hasNoInteractions: Rule<Prescription, string, PatientRecord> = async (
   rx,
   record,
 ) => {
+  if (!record) {
+    return fail("Patient record missing");
+  }
   const conflicts = await interactionService.conflicts(
     rx.drug,
-    record?.currentDrugs ?? [],
+    record.currentDrugs,
   );
   return conflicts.length === 0
     ? pass()

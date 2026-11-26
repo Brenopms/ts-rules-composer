@@ -104,9 +104,12 @@ const hasNoInteractions: Rule<Prescription, string, PatientRecord> = async (
   rx,
   record,
 ) => {
+  if (!record) {
+    return fail("Patient record missing");
+  }
   const conflicts = await interactionService.conflicts(
     rx.drug,
-    record?.currentDrugs ?? [],
+    record.currentDrugs,
   );
   return conflicts.length === 0
     ? pass()
@@ -261,6 +264,16 @@ describe("prescription-dispensing decision", () => {
   });
 
   describe("patient record checks (withLazyContext)", () => {
+    // withLazyContext always supplies the record, but Rule types it as
+    // optional: a rule called without one must fail closed, not pass.
+    it.each<[string, Rule<Prescription, string, PatientRecord>]>([
+      ["isNotAllergic", isNotAllergic],
+      ["hasNoInteractions", hasNoInteractions],
+    ])("%s fails without a patient record", async (_, rule) => {
+      expect(await rule(prescription)).toEqual(fail("Patient record missing"));
+      expect(interactionService.conflicts).not.toHaveBeenCalled();
+    });
+
     it("refuses an allergy and skips the interaction service", async () => {
       patientRecords.load.mockResolvedValue({
         allergies: ["penicillin"],
