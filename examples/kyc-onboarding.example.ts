@@ -67,18 +67,19 @@ const isNotExposed: Rule<Applicant> = async (applicant) =>
     ? fail("Applicant is a politically exposed person")
     : pass();
 
-// 3. Rule -> Decision. Only local, side-effect-free checks go in this pipe:
-//    a default pipeRules turns an exception into "failed", which mapOutcome
-//    would read as a rejection. `passed` is omitted, so it defaults to the
-//    last declared outcome ("verified").
+// 3. Rule -> Decision. The free local checks share one pipe, so the first
+//    failure is a rejection. An exception inside the pipe would still be an
+//    outage: the pipe's caught failure keeps its cause, and mapOutcome gives
+//    onError ("manual_review"), not a rejection. `passed` is omitted, so it
+//    defaults to the last declared outcome ("verified").
 const basicChecks = kyc.mapOutcome(
   pipeRules([isAdult, isSupportedCountry, hasValidDocument]),
   { failed: "rejected" },
 );
 
-// 4. Each external call gets its own mapOutcome. mapOutcome runs the rule
-//    without withSafeError, so a listed applicant is rejected, but a
-//    sanctions-service outage is onError ("manual_review"), not a rejection.
+// 4. Each external call gets its own mapOutcome, so each can map its "no"
+//    differently (see the document and PEP checks). A listed applicant is
+//    rejected; a sanctions-service outage is onError ("manual_review").
 const sanctions = kyc.mapOutcome(isNotSanctioned, { failed: "rejected" });
 
 // 5. An explicit `passed`: a driver's licence that passes the authenticity

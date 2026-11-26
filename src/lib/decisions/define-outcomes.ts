@@ -203,15 +203,16 @@ export interface OutcomeToolkit<O extends string> {
 
   /**
    * Turns a rule (or any `"passed"`/`"failed"` decision) into a decision of
-   * this toolkit: `failed` gives `mapping.failed`, `passed` gives
-   * `mapping.passed`, else the last declared outcome. The rule's `error` is
+   * this toolkit: an unmarked `failed` gives `mapping.failed`, a caught one
+   * (an own `caughtCause`) gives `onError`, `passed` gives `mapping.passed`,
+   * else the last declared outcome. The rule's `error` is
    * dropped. The rule runs without `withSafeError`, so a rule that throws,
    * rejects or returns anything but an object with an own `outcome` of
    * `"passed"` or `"failed"` gives `onError` (the override, else the
-   * toolkit's). A `failed` the rule returns always gives `mapping.failed`,
-   * including one made upstream from an outage: a default (`"safe"`)
-   * `pipeRules` turns a child's throw into `failed` before `mapOutcome` sees
-   * it. Map outage-prone rules on their own. The rule must be a
+   * toolkit's). A business `failed` (built with `fail()`) gives
+   * `mapping.failed`. A caught failure (an own `caughtCause`, e.g. from a
+   * default `pipeRules` child that threw) is an outage: it gives `onError`
+   * and calls `onErrorCaught` with the cause. The rule must be a
    * function and each mapping value a declared outcome, checked when
    * `mapOutcome` is called (`TypeError` otherwise).
    * Never throws or rejects.
