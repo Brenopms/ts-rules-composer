@@ -1,11 +1,9 @@
-import { attachNode, type Fn, readNode } from "./node";
+import { attachNode, type Fn, markerOf, readNode } from "./node";
 
 /** A named toolkit decision keeps its marker, so its diagram stays a decision. */
 const decisionOf = (fn: Fn) => {
-  const raw = readNode(fn);
-  return raw && "decision" in raw && raw.decision
-    ? { decision: raw.decision }
-    : {};
+  const marker = markerOf(readNode(fn));
+  return marker ? { decision: marker } : {};
 };
 
 /**

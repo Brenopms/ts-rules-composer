@@ -208,3 +208,9 @@ export const readNode = (fn: unknown): RawNode | undefined =>
   typeof fn === "function" && Object.hasOwn(fn, NODE_KEY)
     ? (fn as WithNode)[NODE_KEY]
     : undefined;
+
+/** The decision marker on a node, present only when a toolkit built it (or `named` copied it). */
+export const markerOf = (
+  raw: RawNode | undefined,
+): DecisionMarker | undefined =>
+  raw && "decision" in raw ? raw.decision : undefined;

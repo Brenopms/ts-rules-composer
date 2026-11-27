@@ -147,7 +147,7 @@ describe("toMermaid on a decision", () => {
     );
   });
 
-  it("draws a named rule root as before", () => {
+  it("draws a named hand-written decision as a rule diagram", () => {
     expect(toMermaid(named("Bureau", bureauScore))).toBe(
       [
         "flowchart TD",
