@@ -352,20 +352,22 @@ describe("toGraph and toMermaid on a Decision", () => {
     expect(shipOrder).not.toHaveBeenCalled();
   });
 
-  it("describe a toolkit-built Decision as a leaf until decision kinds are recorded", () => {
+  it("describe a toolkit-built Decision as a decision graph", () => {
     const approve = vi.fn(() => credit.outcome("approved"));
     const decline = vi.fn(() => credit.outcome("declined"));
     const isLargeOrder = vi.fn((order: Order) => order.total > 100);
     const decision = credit.ifElse(isLargeOrder, decline, approve);
     const graph = toGraph(decision);
 
-    // No outcomes/onError yet: G1 only falls back to a leaf.
-    expect(graph).toStrictEqual({
+    expect(graph).toMatchObject({
       version: 2,
-      root: { id: "root", kind: "rule", label: expect.any(String) },
+      root: { id: "root", kind: "branch" },
+      outcomes: ["declined", "review", "approved"],
+      onError: "review",
     });
-    const label = graph.root.kind === "rule" ? graph.root.label : "";
-    expect(toMermaid(decision)).toBe(toMermaid(named(label, hasItems)));
+    expect(toMermaid(decision)).toContain(
+      'outcome(["declined / review / approved"])',
+    );
     expect(approve).not.toHaveBeenCalled();
     expect(decline).not.toHaveBeenCalled();
     expect(isLargeOrder).not.toHaveBeenCalled();

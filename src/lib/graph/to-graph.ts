@@ -1,22 +1,38 @@
 import type { Decision, Rule } from "../types";
 import { usableName } from "./labels";
-import { type Fn, type GraphNode, type RuleGraph, readNode } from "./node";
+import {
+  type DecisionMarker,
+  type Fn,
+  type GraphNode,
+  type RuleGraph,
+  readNode,
+} from "./node";
+
+/** What an unlabelled leaf is called: a side of a toolkit node is a decision. */
+type Role = "rule" | "decision";
 
 /**
- * Builds the public graph. Unlabelled functions get `rule #n`, numbered in
- * depth-first order (a branch's predicate before its sides) so that the same
- * pipeline always yields the same labels.
+ * Builds the public graph. Unlabelled functions get `rule #n` (`decision #n`
+ * as a side of a toolkit node), numbered in depth-first order (a branch's
+ * predicate before its sides) so that the same pipeline always yields the
+ * same labels. Also collects the ids of toolkit-built nodes.
  */
 const createBuilder = () => {
   let unlabelled = 0;
-  const labelOf = (fn: Fn, explicit?: string) =>
-    explicit ?? usableName(fn) ?? `rule #${++unlabelled}`;
+  const decisionIds = new Set<string>();
+  const labelOf = (fn: Fn, explicit?: string, role: Role = "rule") =>
+    explicit ?? usableName(fn) ?? `${role} #${++unlabelled}`;
 
   /**
    * `hint` is a label offered by an enclosing `withDebug`: it names a leaf
    * rule that has no explicit label, ahead of the function's own name.
    */
-  const build = (fn: Fn, id: string, hint?: string): GraphNode => {
+  const build = (
+    fn: Fn,
+    id: string,
+    hint?: string,
+    role: Role = "rule",
+  ): GraphNode => {
     const raw = readNode(fn);
 
     // Any function without a recorded structure is a leaf rule.
@@ -24,7 +40,7 @@ const createBuilder = () => {
       return {
         id,
         kind: "rule",
-        label: labelOf(fn, raw?.label ?? hint),
+        label: labelOf(fn, raw?.label ?? hint, role),
         ...(raw?.params ? { params: { ...raw.params } } : {}),
       };
     }
@@ -41,16 +57,24 @@ const createBuilder = () => {
         };
       case "branch": {
         const test = labelOf(raw.test, readLabel(raw.test));
+        const side = sideRole(raw.decision);
+        if (raw.decision) {
+          decisionIds.add(id);
+        }
         return {
           id,
           kind: "branch",
           test,
-          ...(raw.ifTrue ? { ifTrue: build(raw.ifTrue, `${id}.ifTrue`) } : {}),
+          ...(raw.ifTrue
+            ? { ifTrue: build(raw.ifTrue, `${id}.ifTrue`, undefined, side) }
+            : {}),
           ...(raw.ifFalse
-            ? { ifFalse: build(raw.ifFalse, `${id}.ifFalse`) }
+            ? { ifFalse: build(raw.ifFalse, `${id}.ifFalse`, undefined, side) }
             : {}),
         };
       }
+      case "outcome":
+        return { id, kind: "outcome", outcome: raw.outcome };
       case "all":
       case "any":
         return {
@@ -101,6 +125,7 @@ const createBuilder = () => {
             raw.rule,
             `${id}.rule`,
             typeof debugName === "string" ? debugName : hint,
+            role,
           ),
         };
       }
@@ -129,7 +154,32 @@ const createBuilder = () => {
     }
   };
 
-  return build;
+  return { build, decisionIds };
+};
+
+const sideRole = (marker: DecisionMarker | undefined): Role =>
+  marker ? "decision" : "rule";
+
+/** The graph-level outcome set, present only for a toolkit-built root. */
+const rootOutcomes = (fn: Fn) => {
+  const raw = readNode(fn);
+  const marker = raw && "decision" in raw ? raw.decision : undefined;
+  return marker
+    ? { outcomes: [...marker.outcomes], onError: marker.onError }
+    : {};
+};
+
+/**
+ * The public graph plus the ids of toolkit-built nodes, which the printer
+ * needs to draw a toolkit node apart from a rule node of the same shape.
+ * Internal: not exported from the package.
+ */
+export const buildGraph = (
+  fn: Fn,
+): { graph: RuleGraph; decisionIds: ReadonlySet<string> } => {
+  const { build, decisionIds } = createBuilder();
+  const root = build(fn, "root");
+  return { graph: { version: 2, root, ...rootOutcomes(fn) }, decisionIds };
 };
 
 /** Strings are shown as-is; anything else is never stringified (it could run user code). */
@@ -169,5 +219,5 @@ export function toGraph<TInput, O extends string, TContext>(
   decision: Decision<TInput, O, TContext>,
 ): RuleGraph;
 export function toGraph(fn: Fn): RuleGraph {
-  return { version: 2, root: createBuilder()(fn, "root") };
+  return buildGraph(fn).graph;
 }

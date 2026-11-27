@@ -23,6 +23,17 @@ export type DecoratorName =
   | "lazyContext";
 
 /**
+ * Internal mark on a node built by a decision toolkit: its declared outcomes
+ * (declaration order), the toolkit's `onError`, and the combinator's own
+ * `onError` when it overrides the toolkit's. Never part of {@link GraphNode}.
+ */
+export type DecisionMarker = {
+  outcomes: readonly string[];
+  onError: string;
+  localOnError?: string;
+};
+
+/**
  * Structure recorded by a combinator at construction time. Children are the
  * original functions passed in (before any safety wrapping), so they can be
  * inspected later. Internal: the public, JSON-safe form is {@link GraphNode}.
@@ -50,6 +61,13 @@ export type RawNode =
       test: Fn;
       ifTrue?: Fn;
       ifFalse?: Fn;
+      /** Set by a decision toolkit's `ifElse`, which always has both sides. */
+      decision?: DecisionMarker;
+    }
+  | {
+      /** A bare-string branch of a decision combinator: the path ends here. */
+      kind: "outcome";
+      outcome: string;
     }
   | {
       kind: "switch";
@@ -115,6 +133,7 @@ export type GraphNode =
       ifTrue?: GraphNode;
       ifFalse?: GraphNode;
     }
+  | { id: string; kind: "outcome"; outcome: string }
   | {
       id: string;
       kind: "switch";

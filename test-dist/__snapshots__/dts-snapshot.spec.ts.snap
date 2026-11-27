@@ -1093,6 +1093,10 @@ type GraphNode = {
   ifFalse?: GraphNode;
 } | {
   id: string;
+  kind: "outcome";
+  outcome: string;
+} | {
+  id: string;
   kind: "switch";
   selector: string;
   /** In \`Reflect.ownKeys\` order; symbol keys appear as \`Symbol(desc)\`. */
@@ -2365,6 +2369,10 @@ type GraphNode = {
   test: string;
   ifTrue?: GraphNode;
   ifFalse?: GraphNode;
+} | {
+  id: string;
+  kind: "outcome";
+  outcome: string;
 } | {
   id: string;
   kind: "switch";
