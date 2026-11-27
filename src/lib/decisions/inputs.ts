@@ -20,21 +20,28 @@ export interface OutcomeSet<O extends string> {
 export const notDeclared = (where: string, value: unknown): TypeError =>
   new TypeError(`${where} ${display(value)} is not a declared outcome`);
 
-/** The combinator's `onError`: its override (validated now), else the toolkit's. */
-export const localOnError = <O extends string>(
+/** The combinator's own `onError` override (validated now), if one was given. */
+export const suppliedOnError = <O extends string>(
   set: OutcomeSet<O>,
   combinator: string,
   override?: Override<O>,
-): O => {
+): O | undefined => {
   const value = override?.onError;
   if (value === undefined) {
-    return set.onError;
+    return undefined;
   }
   if (!set.isDeclared(value)) {
     throw notDeclared(`${combinator}: onError`, value);
   }
   return value;
 };
+
+/** The combinator's `onError`: its override (validated now), else the toolkit's. */
+export const localOnError = <O extends string>(
+  set: OutcomeSet<O>,
+  combinator: string,
+  override?: Override<O>,
+): O => suppliedOnError(set, combinator, override) ?? set.onError;
 
 /** A bare-string branch becomes a constant decision, validated now, recorded as an outcome leaf. */
 export const toDecision = <O extends string, TInput, TContext>(

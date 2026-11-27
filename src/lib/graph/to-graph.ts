@@ -4,12 +4,19 @@ import {
   type DecisionMarker,
   type Fn,
   type GraphNode,
+  type RawNode,
   type RuleGraph,
   readNode,
 } from "./node";
 
-/** What an unlabelled leaf is called: a side of a toolkit node is a decision. */
+/**
+ * What an unlabelled leaf is called (a side of a toolkit node is a decision),
+ * and which kind of diagram the root makes.
+ */
 type Role = "rule" | "decision";
+
+const markerOf = (raw: RawNode): DecisionMarker | undefined =>
+  "decision" in raw ? raw.decision : undefined;
 
 /**
  * Builds the public graph. Unlabelled functions get `rule #n` (`decision #n`
@@ -17,7 +24,7 @@ type Role = "rule" | "decision";
  * predicate before its sides) so that the same pipeline always yields the
  * same labels. Also collects the ids of toolkit-built nodes.
  */
-const createBuilder = () => {
+const createBuilder = (mode: Role) => {
   let unlabelled = 0;
   const decisionIds = new Set<string>();
   const labelOf = (fn: Fn, explicit?: string, role: Role = "rule") =>
@@ -34,14 +41,16 @@ const createBuilder = () => {
     role: Role = "rule",
   ): GraphNode => {
     const raw = readNode(fn);
+    const named = raw?.kind === "rule" ? raw : undefined;
 
-    // Any function without a recorded structure is a leaf rule.
-    if (!raw || raw.kind === "rule") {
+    // Any function without a recorded structure is a leaf rule. So is a
+    // toolkit-built node inside a rule graph: rule diagrams stay as they were.
+    if (!raw || named || (mode === "rule" && markerOf(raw))) {
       return {
         id,
         kind: "rule",
-        label: labelOf(fn, raw?.label ?? hint, role),
-        ...(raw?.params ? { params: { ...raw.params } } : {}),
+        label: labelOf(fn, named?.label ?? hint, role),
+        ...(named?.params ? { params: { ...named.params } } : {}),
       };
     }
 
@@ -150,7 +159,7 @@ const createBuilder = () => {
       // The node key is shared, so another version of this package could have
       // attached a kind this one does not know: describe it as a leaf.
       default:
-        return { id, kind: "rule", label: labelOf(fn, hint) };
+        return { id, kind: "rule", label: labelOf(fn, hint, role) };
     }
   };
 
@@ -160,13 +169,10 @@ const createBuilder = () => {
 const sideRole = (marker: DecisionMarker | undefined): Role =>
   marker ? "decision" : "rule";
 
-/** The graph-level outcome set, present only for a toolkit-built root. */
-const rootOutcomes = (fn: Fn) => {
+/** The root's decision marker: present only for a toolkit-built root. */
+const rootMarker = (fn: Fn) => {
   const raw = readNode(fn);
-  const marker = raw && "decision" in raw ? raw.decision : undefined;
-  return marker
-    ? { outcomes: [...marker.outcomes], onError: marker.onError }
-    : {};
+  return raw && markerOf(raw);
 };
 
 /**
@@ -177,9 +183,13 @@ const rootOutcomes = (fn: Fn) => {
 export const buildGraph = (
   fn: Fn,
 ): { graph: RuleGraph; decisionIds: ReadonlySet<string> } => {
-  const { build, decisionIds } = createBuilder();
+  const marker = rootMarker(fn);
+  const { build, decisionIds } = createBuilder(marker ? "decision" : "rule");
   const root = build(fn, "root");
-  return { graph: { version: 2, root, ...rootOutcomes(fn) }, decisionIds };
+  const outcomes = marker
+    ? { outcomes: [...marker.outcomes], onError: marker.onError }
+    : {};
+  return { graph: { version: 2, root, ...outcomes }, decisionIds };
 };
 
 /** Strings are shown as-is; anything else is never stringified (it could run user code). */

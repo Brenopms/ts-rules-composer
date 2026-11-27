@@ -1,6 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
-import { type Decision, defineOutcomes, ifElse, named, pass } from "../index";
-import { readNode } from "./node";
+import {
+  type Decision,
+  defineOutcomes,
+  ifElse,
+  named,
+  pass,
+  pipeRules,
+} from "../index";
+import { attachNode, readNode } from "./node";
 import { buildGraph, toGraph } from "./to-graph";
 
 type App = { debtToIncome: number };
@@ -83,6 +90,17 @@ describe("toGraph on a toolkit ifElse", () => {
     expect(readNode(plain)).not.toHaveProperty("decision.localOnError");
   });
 
+  it("records an explicit override equal to the toolkit default", () => {
+    const policy = credit.ifElse(above(50), "declined", "approved", {
+      onError: "review",
+    });
+
+    expect(readNode(policy)).toMatchObject({
+      decision: { onError: "review", localOnError: "review" },
+    });
+    expect(toGraph(policy).onError).toBe("review");
+  });
+
   it("gives a rule root neither outcomes nor onError", () => {
     const graph = toGraph(
       ifElse(
@@ -132,6 +150,23 @@ describe("toGraph on a toolkit ifElse", () => {
     });
   });
 
+  it("labels an unknown node kind in decision position `decision #n`", () => {
+    // Another package version may attach a kind this one does not know.
+    const future = attachNode(() => credit.outcome("review"), {
+      kind: "mystery",
+    } as never);
+    const policy = credit.ifElse(
+      (app: App) => app.debtToIncome > 50,
+      future,
+      "approved",
+    );
+
+    expect(toGraph(policy).root).toMatchObject({
+      test: "rule #1",
+      ifTrue: { kind: "rule", label: "decision #2" },
+    });
+  });
+
   it("never runs the predicate or the decisions", () => {
     const test = vi.fn((app: App) => app.debtToIncome > 50);
     const decide = vi.fn(() => credit.outcome("review"));
@@ -160,6 +195,26 @@ describe("buildGraph (internal)", () => {
       "root",
       "root.ifFalse",
     ]);
+  });
+
+  it("keeps a toolkit decision inside a rule pipeline a leaf", () => {
+    // A toolkit whose outcomes are all rule outcomes type-checks as a Rule.
+    const passing = defineOutcomes(["passed"], { onError: "passed" });
+    const pipeline = pipeRules([
+      passing.ifElse(() => true, "passed", "passed"),
+    ]);
+    const { graph, decisionIds } = buildGraph(pipeline);
+
+    expect(graph).toStrictEqual({
+      version: 2,
+      root: {
+        id: "root",
+        kind: "sequence",
+        via: "pipeRules",
+        steps: [{ id: "root.steps.0", kind: "rule", label: "rule #1" }],
+      },
+    });
+    expect(decisionIds.size).toBe(0);
   });
 
   it("lists no ids for a rule ifElse with the same shape", () => {
