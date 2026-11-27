@@ -1,4 +1,10 @@
-import { attachNode, type Fn } from "./node";
+import { attachNode, type Fn, markerOf, readNode } from "./node";
+
+/** A named toolkit decision keeps its marker, so its diagram stays a decision. */
+const decisionOf = (fn: Fn) => {
+  const marker = markerOf(readNode(fn));
+  return marker ? { decision: marker } : {};
+};
 
 /**
  * Gives a rule (or predicate, accessor or getter) a readable name for
@@ -24,4 +30,5 @@ export const named = <F extends Fn>(
     kind: "rule",
     label: name,
     ...(options?.params ? { params: options.params } : {}),
+    ...decisionOf(fn),
   });

@@ -4,7 +4,7 @@ import {
   type DecisionMarker,
   type Fn,
   type GraphNode,
-  type RawNode,
+  markerOf,
   type RuleGraph,
   readNode,
 } from "./node";
@@ -14,9 +14,6 @@ import {
  * and which kind of diagram the root makes.
  */
 type Role = "rule" | "decision";
-
-const markerOf = (raw: RawNode): DecisionMarker | undefined =>
-  "decision" in raw ? raw.decision : undefined;
 
 /**
  * Builds the public graph. Unlabelled functions get `rule #n` (`decision #n`
@@ -170,10 +167,7 @@ const sideRole = (marker: DecisionMarker | undefined): Role =>
   marker ? "decision" : "rule";
 
 /** The root's decision marker: present only for a toolkit-built root. */
-const rootMarker = (fn: Fn) => {
-  const raw = readNode(fn);
-  return raw && markerOf(raw);
-};
+const rootMarker = (fn: Fn) => markerOf(readNode(fn));
 
 /**
  * The public graph plus the ids of toolkit-built nodes, which the printer

@@ -177,6 +177,94 @@ describe("toGraph on a toolkit ifElse", () => {
   });
 });
 
+describe("toGraph on a named toolkit decision", () => {
+  const policy = credit.ifElse(
+    above(50),
+    "declined",
+    credit.ifElse(above(35), "review", "approved"),
+  );
+
+  it("describes a named toolkit root as a leaf with the toolkit's outcomes", () => {
+    expect(toGraph(named("Credit policy", policy))).toStrictEqual({
+      version: 2,
+      root: { id: "root", kind: "rule", label: "Credit policy" },
+      outcomes: ["declined", "review", "approved"],
+      onError: "review",
+    });
+  });
+
+  it("keeps the toolkit's onError when the named root overrides it", () => {
+    const overridden = credit.ifElse(above(50), "declined", "approved", {
+      onError: "declined",
+    });
+
+    expect(toGraph(named("Credit policy", overridden)).onError).toBe("review");
+  });
+
+  it("keeps the marker through nested named calls", () => {
+    expect(toGraph(named("Outer", named("Inner", policy)))).toStrictEqual({
+      version: 2,
+      root: { id: "root", kind: "rule", label: "Outer" },
+      outcomes: ["declined", "review", "approved"],
+      onError: "review",
+    });
+  });
+
+  it("still carries named params", () => {
+    expect(
+      toGraph(named("Credit policy", policy, { params: { limit: 50 } })).root,
+    ).toStrictEqual({
+      id: "root",
+      kind: "rule",
+      label: "Credit policy",
+      params: { limit: 50 },
+    });
+  });
+
+  it("gives a named rule or hand-written decision no outcomes", () => {
+    const bureauScore: Decision<App, "declined" | "review" | "approved"> = () =>
+      credit.outcome("review");
+    const rule = ifElse(
+      above(50),
+      () => pass(),
+      () => pass(),
+    );
+
+    expect(toGraph(named("Bureau", bureauScore))).not.toHaveProperty(
+      "outcomes",
+    );
+    expect(toGraph(named("Rule", rule))).not.toHaveProperty("outcomes");
+  });
+
+  it("leaves a named toolkit child a leaf, outside decisionIds", () => {
+    const outer = credit.ifElse(
+      above(70),
+      "declined",
+      named("Affordability", policy),
+    );
+    const { graph, decisionIds } = buildGraph(outer);
+
+    expect(graph.root).toMatchObject({
+      ifFalse: { id: "root.ifFalse", kind: "rule", label: "Affordability" },
+    });
+    expect([...decisionIds]).toEqual(["root"]);
+  });
+
+  it("keeps a named root out of decisionIds", () => {
+    // Only structured toolkit nodes are listed; a named leaf draws as a box.
+    expect(buildGraph(named("Credit policy", policy)).decisionIds.size).toBe(0);
+  });
+
+  it("never runs the decision", () => {
+    const test = vi.fn((app: App) => app.debtToIncome > 50);
+    toGraph(
+      named("Credit policy", credit.ifElse(test, "declined", "approved")),
+    );
+
+    expect(test).not.toHaveBeenCalled();
+  });
+});
+
 describe("buildGraph (internal)", () => {
   it("returns the same graph as toGraph", () => {
     const policy = credit.ifElse(above(50), "declined", "approved");

@@ -134,6 +134,32 @@ describe("toMermaid on a decision", () => {
     );
   });
 
+  it("draws a named toolkit root as a box ending at the outcome-set terminal", () => {
+    expect(toMermaid(named("Credit policy", affordability))).toBe(
+      [
+        "flowchart TD",
+        "  input([input])",
+        '  root["Credit policy"]',
+        '  outcome(["declined / review / approved"])',
+        "  input --> root",
+        "  root --> outcome",
+      ].join("\n"),
+    );
+  });
+
+  it("draws a named hand-written decision as a rule diagram", () => {
+    expect(toMermaid(named("Bureau", bureauScore))).toBe(
+      [
+        "flowchart TD",
+        "  input([input])",
+        '  root["Bureau"]',
+        "  passed([passed])",
+        "  input --> root",
+        "  root --> passed",
+      ].join("\n"),
+    );
+  });
+
   it("leaves rule ifElse diagrams as they were", () => {
     const rule = ifElse(
       above(50),
