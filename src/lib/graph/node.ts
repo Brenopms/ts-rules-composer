@@ -44,6 +44,8 @@ export type RawNode =
       kind: "rule";
       label: string;
       params?: Record<string, unknown>;
+      /** Copied by `named` from a toolkit-built node, so it still draws as a decision. */
+      decision?: DecisionMarker;
     }
   | {
       kind: "sequence";

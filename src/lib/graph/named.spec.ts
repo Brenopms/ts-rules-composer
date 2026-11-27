@@ -1,6 +1,15 @@
 import { describe, expect, expectTypeOf, it, vi } from "vitest";
 
-import { fail, named, pass, pipeRules, type Rule, toGraph } from "../index";
+import {
+  defineOutcomes,
+  fail,
+  named,
+  pass,
+  pipeRules,
+  type Rule,
+  toGraph,
+} from "../index";
+import { readNode } from "./node";
 
 type Order = { items: number };
 
@@ -59,6 +68,25 @@ describe("named", () => {
 
     const predicate = named("Large", (order: Order) => order.items > 5);
     expectTypeOf(predicate).toEqualTypeOf<(order: Order) => boolean>();
+  });
+
+  it("copies a toolkit's decision marker onto its rule node", () => {
+    const toolkit = defineOutcomes(["no", "yes"], { onError: "no" });
+    const decision = toolkit.ifElse(() => true, "yes", "no", {
+      onError: "yes",
+    });
+
+    expect(readNode(named("Policy", decision))).toStrictEqual({
+      kind: "rule",
+      label: "Policy",
+      decision: { outcomes: ["no", "yes"], onError: "no", localOnError: "yes" },
+    });
+  });
+
+  it("adds no decision marker over a plain rule", () => {
+    expect(readNode(named("Has items", hasItems))).not.toHaveProperty(
+      "decision",
+    );
   });
 
   it("works as a step in a pipeline", async () => {
