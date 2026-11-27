@@ -31,6 +31,71 @@ const affordability = credit.ifElse(
 const bureauScore: Decision<App, CreditOutcome> = () =>
   credit.outcome("review");
 
+describe("toMermaid on a toolkit match", () => {
+  type Applicant = { employment: string };
+  const byEmployment = named("employment", (app: Applicant) => app.employment);
+
+  it("draws keyed edges to outcome stadiums and the default", () => {
+    const employment = credit.match(
+      byEmployment,
+      { employed: "approved", unemployed: "declined" },
+      "review",
+    );
+
+    expect(toMermaid(employment)).toBe(
+      [
+        "flowchart TD",
+        "  input([input])",
+        '  root{"employment"}',
+        '  root_cases_0(["approved"])',
+        '  root_cases_1(["declined"])',
+        '  root_default(["review"])',
+        "  input --> root",
+        '  root -->|"employed"| root_cases_0',
+        '  root -->|"unemployed"| root_cases_1',
+        '  root -->|"default"| root_default',
+      ].join("\n"),
+    );
+  });
+
+  it("connects a decision case to the outcome-set terminal", () => {
+    const scored: Decision<Applicant, CreditOutcome> = () =>
+      credit.outcome("review");
+    const employment = credit.match(
+      byEmployment,
+      { contractor: named("bureauScore", scored) },
+      "review",
+    );
+
+    expect(toMermaid(employment)).toBe(
+      [
+        "flowchart TD",
+        "  input([input])",
+        '  root{"employment"}',
+        '  root_cases_0["bureauScore"]',
+        '  root_default(["review"])',
+        '  outcome(["declined / review / approved"])',
+        "  input --> root",
+        '  root -->|"contractor"| root_cases_0',
+        '  root -->|"default"| root_default',
+        "  root_cases_0 --> outcome",
+      ].join("\n"),
+    );
+  });
+
+  it("escapes hostile case keys", () => {
+    const employment = credit.match(
+      byEmployment,
+      { 'x"|> evil': "declined" },
+      "review",
+    );
+
+    expect(toMermaid(employment)).toContain(
+      '  root -->|"x#34;#124;#62; evil"| root_cases_0',
+    );
+  });
+});
+
 describe("toMermaid on a decision", () => {
   it("draws outcome leaves as stadiums that end their path", () => {
     expect(toMermaid(affordability)).toBe(
