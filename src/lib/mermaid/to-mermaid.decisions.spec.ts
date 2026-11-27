@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { type Decision, defineOutcomes, ifElse, named, pass } from "../index";
+import {
+  type Decision,
+  defineOutcomes,
+  ifElse,
+  named,
+  pass,
+  pipeRules,
+} from "../index";
 import { toMermaid } from "./to-mermaid";
 
 type App = { debtToIncome: number };
@@ -107,6 +114,24 @@ describe("toMermaid on a decision", () => {
 
     expect(text).toContain('  root_ifTrue(["x#34;#93;#41; --#62; evil"])');
     expect(text).toContain('  outcome(["x#34;#93;#41; --#62; evil / ok"])');
+  });
+
+  it("draws a toolkit decision inside a rule pipeline as one box", () => {
+    const passing = defineOutcomes(["passed"], { onError: "passed" });
+    const pipeline = pipeRules([
+      passing.ifElse(() => true, "passed", "passed"),
+    ]);
+
+    expect(toMermaid(pipeline)).toBe(
+      [
+        "flowchart TD",
+        "  input([input])",
+        '  root_steps_0["rule #35;1"]',
+        "  passed([passed])",
+        "  input --> root_steps_0",
+        "  root_steps_0 --> passed",
+      ].join("\n"),
+    );
   });
 
   it("leaves rule ifElse diagrams as they were", () => {

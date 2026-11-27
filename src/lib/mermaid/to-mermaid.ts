@@ -469,9 +469,13 @@ const decisionEnds = (
   settings: RenderSettings,
 ): Ends => {
   const open = body.exits.filter((port) => !port.ends);
+  // Every path already ends at an outcome: no terminal, so no label to build.
+  if (open.length === 0) {
+    return { nodes: [], edges: [] };
+  }
   const label = clip(settings.maxLabelLength, outcomes.join(" / "));
   return {
-    nodes: open.length > 0 ? [`  outcome(["${escapeLabel(label)}"])`] : [],
+    nodes: [`  outcome(["${escapeLabel(label)}"])`],
     edges: linkAll(open, "outcome"),
   };
 };

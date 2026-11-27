@@ -7,6 +7,7 @@ import {
   localOnError,
   notDeclared,
   type OutcomeSet,
+  suppliedOnError,
   toCaseTable,
   toChildren,
   toDecision,
@@ -310,11 +311,11 @@ export const defineOutcomes = <const T extends readonly [string, ...string[]]>(
 
   const set: OutcomeSet<O> = { onError, isDeclared };
 
-  /** The graph mark for a node of this toolkit; `fallback` is its local onError. */
-  const markerFor = (fallback: O): DecisionMarker => ({
+  /** The graph mark for a node of this toolkit, with its override if one was given. */
+  const markerFor = (local: O | undefined): DecisionMarker => ({
     outcomes: declared,
     onError,
-    ...(fallback === onError ? {} : { localOnError: fallback }),
+    ...(local === undefined ? {} : { localOnError: local }),
   });
   const resolvers = builtInResolvers(declared);
   const precedence = resolvers.strongestWins;
@@ -395,7 +396,9 @@ export const defineOutcomes = <const T extends readonly [string, ...string[]]>(
       checkFunction(predicate, "ifElse: predicate");
       const yes = toDecision(set, "ifElse: whenTrue", whenTrue);
       const no = toDecision(set, "ifElse: whenFalse", whenFalse);
-      const fallback = localOnError(set, "ifElse", override);
+      // One read of the override serves both the run and the graph mark.
+      const local = suppliedOnError(set, "ifElse", override);
+      const fallback = local ?? onError;
       return attachNode(
         async (input, context) => {
           const condition = await runSafely(
@@ -418,7 +421,7 @@ export const defineOutcomes = <const T extends readonly [string, ...string[]]>(
           test: predicate,
           ifTrue: yes,
           ifFalse: no,
-          decision: markerFor(fallback),
+          decision: markerFor(local),
         },
       );
     },
