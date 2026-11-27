@@ -148,7 +148,14 @@ export type GraphNode =
       rule: GraphNode;
     };
 
-export type RuleGraph = { version: 1; root: GraphNode };
+export type RuleGraph = {
+  version: 2;
+  root: GraphNode;
+  /** Present only when the root was built by a decision combinator. Declaration order. */
+  outcomes?: string[];
+  /** Present with `outcomes`: the toolkit's onError. */
+  onError?: string;
+};
 
 /**
  * Registry symbol, so ESM and CJS copies of the package (or several copies of

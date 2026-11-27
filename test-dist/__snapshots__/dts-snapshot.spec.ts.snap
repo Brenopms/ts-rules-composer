@@ -2,7 +2,7 @@
 
 exports[`keeps the published declaration files unchanged 1`] = `
 "// ==== index.d.cts ====
-import { n as RuleResult, t as Rule } from "./rule-[hash].cjs";
+import { i as RuleResult, n as Decision, r as DecisionResult, t as Rule } from "./rule-[hash].cjs";
 type Prettify<T> = { [K in keyof T]: T[K]; } & {};
 /**
  * Configuration options for error handling behavior in rule combinators
@@ -93,28 +93,6 @@ type DebugOptions<TInput, TError, TContext> = {
   /** Called when rule throws */
   onError?: (error: unknown, input: TInput, context?: TContext, duration?: number) => void;
 };
-/**
- * The result of a decision: one label from a declared outcome set.
- * @template O - The outcome labels, e.g. \`"declined" | "review" | "approved"\`
- * @example
- * const result: DecisionResult<"declined" | "approved"> = { outcome: "approved" };
- */
-type DecisionResult<O extends string> = {
-  readonly outcome: O;
-};
-/**
- * A function that picks one outcome for an input. Every \`Rule\` is a
- * \`Decision<TInput, "passed" | "failed", TContext>\`.
- * @template TInput - The type of the input to decide on
- * @template O - The outcome labels it can return
- * @template TContext - The type of the context object (optional)
- * @example
- * const bureauScore: Decision<CreditApplication, CreditOutcome> = async (app) => {
- *   const score = await creditBureau.score(app.applicantId);
- *   return score >= 700 ? credit.outcome("approved") : credit.outcome("review");
- * };
- */
-type Decision<TInput, O extends string, TContext = unknown> = (input: TInput, context?: TContext) => DecisionResult<O> | Promise<DecisionResult<O>>;
 /**
  * A predicate function that evaluates an input and returns a boolean result.
  * Can be synchronous or asynchronous.
@@ -1156,8 +1134,12 @@ type GraphNode = {
   rule: GraphNode;
 };
 type RuleGraph = {
-  version: 1;
+  version: 2;
   root: GraphNode;
+  /** Present only when the root was built by a decision combinator. Declaration order. */
+  outcomes?: string[];
+  /** Present with \`outcomes\`: the toolkit's onError. */
+  onError?: string;
 };
 /**
  * Gives a rule (or predicate, accessor or getter) a readable name for
@@ -1185,12 +1167,21 @@ export declare const named: <F extends Fn>(name: string, fn: F, options?: {
  *
  * @example
  * const graph = toGraph(pipeRules([hasItems, withinLimit]));
- * // { version: 1, root: { kind: "sequence", steps: [...] } }
+ * // { version: 2, root: { kind: "sequence", steps: [...] } }
  * @caveats
  * - Nothing is executed: rules, predicates and accessors are never called.
  * - Anonymous functions are labelled \`rule #n\`; use \`named\` for a real name.
  */
-export declare const toGraph: <TInput, TError, TContext>(rule: Rule<TInput, TError, TContext>) => RuleGraph;
+export declare function toGraph<TInput, TError, TContext>(rule: Rule<TInput, TError, TContext>): RuleGraph;
+/**
+ * Describes a decision as a JSON-serializable graph, without running it.
+ *
+ * @example
+ * const graph = toGraph(credit.ifElse(isHighRisk, declined, approved));
+ * @caveats
+ * - Nothing is executed: decisions, predicates and selectors are never called.
+ */
+export declare function toGraph<TInput, O extends string, TContext>(decision: Decision<TInput, O, TContext>): RuleGraph;
 /**
  * Type guard to check if context exists and is of type T.
  * @template T - The expected context type
@@ -1285,7 +1276,7 @@ export declare const getNormalizedRules: <TInput, TError, TContext>(rules: Rule<
 export type { CompositionOptions, DebugOptions, Decision, DecisionResult, GraphNode, OutcomeOf, OutcomeToolkit, Predicate, PredicateResult, PredicateSafe, Resolver, Rule, RuleGraph, RuleResult, RuleSafetyOptions };
 //# sourceMappingURL=index.d.cts.map
 // ==== index.d.ts ====
-import { n as RuleResult, t as Rule } from "./rule-[hash].js";
+import { i as RuleResult, n as Decision, r as DecisionResult, t as Rule } from "./rule-[hash].js";
 type Prettify<T> = { [K in keyof T]: T[K]; } & {};
 /**
  * Configuration options for error handling behavior in rule combinators
@@ -1376,28 +1367,6 @@ type DebugOptions<TInput, TError, TContext> = {
   /** Called when rule throws */
   onError?: (error: unknown, input: TInput, context?: TContext, duration?: number) => void;
 };
-/**
- * The result of a decision: one label from a declared outcome set.
- * @template O - The outcome labels, e.g. \`"declined" | "review" | "approved"\`
- * @example
- * const result: DecisionResult<"declined" | "approved"> = { outcome: "approved" };
- */
-type DecisionResult<O extends string> = {
-  readonly outcome: O;
-};
-/**
- * A function that picks one outcome for an input. Every \`Rule\` is a
- * \`Decision<TInput, "passed" | "failed", TContext>\`.
- * @template TInput - The type of the input to decide on
- * @template O - The outcome labels it can return
- * @template TContext - The type of the context object (optional)
- * @example
- * const bureauScore: Decision<CreditApplication, CreditOutcome> = async (app) => {
- *   const score = await creditBureau.score(app.applicantId);
- *   return score >= 700 ? credit.outcome("approved") : credit.outcome("review");
- * };
- */
-type Decision<TInput, O extends string, TContext = unknown> = (input: TInput, context?: TContext) => DecisionResult<O> | Promise<DecisionResult<O>>;
 /**
  * A predicate function that evaluates an input and returns a boolean result.
  * Can be synchronous or asynchronous.
@@ -2439,8 +2408,12 @@ type GraphNode = {
   rule: GraphNode;
 };
 type RuleGraph = {
-  version: 1;
+  version: 2;
   root: GraphNode;
+  /** Present only when the root was built by a decision combinator. Declaration order. */
+  outcomes?: string[];
+  /** Present with \`outcomes\`: the toolkit's onError. */
+  onError?: string;
 };
 /**
  * Gives a rule (or predicate, accessor or getter) a readable name for
@@ -2468,12 +2441,21 @@ export declare const named: <F extends Fn>(name: string, fn: F, options?: {
  *
  * @example
  * const graph = toGraph(pipeRules([hasItems, withinLimit]));
- * // { version: 1, root: { kind: "sequence", steps: [...] } }
+ * // { version: 2, root: { kind: "sequence", steps: [...] } }
  * @caveats
  * - Nothing is executed: rules, predicates and accessors are never called.
  * - Anonymous functions are labelled \`rule #n\`; use \`named\` for a real name.
  */
-export declare const toGraph: <TInput, TError, TContext>(rule: Rule<TInput, TError, TContext>) => RuleGraph;
+export declare function toGraph<TInput, TError, TContext>(rule: Rule<TInput, TError, TContext>): RuleGraph;
+/**
+ * Describes a decision as a JSON-serializable graph, without running it.
+ *
+ * @example
+ * const graph = toGraph(credit.ifElse(isHighRisk, declined, approved));
+ * @caveats
+ * - Nothing is executed: decisions, predicates and selectors are never called.
+ */
+export declare function toGraph<TInput, O extends string, TContext>(decision: Decision<TInput, O, TContext>): RuleGraph;
 /**
  * Type guard to check if context exists and is of type T.
  * @template T - The expected context type
@@ -2568,7 +2550,7 @@ export declare const getNormalizedRules: <TInput, TError, TContext>(rules: Rule<
 export type { CompositionOptions, DebugOptions, Decision, DecisionResult, GraphNode, OutcomeOf, OutcomeToolkit, Predicate, PredicateResult, PredicateSafe, Resolver, Rule, RuleGraph, RuleResult, RuleSafetyOptions };
 //# sourceMappingURL=index.d.ts.map
 // ==== mermaid.d.cts ====
-import { t as Rule } from "./rule-[hash].cjs";
+import { n as Decision, t as Rule } from "./rule-[hash].cjs";
 type MermaidOptions = {
   /** Flow direction. Default \`"TD"\`. */
   direction?: "TD" | "LR";
@@ -2595,11 +2577,20 @@ type MermaidOptions = {
  * - Anonymous functions print as \`rule #n\`; use \`named\` for a real name.
  * - \`failEdges\` defaults to \`false\`; pass \`true\` for dotted edges to \`failed\`.
  */
-export declare const toMermaid: <TInput, TError, TContext>(rule: Rule<TInput, TError, TContext>, options?: MermaidOptions) => string;
+export declare function toMermaid<TInput, TError, TContext>(rule: Rule<TInput, TError, TContext>, options?: MermaidOptions): string;
+/**
+ * Renders a decision as Mermaid flowchart source, without running it.
+ *
+ * @example
+ * const text = toMermaid(credit.ifElse(isHighRisk, declined, approved));
+ * @caveats
+ * - Nothing is executed: decisions, predicates and selectors are never called.
+ */
+export declare function toMermaid<TInput, O extends string, TContext>(decision: Decision<TInput, O, TContext>, options?: MermaidOptions): string;
 export type { MermaidOptions };
 //# sourceMappingURL=mermaid.d.cts.map
 // ==== mermaid.d.ts ====
-import { t as Rule } from "./rule-[hash].js";
+import { n as Decision, t as Rule } from "./rule-[hash].js";
 type MermaidOptions = {
   /** Flow direction. Default \`"TD"\`. */
   direction?: "TD" | "LR";
@@ -2626,7 +2617,16 @@ type MermaidOptions = {
  * - Anonymous functions print as \`rule #n\`; use \`named\` for a real name.
  * - \`failEdges\` defaults to \`false\`; pass \`true\` for dotted edges to \`failed\`.
  */
-export declare const toMermaid: <TInput, TError, TContext>(rule: Rule<TInput, TError, TContext>, options?: MermaidOptions) => string;
+export declare function toMermaid<TInput, TError, TContext>(rule: Rule<TInput, TError, TContext>, options?: MermaidOptions): string;
+/**
+ * Renders a decision as Mermaid flowchart source, without running it.
+ *
+ * @example
+ * const text = toMermaid(credit.ifElse(isHighRisk, declined, approved));
+ * @caveats
+ * - Nothing is executed: decisions, predicates and selectors are never called.
+ */
+export declare function toMermaid<TInput, O extends string, TContext>(decision: Decision<TInput, O, TContext>, options?: MermaidOptions): string;
 export type { MermaidOptions };
 //# sourceMappingURL=mermaid.d.ts.map
 // ==== rule-[hash].d.cts ====
@@ -2660,6 +2660,28 @@ type RuleResult<TError = string> = {
   readonly caughtCause?: unknown;
 };
 /**
+ * The result of a decision: one label from a declared outcome set.
+ * @template O - The outcome labels, e.g. \`"declined" | "review" | "approved"\`
+ * @example
+ * const result: DecisionResult<"declined" | "approved"> = { outcome: "approved" };
+ */
+type DecisionResult<O extends string> = {
+  readonly outcome: O;
+};
+/**
+ * A function that picks one outcome for an input. Every \`Rule\` is a
+ * \`Decision<TInput, "passed" | "failed", TContext>\`.
+ * @template TInput - The type of the input to decide on
+ * @template O - The outcome labels it can return
+ * @template TContext - The type of the context object (optional)
+ * @example
+ * const bureauScore: Decision<CreditApplication, CreditOutcome> = async (app) => {
+ *   const score = await creditBureau.score(app.applicantId);
+ *   return score >= 700 ? credit.outcome("approved") : credit.outcome("review");
+ * };
+ */
+type Decision<TInput, O extends string, TContext = unknown> = (input: TInput, context?: TContext) => DecisionResult<O> | Promise<DecisionResult<O>>;
+/**
  * A function that validates an input and returns a RuleResult.
  * @template TInput - The type of the input to validate
  * @template TError - The type of the error (defaults to string)
@@ -2675,7 +2697,7 @@ type RuleResult<TError = string> = {
  * };
  */
 type Rule<TInput, TError = string, TContext = unknown> = (input: TInput, context?: TContext) => Promise<RuleResult<TError>> | RuleResult<TError>;
-export { RuleResult as n, Rule as t };
+export { RuleResult as i, Decision as n, DecisionResult as r, Rule as t };
 //# sourceMappingURL=rule-[hash].d.cts.map
 // ==== rule-[hash].d.ts ====
 /**
@@ -2708,6 +2730,28 @@ type RuleResult<TError = string> = {
   readonly caughtCause?: unknown;
 };
 /**
+ * The result of a decision: one label from a declared outcome set.
+ * @template O - The outcome labels, e.g. \`"declined" | "review" | "approved"\`
+ * @example
+ * const result: DecisionResult<"declined" | "approved"> = { outcome: "approved" };
+ */
+type DecisionResult<O extends string> = {
+  readonly outcome: O;
+};
+/**
+ * A function that picks one outcome for an input. Every \`Rule\` is a
+ * \`Decision<TInput, "passed" | "failed", TContext>\`.
+ * @template TInput - The type of the input to decide on
+ * @template O - The outcome labels it can return
+ * @template TContext - The type of the context object (optional)
+ * @example
+ * const bureauScore: Decision<CreditApplication, CreditOutcome> = async (app) => {
+ *   const score = await creditBureau.score(app.applicantId);
+ *   return score >= 700 ? credit.outcome("approved") : credit.outcome("review");
+ * };
+ */
+type Decision<TInput, O extends string, TContext = unknown> = (input: TInput, context?: TContext) => DecisionResult<O> | Promise<DecisionResult<O>>;
+/**
  * A function that validates an input and returns a RuleResult.
  * @template TInput - The type of the input to validate
  * @template TError - The type of the error (defaults to string)
@@ -2723,6 +2767,6 @@ type RuleResult<TError = string> = {
  * };
  */
 type Rule<TInput, TError = string, TContext = unknown> = (input: TInput, context?: TContext) => Promise<RuleResult<TError>> | RuleResult<TError>;
-export { RuleResult as n, Rule as t };
+export { RuleResult as i, Decision as n, DecisionResult as r, Rule as t };
 //# sourceMappingURL=rule-[hash].d.ts.map"
 `;

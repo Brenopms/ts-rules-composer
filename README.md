@@ -315,7 +315,7 @@ const pipeline = pipeRules<User, string>([
   ),
 ]);
 
-const graph = toGraph(pipeline); // JSON-serializable: { version: 1, root: { kind: "sequence", ... } }
+const graph = toGraph(pipeline); // JSON-serializable: { version: 2, root: { kind: "sequence", ... } }
 const text = toMermaid(pipeline); // Mermaid flowchart source
 ```
 
