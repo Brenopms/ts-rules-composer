@@ -22,6 +22,18 @@ const above = (limit: number) =>
     (app: App) => app.debtToIncome > limit,
   );
 
+/** An override whose `onError` changes after its first read, counting reads. */
+const shiftingOverride = () => {
+  const read = vi.fn();
+  const override = {
+    get onError() {
+      read();
+      return read.mock.calls.length === 1 ? "declined" : "approved";
+    },
+  } as { readonly onError: "declined" | "review" | "approved" };
+  return { override, read };
+};
+
 describe("toGraph on a toolkit ifElse", () => {
   it("describes bare-string sides as outcome leaves under a branch", () => {
     const policy = credit.ifElse(above(50), "declined", "approved");
@@ -99,6 +111,25 @@ describe("toGraph on a toolkit ifElse", () => {
       decision: { onError: "review", localOnError: "review" },
     });
     expect(toGraph(policy).onError).toBe("review");
+  });
+
+  it("reads the override once, for both the run and the raw node", async () => {
+    const { override, read } = shiftingOverride();
+    const policy = credit.ifElse(
+      () => {
+        throw new Error("predicate down");
+      },
+      "approved",
+      "approved",
+      override,
+    );
+
+    expect(await policy({ debtToIncome: 0 })).toEqual({ outcome: "declined" });
+    expect(readNode(policy)).toMatchObject({
+      decision: { localOnError: "declined" },
+    });
+    expect(toGraph(policy).onError).toBe("review");
+    expect(read).toHaveBeenCalledOnce();
   });
 
   it("gives a rule root neither outcomes nor onError", () => {
@@ -275,6 +306,25 @@ describe("toGraph on a toolkit match", () => {
     expect(
       readNode(credit.match(byEmployment, {}, "review")),
     ).not.toHaveProperty("decision.localOnError");
+  });
+
+  it("reads the override once, for both the run and the raw node", async () => {
+    const { override, read } = shiftingOverride();
+    const employment = credit.match(
+      () => {
+        throw new Error("accessor down");
+      },
+      {},
+      "approved",
+      override,
+    );
+
+    expect(await employment({})).toEqual({ outcome: "declined" });
+    expect(readNode(employment)).toMatchObject({
+      decision: { localOnError: "declined" },
+    });
+    expect(toGraph(employment).onError).toBe("review");
+    expect(read).toHaveBeenCalledOnce();
   });
 
   it("lists a match and a nested toolkit node in decisionIds", () => {
