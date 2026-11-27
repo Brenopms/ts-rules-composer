@@ -1,9 +1,12 @@
-import type { GraphNode } from "../graph/node";
-import { toGraph } from "../graph/to-graph";
+import type { GraphNode, RuleGraph } from "../graph/node";
+import { buildGraph } from "../graph/to-graph";
 import type { Decision, Rule } from "../types";
 
-/** A point control leaves a fragment from, with an optional edge label. */
-type Port = { id: string; label?: string };
+/**
+ * A point control leaves a fragment from, with an optional edge label.
+ * `ends` marks a decision outcome: the path stops there.
+ */
+type Port = { id: string; label?: string; ends?: true };
 
 /**
  * A drawn piece of the diagram. `exits` continue to whatever comes next when the
@@ -324,6 +327,14 @@ const drawEffect = (
     exits: [{ id }],
   });
 
+/** A decision outcome: a stadium that ends its path. */
+const drawOutcome = (node: NodeOf<"outcome">, { id, text }: Ctx): Fragment =>
+  fragment({
+    nodes: [`  ${id}(["${escapeLabel(text(node.outcome))}"])`],
+    entry: id,
+    exits: [{ id, ends: true }],
+  });
+
 const drawLeaf = (node: NodeOf<"rule">, { id, text, badges }: Ctx): Fragment =>
   fragment({
     nodes: [box(id, withBadges(text(node.label), badges))],
@@ -362,6 +373,8 @@ const draw = (
       return drawField(node, ctx);
     case "effect":
       return drawEffect(node, ctx);
+    case "outcome":
+      return drawOutcome(node, ctx);
     default:
       // Every other kind is a leaf rule, including kinds this printer does not know.
       return drawLeaf(node, ctx);
@@ -411,20 +424,54 @@ export function toMermaid(
     verbose = false,
     maxLabelLength = 40,
   } = options;
-  const body = render(toGraph(fn).root, {
-    verbose,
-    maxLabelLength: labelLimit(maxLabelLength),
-  });
-  const fails = failEdges ? body.fails : [];
+  const settings = { verbose, maxLabelLength: labelLimit(maxLabelLength) };
+  const { graph } = buildGraph(fn);
+  const body = render(graph.root, settings);
+  const { nodes, edges } = graph.outcomes
+    ? decisionEnds(body, graph.outcomes, settings)
+    : ruleEnds(body, failEdges);
   return [
     `flowchart ${direction(requestedDirection)}`,
     "  input([input])",
     ...body.nodes,
-    "  passed([passed])",
-    ...(fails.length > 0 ? ["  failed([failed])"] : []),
+    ...nodes,
     `  input --> ${body.entry}`,
     ...body.edges,
-    ...linkAll(body.exits, "passed"),
-    ...linkAll(fails, "failed", "-.->", "fail"),
+    ...edges,
   ].join("\n");
 }
+
+type Ends = { nodes: string[]; edges: string[] };
+
+/** Rule diagram: exits go to `passed`; fail ports to `failed` only with `failEdges`. */
+const ruleEnds = (body: Fragment, failEdges: boolean): Ends => {
+  const fails = failEdges ? body.fails : [];
+  return {
+    nodes: [
+      "  passed([passed])",
+      ...(fails.length > 0 ? ["  failed([failed])"] : []),
+    ],
+    edges: [
+      ...linkAll(body.exits, "passed"),
+      ...linkAll(fails, "failed", "-.->", "fail"),
+    ],
+  };
+};
+
+/**
+ * Decision diagram: outcome stadiums already end their path. Any other exit
+ * goes to one terminal naming the declared outcome set. Decisions never fail,
+ * so fail ports are not drawn.
+ */
+const decisionEnds = (
+  body: Fragment,
+  outcomes: NonNullable<RuleGraph["outcomes"]>,
+  settings: RenderSettings,
+): Ends => {
+  const open = body.exits.filter((port) => !port.ends);
+  const label = clip(settings.maxLabelLength, outcomes.join(" / "));
+  return {
+    nodes: open.length > 0 ? [`  outcome(["${escapeLabel(label)}"])`] : [],
+    edges: linkAll(open, "outcome"),
+  };
+};

@@ -4,6 +4,7 @@
  * object and property is read once. What runs later needs no checks of its
  * own. See docs/adr/0001-decisions-build-run-pipeline.md. Internal.
  */
+import { attachNode } from "../graph/node";
 import type { Decision, Resolver } from "../types";
 import type { Branch, Decisions, Override } from "./define-outcomes";
 import { display, expectBoolean, isObject, toList } from "./guards";
@@ -35,7 +36,7 @@ export const localOnError = <O extends string>(
   return value;
 };
 
-/** A bare-string branch becomes a constant decision, validated now. */
+/** A bare-string branch becomes a constant decision, validated now, recorded as an outcome leaf. */
 export const toDecision = <O extends string, TInput, TContext>(
   set: OutcomeSet<O>,
   where: string,
@@ -52,7 +53,10 @@ export const toDecision = <O extends string, TInput, TContext>(
   if (!set.isDeclared(value)) {
     throw notDeclared(where, value);
   }
-  return () => ({ outcome: value });
+  return attachNode(() => ({ outcome: value }), {
+    kind: "outcome",
+    outcome: value,
+  });
 };
 
 /**

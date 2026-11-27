@@ -1,3 +1,4 @@
+import { attachNode, type DecisionMarker } from "../graph/node";
 import type { Decision, DecisionResult, Predicate, Resolver } from "../types";
 import { branch } from "./branch";
 import { foldParallel, foldSequential } from "./combine";
@@ -308,6 +309,13 @@ export const defineOutcomes = <const T extends readonly [string, ...string[]]>(
   }
 
   const set: OutcomeSet<O> = { onError, isDeclared };
+
+  /** The graph mark for a node of this toolkit; `fallback` is its local onError. */
+  const markerFor = (fallback: O): DecisionMarker => ({
+    outcomes: declared,
+    onError,
+    ...(fallback === onError ? {} : { localOnError: fallback }),
+  });
   const resolvers = builtInResolvers(declared);
   const precedence = resolvers.strongestWins;
 
@@ -388,22 +396,31 @@ export const defineOutcomes = <const T extends readonly [string, ...string[]]>(
       const yes = toDecision(set, "ifElse: whenTrue", whenTrue);
       const no = toDecision(set, "ifElse: whenFalse", whenFalse);
       const fallback = localOnError(set, "ifElse", override);
-      return async (input, context) => {
-        const condition = await runSafely(
-          () => predicate(input, context),
-          toBoolean,
-          hook,
-        );
-        if (!condition.ok) {
-          return { outcome: fallback };
-        }
-        return runDecision(
-          branch(condition.value, yes, no),
-          input,
-          context,
-          fallback,
-        );
-      };
+      return attachNode(
+        async (input, context) => {
+          const condition = await runSafely(
+            () => predicate(input, context),
+            toBoolean,
+            hook,
+          );
+          if (!condition.ok) {
+            return { outcome: fallback };
+          }
+          return runDecision(
+            branch(condition.value, yes, no),
+            input,
+            context,
+            fallback,
+          );
+        },
+        {
+          kind: "branch",
+          test: predicate,
+          ifTrue: yes,
+          ifFalse: no,
+          decision: markerFor(fallback),
+        },
+      );
     },
     match: (accessor, cases, defaultCase, override) => {
       checkFunction(accessor, "match: accessor");
