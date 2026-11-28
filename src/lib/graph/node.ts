@@ -80,6 +80,8 @@ export type RawNode =
       default?: Fn;
       /** `match`'s default error value, kept raw (never stringified here). */
       defaultError?: unknown;
+      /** Set by a decision toolkit's `match`, which always has a default. */
+      decision?: DecisionMarker;
     }
   | {
       /** `every` is `all` (every rule must pass), `oneOf` is `any`. */

@@ -22,6 +22,18 @@ const above = (limit: number) =>
     (app: App) => app.debtToIncome > limit,
   );
 
+/** An override whose `onError` changes after its first read, counting reads. */
+const shiftingOverride = () => {
+  const read = vi.fn();
+  const override = {
+    get onError() {
+      read();
+      return read.mock.calls.length === 1 ? "declined" : "approved";
+    },
+  } as { readonly onError: "declined" | "review" | "approved" };
+  return { override, read };
+};
+
 describe("toGraph on a toolkit ifElse", () => {
   it("describes bare-string sides as outcome leaves under a branch", () => {
     const policy = credit.ifElse(above(50), "declined", "approved");
@@ -101,6 +113,25 @@ describe("toGraph on a toolkit ifElse", () => {
     expect(toGraph(policy).onError).toBe("review");
   });
 
+  it("reads the override once, for both the run and the raw node", async () => {
+    const { override, read } = shiftingOverride();
+    const policy = credit.ifElse(
+      () => {
+        throw new Error("predicate down");
+      },
+      "approved",
+      "approved",
+      override,
+    );
+
+    expect(await policy({ debtToIncome: 0 })).toEqual({ outcome: "declined" });
+    expect(readNode(policy)).toMatchObject({
+      decision: { localOnError: "declined" },
+    });
+    expect(toGraph(policy).onError).toBe("review");
+    expect(read).toHaveBeenCalledOnce();
+  });
+
   it("gives a rule root neither outcomes nor onError", () => {
     const graph = toGraph(
       ifElse(
@@ -174,6 +205,203 @@ describe("toGraph on a toolkit ifElse", () => {
 
     expect(test).not.toHaveBeenCalled();
     expect(decide).not.toHaveBeenCalled();
+  });
+});
+
+describe("toGraph on a toolkit match", () => {
+  type Applicant = { employment: string };
+  const byEmployment = named("employment", (app: Applicant) => app.employment);
+  const bureauScore: Decision<
+    Applicant,
+    "declined" | "review" | "approved"
+  > = () => credit.outcome("review");
+
+  it("describes outcome cases, decision cases and the default under a switch", () => {
+    const employment = credit.match(
+      byEmployment,
+      { employed: "approved", contractor: bureauScore, unemployed: "declined" },
+      "review",
+    );
+
+    expect(toGraph(employment)).toStrictEqual({
+      version: 2,
+      root: {
+        id: "root",
+        kind: "switch",
+        selector: "employment",
+        cases: [
+          {
+            key: "employed",
+            node: { id: "root.cases.0", kind: "outcome", outcome: "approved" },
+          },
+          {
+            key: "contractor",
+            node: { id: "root.cases.1", kind: "rule", label: "bureauScore" },
+          },
+          {
+            key: "unemployed",
+            node: { id: "root.cases.2", kind: "outcome", outcome: "declined" },
+          },
+        ],
+        default: { id: "root.default", kind: "outcome", outcome: "review" },
+      },
+      outcomes: ["declined", "review", "approved"],
+      onError: "review",
+    });
+  });
+
+  it("always records the default, even with no cases", () => {
+    const root = toGraph(credit.match(byEmployment, {}, bureauScore)).root;
+
+    expect(root).toStrictEqual({
+      id: "root",
+      kind: "switch",
+      selector: "employment",
+      cases: [],
+      default: { id: "root.default", kind: "rule", label: "bureauScore" },
+    });
+  });
+
+  it("labels unnamed cases and the default `decision #n`, the selector `rule #n`", () => {
+    const employment = credit.match(
+      (app: Applicant) => app.employment,
+      // An inline arrow would take its key as its name; an array element has none.
+      { employed: [() => credit.outcome("approved")][0] },
+      () => credit.outcome("review"),
+    );
+
+    expect(toGraph(employment).root).toMatchObject({
+      selector: "rule #1",
+      cases: [{ node: { kind: "rule", label: "decision #2" } }],
+      default: { kind: "rule", label: "decision #3" },
+    });
+  });
+
+  it("keeps case keys in Reflect.ownKeys order, symbols as Symbol(desc)", () => {
+    const vip = Symbol("vip");
+    const tiers = credit.match(
+      (app: Applicant) => app.employment,
+      { b: "review", 2: "declined", [vip]: "approved", a: "approved" },
+      "review",
+    );
+    const root = toGraph(tiers).root as { cases: { key: string }[] };
+
+    expect(root.cases.map((entry) => entry.key)).toEqual([
+      "2",
+      "b",
+      "a",
+      "Symbol(vip)",
+    ]);
+  });
+
+  it("keeps the toolkit's onError on the graph, the override on the raw node", () => {
+    const overridden = credit.match(byEmployment, {}, "review", {
+      onError: "declined",
+    });
+
+    expect(toGraph(overridden).onError).toBe("review");
+    expect(readNode(overridden)).toMatchObject({
+      decision: { onError: "review", localOnError: "declined" },
+    });
+    expect(
+      readNode(credit.match(byEmployment, {}, "review")),
+    ).not.toHaveProperty("decision.localOnError");
+  });
+
+  it("reads the override once, for both the run and the raw node", async () => {
+    const { override, read } = shiftingOverride();
+    const employment = credit.match(
+      () => {
+        throw new Error("accessor down");
+      },
+      {},
+      "approved",
+      override,
+    );
+
+    expect(await employment({})).toEqual({ outcome: "declined" });
+    expect(readNode(employment)).toMatchObject({
+      decision: { localOnError: "declined" },
+    });
+    expect(toGraph(employment).onError).toBe("review");
+    expect(read).toHaveBeenCalledOnce();
+  });
+
+  it("lists a match and a nested toolkit node in decisionIds", () => {
+    const employment = credit.match(
+      byEmployment,
+      {
+        employed: credit.ifElse(
+          (app: Applicant) => app.employment === "probation",
+          "review",
+          "approved",
+        ),
+      },
+      "review",
+    );
+
+    expect([...buildGraph(employment).decisionIds]).toEqual([
+      "root",
+      "root.cases.0",
+    ]);
+  });
+
+  it("keeps a toolkit match inside a rule pipeline a leaf", () => {
+    const passing = defineOutcomes(["passed"], { onError: "passed" });
+    const pipeline = pipeRules([passing.match(() => "a", {}, "passed")]);
+
+    expect(toGraph(pipeline).root).toMatchObject({
+      steps: [{ kind: "rule", label: "rule #1" }],
+    });
+  });
+
+  it("never runs the accessor or the cases", () => {
+    const accessor = vi.fn((app: Applicant) => app.employment);
+    const decide = vi.fn(() => credit.outcome("review"));
+    toGraph(credit.match(accessor, { employed: decide }, decide));
+
+    expect(accessor).not.toHaveBeenCalled();
+    expect(decide).not.toHaveBeenCalled();
+  });
+
+  describe("read-once capture", () => {
+    it("reads a getter-backed case once, across construction, graph and run", async () => {
+      const read = vi.fn(() => "approved" as const);
+      const cases = {
+        get employed() {
+          return read();
+        },
+      };
+      const employment = credit.match(byEmployment, cases, "review");
+      const graph = toGraph(employment);
+
+      expect(await employment({ employment: "employed" })).toEqual({
+        outcome: "approved",
+      });
+      expect(graph.root).toMatchObject({
+        cases: [{ key: "employed", node: { outcome: "approved" } }],
+      });
+      expect(read).toHaveBeenCalledOnce();
+    });
+
+    it("ignores a case replaced after construction, in the graph and a run", async () => {
+      const cases: Record<string, "declined" | "review" | "approved"> = {
+        employed: "approved",
+      };
+      const employment = credit.match(byEmployment, cases, "review");
+      cases.employed = "declined";
+      cases.unemployed = "declined";
+
+      expect(toGraph(employment).root).toMatchObject({
+        cases: [{ key: "employed", node: { outcome: "approved" } }],
+      });
+      expect(
+        (toGraph(employment).root as { cases: unknown[] }).cases,
+      ).toHaveLength(1);
+      expect(await employment({ employment: "employed" })).toEqual({
+        outcome: "approved",
+      });
+    });
   });
 });
 

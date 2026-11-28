@@ -137,16 +137,27 @@ const createBuilder = (mode: Role) => {
       }
       case "switch": {
         const selector = labelOf(raw.selector, readLabel(raw.selector));
+        const side = sideRole(raw.decision);
+        if (raw.decision) {
+          decisionIds.add(id);
+        }
         return {
           id,
           kind: "switch",
           selector,
           cases: Reflect.ownKeys(raw.cases).map((key, index) => ({
             key: String(key),
-            node: build(raw.cases[key] as Fn, `${id}.cases.${index}`),
+            node: build(
+              raw.cases[key] as Fn,
+              `${id}.cases.${index}`,
+              undefined,
+              side,
+            ),
           })),
           ...(raw.default
-            ? { default: build(raw.default, `${id}.default`) }
+            ? {
+                default: build(raw.default, `${id}.default`, undefined, side),
+              }
             : {}),
           ...(raw.defaultError === undefined
             ? {}

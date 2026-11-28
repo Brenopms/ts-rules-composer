@@ -429,27 +429,38 @@ export const defineOutcomes = <const T extends readonly [string, ...string[]]>(
       checkFunction(accessor, "match: accessor");
       const table = toCaseTable(set, cases);
       const otherwise = toDecision(set, "match: defaultCase", defaultCase);
-      const fallback = localOnError(set, "match", override);
-      return async (input, context) => {
-        const key = await runSafely(
-          () => accessor(input, context),
-          toKey,
-          hook,
-        );
-        if (!key.ok) {
-          return { outcome: fallback };
-        }
-        return runDecision(
-          switchCase(
-            key.value,
-            (k) => (Object.hasOwn(table, k) ? table[k] : undefined),
-            otherwise,
-          ),
-          input,
-          context,
-          fallback,
-        );
-      };
+      const local = suppliedOnError(set, "match", override);
+      const fallback = local ?? onError;
+      // The node shares the checked table, so the graph never reads `cases` again.
+      return attachNode(
+        async (input, context) => {
+          const key = await runSafely(
+            () => accessor(input, context),
+            toKey,
+            hook,
+          );
+          if (!key.ok) {
+            return { outcome: fallback };
+          }
+          return runDecision(
+            switchCase(
+              key.value,
+              (k) => (Object.hasOwn(table, k) ? table[k] : undefined),
+              otherwise,
+            ),
+            input,
+            context,
+            fallback,
+          );
+        },
+        {
+          kind: "switch",
+          selector: accessor,
+          cases: table,
+          default: otherwise,
+          decision: markerFor(local),
+        },
+      );
     },
     combine: (decisions, options) => {
       const children = toChildren("combine", decisions);
